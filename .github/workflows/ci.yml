@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  api:
+    name: API (NestJS)
+    runs-on: ubuntu-latest
+    services:
+      # Throwaway database that only exists while this job runs
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: customer_support_logistics
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: ci_only_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://app:ci_only_password@localhost:5432/customer_support_logistics
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./apps/api run lint
+      - run: pnpm --filter ./apps/api run test
+      - name: Build
+        run: pnpm --filter ./apps/api run build
+
+  client:
+    name: Client (React + Vite PWA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./apps/client run lint
+      - run: pnpm --filter ./apps/client run format:check
+      - run: pnpm --filter ./apps/client run test
+      - name: Type-check and build
+        run: pnpm --filter ./apps/client run build
+
+  crm:
+    name: CRM (Next.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter ./apps/crm run lint
+      - name: Build
+        run: pnpm --filter ./apps/crm run build
