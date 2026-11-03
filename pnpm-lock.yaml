@@ -216,6 +216,18 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
+  packages/shared-types:
+    devDependencies:
+      '@csl/config':
+        specifier: workspace:*
+        version: link:../config
+      eslint:
+        specifier: 10.14.0
+        version: 10.14.0(supports-color@7.2.0)
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+
 packages:
 
   '@cacheable/memory@2.2.0':
