@@ -1,12 +1,13 @@
 # customer-support-logistics
+
 A unified customer support and logistics platform for e-commerce delivery issues. Connects customers and support agents through a two-sided web/mobile app interface. Uses Vonage APIs to bridge real-time video, SMS, and phone calls with couriers without an app.
 
 ## Requirements
 
-| Tool    | Version   | Pinned in                       |
-| ------- | --------- | ------------------------------- |
-| Node.js | 22        | `.nvmrc`, `engines.node`        |
-| pnpm    | 12.16.1   | `packageManager` (package.json) |
+| Tool    | Version | Pinned in                       |
+| ------- | ------- | ------------------------------- |
+| Node.js | 22      | `.nvmrc`, `engines.node`        |
+| pnpm    | 12.16.1 | `packageManager` (package.json) |
 
 pnpm is provided by [Corepack](https://nodejs.org/api/corepack.html), which ships with Node.js:
 
