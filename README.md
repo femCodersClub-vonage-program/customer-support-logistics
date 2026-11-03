@@ -1,2 +1,51 @@
 # customer-support-logistics
 A unified customer support and logistics platform for e-commerce delivery issues. Connects customers and support agents through a two-sided web/mobile app interface. Uses Vonage APIs to bridge real-time video, SMS, and phone calls with couriers without an app.
+
+## Requirements
+
+| Tool    | Version   | Pinned in                       |
+| ------- | --------- | ------------------------------- |
+| Node.js | 22        | `.nvmrc`, `engines.node`        |
+| pnpm    | 12.16.1   | `packageManager` (package.json) |
+
+pnpm is provided by [Corepack](https://nodejs.org/api/corepack.html), which ships with Node.js:
+
+```sh
+nvm use
+corepack enable
+```
+
+## Getting started
+
+```sh
+pnpm install
+pnpm build
+```
+
+## Monorepo structure
+
+```
+apps/
+  api/            NestJS backend
+  client/         React PWA for customers
+  crm/            Next.js CRM for support agents
+packages/
+  api-client/     Shared API client
+  shared-types/   Shared TypeScript types
+```
+
+Workspaces are managed with pnpm (`pnpm-workspace.yaml`) and tasks are orchestrated with [Turborepo](https://turborepo.com) (`turbo.json`).
+
+## Scripts
+
+| Command             | Description                              |
+| ------------------- | ---------------------------------------- |
+| `pnpm dev`          | Run every app in development mode        |
+| `pnpm build`        | Build every app and package              |
+| `pnpm lint`         | Lint every app and package               |
+| `pnpm typecheck`    | Type-check every app and package         |
+| `pnpm test`         | Run every test suite                     |
+| `pnpm format`       | Format the whole repo with Prettier      |
+| `pnpm format:check` | Check formatting without writing changes |
+
+To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
