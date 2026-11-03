@@ -1,4 +1,6 @@
 pnpm-lock.yaml
+.claude/
+.github/
 .turbo/
 dist/
 build/

@@ -15,7 +15,9 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@csl/config": "workspace:*",
     "prettier": "3.9.10",
     "turbo": "2.11.10"
-  }
+  },
+  "prettier": "@csl/config/prettier"
 }
