@@ -37,6 +37,36 @@ packages/
 
 Workspaces are managed with pnpm (`pnpm-workspace.yaml`) and tasks are orchestrated with [Turborepo](https://turborepo.com) (`turbo.json`).
 
+## Shared configuration
+
+TypeScript, ESLint and Prettier rules live in `packages/config` (`@csl/config`). Apps and packages extend these presets instead of defining their own.
+
+| Preset       | TypeScript                         | ESLint                     |
+| ------------ | ---------------------------------- | -------------------------- |
+| Base         | `@csl/config/tsconfig/base.json`   | `@csl/config/eslint/base`  |
+| NestJS       | `@csl/config/tsconfig/node.json`   | `@csl/config/eslint/node`  |
+| React (Vite) | `@csl/config/tsconfig/react.json`  | `@csl/config/eslint/react` |
+| Next.js      | `@csl/config/tsconfig/nextjs.json` | `@csl/config/eslint/next`  |
+
+Add `"@csl/config": "workspace:*"` to the workspace's `devDependencies`, then:
+
+```jsonc
+// tsconfig.json
+{
+  "extends": "@csl/config/tsconfig/react.json",
+  "include": ["src"],
+}
+```
+
+```js
+// eslint.config.js
+import config from '@csl/config/eslint/react';
+
+export default config;
+```
+
+Prettier is configured once at the root through the `prettier` field in `package.json`.
+
 ## Scripts
 
 | Command             | Description                              |

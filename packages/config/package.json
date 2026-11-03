@@ -1,0 +1,46 @@
+{
+  "name": "@csl/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig/base.json": "./tsconfig/base.json",
+    "./tsconfig/node.json": "./tsconfig/node.json",
+    "./tsconfig/react.json": "./tsconfig/react.json",
+    "./tsconfig/nextjs.json": "./tsconfig/nextjs.json",
+    "./eslint/base": "./eslint/base.js",
+    "./eslint/node": "./eslint/node.js",
+    "./eslint/react": "./eslint/react.js",
+    "./eslint/next": "./eslint/next.js",
+    "./prettier": "./prettier.js"
+  },
+  "files": [
+    "tsconfig",
+    "eslint",
+    "prettier.js"
+  ],
+  "scripts": {
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@eslint-react/eslint-plugin": "5.28.8",
+    "@eslint/js": "10.0.1",
+    "@next/eslint-plugin-next": "16.4.3",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-import-resolver-typescript": "4.4.5",
+    "eslint-plugin-import-x": "4.17.1",
+    "eslint-plugin-react-refresh": "0.5.7",
+    "globals": "17.14.0",
+    "typescript-eslint": "8.72.1"
+  },
+  "peerDependencies": {
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.0",
+    "typescript": "~6.0.0"
+  },
+  "devDependencies": {
+    "eslint": "10.14.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3"
+  }
+}
