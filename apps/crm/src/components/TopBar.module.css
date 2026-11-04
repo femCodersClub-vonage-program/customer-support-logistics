@@ -1,0 +1,19 @@
+.bar {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 24px;
+  background-color: var(--color-dark-bg);
+  color: var(--color-surface);
+}
+
+.brand {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.accent {
+  color: var(--color-dark-accent);
+}

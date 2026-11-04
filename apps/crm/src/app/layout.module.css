@@ -1,0 +1,15 @@
+.shell {
+  display: grid;
+  grid-template-areas:
+    'top top'
+    'nav content';
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+}
+
+.content {
+  grid-area: content;
+  padding: 24px;
+  overflow: auto;
+}
