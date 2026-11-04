@@ -3,6 +3,7 @@ node_modules/
 
 .turbo/
 dist/
+dev-dist/
 build/
 .next/
 out/
