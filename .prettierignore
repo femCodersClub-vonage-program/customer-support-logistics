@@ -3,6 +3,7 @@ pnpm-lock.yaml
 .github/
 .turbo/
 dist/
+dev-dist/
 build/
 .next/
 out/

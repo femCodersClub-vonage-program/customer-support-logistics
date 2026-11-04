@@ -9,6 +9,7 @@ export default defineConfig([
   globalIgnores([
     '**/node_modules/',
     '**/dist/',
+    '**/dev-dist/',
     '**/build/',
     '**/out/',
     '**/coverage/',
