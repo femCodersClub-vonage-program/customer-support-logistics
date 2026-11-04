@@ -61,7 +61,7 @@ jobs:
       - run: pnpm --filter ./apps/client run format:check
       - run: pnpm --filter ./apps/client run test
       - name: Type-check and build
-        run: pnpm --filter ./apps/client run build
+        run: pnpm exec turbo run build --filter=./apps/client
 
   crm:
     name: CRM (Next.js)
