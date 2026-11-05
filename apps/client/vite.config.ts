@@ -10,9 +10,13 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon-180x180.png'],
+        workbox: {
+          navigateFallbackDenylist: [/^\/api\//],
+        },
         manifest: {
+          id: '/',
           name: 'Customer Support Logistics',
           short_name: 'CSL',
           description: 'Track your orders, report incidents and join the mediation call.',
@@ -34,6 +38,22 @@ export default defineConfig(({ mode }) => {
               purpose: 'maskable',
             },
           ],
+          screenshots: [
+            {
+              src: 'screenshots/orders-narrow.png',
+              sizes: '1080x1920',
+              type: 'image/png',
+              form_factor: 'narrow',
+              label: 'Your orders on a phone',
+            },
+            {
+              src: 'screenshots/orders-wide.png',
+              sizes: '1920x1080',
+              type: 'image/png',
+              form_factor: 'wide',
+              label: 'Your orders on a larger screen',
+            },
+          ],
         },
         devOptions: {
           enabled: true,
@@ -41,6 +61,7 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     server: {
+      allowedHosts: ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app', '.ngrok.dev'],
       proxy: {
         '/api': {
           target: env.API_URL ?? 'http://localhost:3000',
