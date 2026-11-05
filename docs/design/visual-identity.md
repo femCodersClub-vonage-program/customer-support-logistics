@@ -1,7 +1,5 @@
 # Visual identity — Customer PWA & Agent CRM
 
-Status: draft. The palette is provisional and requires approval before implementation.
-
 The proposed palette takes inspiration from Vonage Vivid design tokens while maintaining an independent product identity.
 
 ## 1. Colour palette
