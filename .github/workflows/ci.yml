@@ -41,10 +41,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./apps/api run lint
-      - run: pnpm --filter ./apps/api run test
+      - run: pnpm exec turbo run lint --filter=./apps/api
+      - run: pnpm exec turbo run test --filter=./apps/api
       - name: Build
-        run: pnpm --filter ./apps/api run build
+        run: pnpm exec turbo run build --filter=./apps/api
 
   client:
     name: Client (React + Vite PWA)
@@ -57,9 +57,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./apps/client run lint
+      - run: pnpm exec turbo run lint --filter=./apps/client
       - run: pnpm --filter ./apps/client run format:check
-      - run: pnpm --filter ./apps/client run test
+      - run: pnpm exec turbo run test --filter=./apps/client
       - name: Type-check and build
         run: pnpm exec turbo run build --filter=./apps/client
 
@@ -74,8 +74,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./apps/crm run lint
+      - run: pnpm exec turbo run lint --filter=./apps/crm
       - run: pnpm --filter ./apps/crm run format:check
-      - run: pnpm --filter ./apps/crm run test
+      - run: pnpm exec turbo run test --filter=./apps/crm
       - name: Build
         run: pnpm exec turbo run build --filter=./apps/crm
