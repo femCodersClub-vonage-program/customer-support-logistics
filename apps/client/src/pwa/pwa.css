@@ -1,0 +1,91 @@
+.pwa-card {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border-card);
+  border-radius: 0.75rem;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.pwa-card p,
+.pwa-card ol {
+  margin: 0;
+}
+
+.pwa-card__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.pwa-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.pwa-toast-region {
+  position: fixed;
+  inset-inline: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 10;
+}
+
+.pwa-card--toast {
+  max-width: 28rem;
+  margin: 0 auto;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 15%);
+}
+
+.pwa-button {
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 0.5rem;
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pwa-button:hover {
+  border-color: var(--color-primary-hover);
+  background-color: var(--color-primary-hover);
+}
+
+.pwa-button:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.pwa-button--secondary {
+  border-color: var(--color-border-button-secondary);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.pwa-button--secondary:hover {
+  border-color: var(--color-text);
+  background-color: var(--color-primary-soft);
+}
+
+.install-prompt__steps {
+  padding-inline-start: 1.25rem;
+}
+
+.install-prompt__icon {
+  vertical-align: text-bottom;
+  color: var(--color-primary);
+}
+
+.offline-banner {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-dark-bg);
+  color: var(--color-surface);
+  text-align: center;
+}
