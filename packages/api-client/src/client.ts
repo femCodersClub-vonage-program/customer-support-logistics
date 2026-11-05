@@ -34,7 +34,8 @@ async function parseBody(response: Response): Promise<unknown> {
 
 export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions): ApiClient {
   const base = baseUrl.replace(/\/+$/, '');
-  const fetchFn: typeof globalThis.fetch = fetch ?? ((input, init) => globalThis.fetch(input, init));
+  const fetchFn: typeof globalThis.fetch =
+    fetch ?? ((input, init) => globalThis.fetch(input, init));
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const headers = new Headers(init.headers);

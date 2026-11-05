@@ -6,9 +6,7 @@ import { api } from '../api.ts';
 import type { HealthResponse } from '@csl/shared-types';
 
 type HealthState =
-  | { kind: 'loading' }
-  | { kind: 'ok'; health: HealthResponse }
-  | { kind: 'error'; message: string };
+  { kind: 'loading' } | { kind: 'ok'; health: HealthResponse } | { kind: 'error'; message: string };
 
 function describeError(error: unknown) {
   if (error instanceof ApiError) {

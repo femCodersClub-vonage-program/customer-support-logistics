@@ -18,9 +18,9 @@ function requestFrom(fetchMock: ReturnType<typeof vi.fn<typeof fetch>>) {
 
 describe('createApiClient', () => {
   it('fetches the health status from the base URL', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse({ status: 'ok', version: '1.2.3' }),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ status: 'ok', version: '1.2.3' }));
     const client = createApiClient({ baseUrl: '/api/', fetch: fetchMock });
 
     await expect(client.getHealth()).resolves.toEqual({ status: 'ok', version: '1.2.3' });
@@ -33,9 +33,9 @@ describe('createApiClient', () => {
   });
 
   it('sends the bearer token when a token provider returns one', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse({ status: 'ok', version: '1.2.3' }),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ status: 'ok', version: '1.2.3' }));
     const client = createApiClient({
       baseUrl: '/api',
       fetch: fetchMock,
@@ -48,9 +48,9 @@ describe('createApiClient', () => {
   });
 
   it('throws an ApiError with the status and body when the response is not ok', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse({ message: 'Service Unavailable' }, 503),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ message: 'Service Unavailable' }, 503));
     const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
 
     const error = await client.getHealth().catch((reason: unknown) => reason);
