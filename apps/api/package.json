@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@csl/config": "workspace:*",
+    "@csl/shared-types": "workspace:*",
     "@nestjs/cli": "12.0.11",
     "@nestjs/schematics": "12.0.12",
     "@nestjs/testing": "12.3.2",

@@ -15,6 +15,7 @@
     "generate-pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
+    "@csl/api-client": "workspace:*",
     "@csl/shared-types": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",

@@ -2,10 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 
 import { APP_VERSION } from '../version.js';
 
-export interface HealthResponse {
-  status: 'ok';
-  version: string;
-}
+import type { HealthResponse } from '@csl/shared-types';
 
 @Controller('health')
 export class HealthController {
