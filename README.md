@@ -80,3 +80,8 @@ Prettier is configured once at the root through the `prettier` field in `package
 | `pnpm format:check` | Check formatting without writing changes |
 
 To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
+
+
+## Documentation
+
+- [User flows](docs/design/user-flows/README.md) — Customer, support agent and driver journeys, including the incident management diagram.
