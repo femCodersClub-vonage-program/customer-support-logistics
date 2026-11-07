@@ -19,6 +19,7 @@ Example:
 #### Tasks
 - [ ] Add specs
 - [ ] In case of new dependencies or version bump, update related documentation
+- [ ] If this PR makes an architecture decision, it includes or links an ADR (see `docs/adr/`)
 
 #### :camera: Screenshots
 *Please add screenshots of the changes you're proposing if related to the UI*
