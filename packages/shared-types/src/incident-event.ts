@@ -10,5 +10,7 @@ export interface IncidentEvent {
   fromStatus: IncidentStatus | null;
   toStatus: IncidentStatus;
   actor: Actor;
+  actorId: string | null;
+  reason: string | null;
   occurredAt: string;
 }
