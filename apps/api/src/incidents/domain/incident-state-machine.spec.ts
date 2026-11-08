@@ -59,6 +59,7 @@ const buildIncident = (status: IncidentStatus, overrides: Partial<Incident> = {}
   agentId: null,
   resolution: null,
   createdAt: '2026-11-01T09:00:00.000Z',
+  updatedAt: '2026-11-01T09:00:00.000Z',
   closedAt: null,
   ...overrides,
 });
