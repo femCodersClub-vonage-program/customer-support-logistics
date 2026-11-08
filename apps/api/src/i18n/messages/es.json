@@ -1,0 +1,11 @@
+{
+  "sms": {
+    "incidentNotice": "CSL: incidencia en el pedido {orderId} ({incidentType}). Responde 1 entregado, 2 no encuentro el domicilio, 3 cliente ausente.",
+    "callSoon": "CSL: te llamaremos en {minutes, plural, one {# minuto} other {# minutos}} por la incidencia del pedido {orderId}.",
+    "callFallback": "CSL: no hemos podido contactarte por el pedido {orderId}. Te volveremos a llamar.",
+    "invalidReply": "CSL: responde 1, 2 o 3."
+  },
+  "voice": {
+    "driverPrompt": "Incidencia en el pedido {orderId}. Pulse 1 para conectar con soporte."
+  }
+}

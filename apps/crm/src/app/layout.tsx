@@ -1,3 +1,6 @@
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getTranslations } from 'next-intl/server';
+
 import { SideNav } from '../components/SideNav';
 import { TopBar } from '../components/TopBar';
 import '../styles/tokens.css';
@@ -8,20 +11,28 @@ import styles from './layout.module.css';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
-export const metadata: Metadata = {
-  title: 'CSL Support CRM',
-  description: 'Inbox, incident files and mediation console for support agents.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('metadata');
 
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return {
+    title: t('title'),
+    description: t('description'),
+  };
+}
+
+export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const locale = await getLocale();
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body>
-        <div className={styles.shell}>
-          <TopBar />
-          <SideNav />
-          <main className={styles.content}>{children}</main>
-        </div>
+        <NextIntlClientProvider>
+          <div className={styles.shell}>
+            <TopBar />
+            <SideNav />
+            <main className={styles.content}>{children}</main>
+          </div>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

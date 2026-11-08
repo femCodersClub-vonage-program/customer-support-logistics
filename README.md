@@ -32,6 +32,7 @@ apps/
   crm/            Next.js CRM for support agents
 packages/
   api-client/     Shared API client
+  i18n/           Shared locales helpers and translated labels
   shared-types/   Shared TypeScript types
 ```
 
@@ -87,6 +88,7 @@ To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
 - [Architecture](docs/architecture/README.md): how the system is built, and [how we use Vonage](docs/architecture/vonage.md).
 - [Architecture Decision Records](docs/adr/README.md): why we made each important technical decision.
 - [Client PWA](docs/pwa.md): install, updates and testing on a phone.
+- [Internationalisation](docs/i18n.md): translation files, adding a key or a language, and SMS length.
 
 ## Contributing
 

@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "title": "CSL Support CRM",
+    "description": "Inbox, incident files and mediation console for support agents."
+  },
+  "topBar": {
+    "brand": "CSL <accent>Support</accent>"
+  },
+  "nav": {
+    "label": "Main",
+    "inbox": "Inbox"
+  },
+  "localeSwitcher": {
+    "label": "Language"
+  },
+  "inbox": {
+    "title": "Inbox"
+  },
+  "incident": {
+    "title": "Incident",
+    "reference": "Incident {id}"
+  },
+  "contactLanguage": {
+    "customer": "Customer’s language: {language}",
+    "driver": "Driver’s language: {language}"
+  },
+  "mediation": {
+    "title": "Mediation",
+    "incident": "Incident {id}"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "backToInbox": "Back to inbox"
+  },
+  "dev": {
+    "title": "Developer tools"
+  },
+  "apiStatus": {
+    "title": "API status",
+    "checking": "Checking…",
+    "online": "Online (version {version})",
+    "unreachable": "Unreachable: {reason}",
+    "httpError": "HTTP {status}",
+    "unknownError": "Unknown error"
+  }
+}
