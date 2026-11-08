@@ -89,3 +89,7 @@ To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
 - [Architecture Decision Records](docs/adr/README.md): why we made each important technical decision.
 - [Client PWA](docs/pwa.md): install, updates and testing on a phone.
 - [Internationalisation](docs/i18n.md): translation files, adding a key or a language, and SMS length.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or a pull request. It covers branches, commits, pull requests and the definition of done.
