@@ -1,6 +1,8 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { renderWithIntl } from '../test/render.tsx';
 
 import { useBlockInterruptions } from './interruptions.ts';
 import { InterruptionsProvider } from './InterruptionsProvider.tsx';
@@ -39,13 +41,13 @@ describe('UpdatePrompt', () => {
 
   it('stays hidden when there is no new version', () => {
     mockRegisterSW(false);
-    render(<UpdatePrompt />);
+    renderWithIntl(<UpdatePrompt />);
 
     expect(screen.queryByText('New version available')).not.toBeInTheDocument();
   });
 
   it('reloads with the new version when the user asks for it', async () => {
-    render(<UpdatePrompt />);
+    renderWithIntl(<UpdatePrompt />);
 
     expect(screen.getByText('New version available')).toBeInTheDocument();
 
@@ -57,7 +59,7 @@ describe('UpdatePrompt', () => {
   });
 
   it('can be postponed without reloading', async () => {
-    render(<UpdatePrompt />);
+    renderWithIntl(<UpdatePrompt />);
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Later' }));
@@ -68,7 +70,7 @@ describe('UpdatePrompt', () => {
   });
 
   it('stays hidden while interruptions are blocked', () => {
-    render(
+    renderWithIntl(
       <InterruptionsProvider>
         <BlockingRoute />
         <UpdatePrompt />

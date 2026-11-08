@@ -1,3 +1,7 @@
+import { useTranslations } from 'next-intl';
+
 export default function InboxPage() {
-  return <h1>Inbox</h1>;
+  const t = useTranslations('inbox');
+
+  return <h1>{t('title')}</h1>;
 }

@@ -1,0 +1,11 @@
+{
+  "sms": {
+    "incidentNotice": "CSL: incident on order {orderId} ({incidentType}). Reply 1 delivered, 2 can't find the address, 3 customer not home.",
+    "callSoon": "CSL: we'll call you in {minutes, plural, one {# minute} other {# minutes}} about the incident on order {orderId}.",
+    "callFallback": "CSL: we couldn't reach you about order {orderId}. We'll call you again later.",
+    "invalidReply": "CSL: please reply 1, 2 or 3."
+  },
+  "voice": {
+    "driverPrompt": "Incident on order {orderId}. Press 1 to connect with support."
+  }
+}

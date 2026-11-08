@@ -7,6 +7,7 @@ The customer app (`apps/client`) is a PWA. The manifest and service worker are g
 - **Install prompt:** the "Install the app" card on **My orders** uses the native install dialog on Android (Chrome, Edge, Samsung Internet) and shows the Share → "Add to Home Screen" steps on iOS Safari. It is hidden when the app is already installed, for 7 days after "Not now", and while interruptions are blocked.
 - **Updates:** a new deploy shows a "New version available" message. The app only reloads when the user taps **Reload**.
 - **Blocking interruptions:** a page calls `useBlockInterruptions()` (from `apps/client/src/pwa/interruptions.ts`) to hide the install and update messages, e.g. during the mediation call (`/call/:id`) or while a form has unsaved changes (`useBlockInterruptions(isDirty)`).
+- **Language:** the manifest (`name`, `description`, `lang`) only holds one language, so it is in Spanish, the default. Once open, the app follows the user's language (see [i18n](i18n.md)).
 - **Offline:** the app shell is precached, so deep links open from the installed app and an offline message is shown when there is no connection. Full offline support is out of scope.
 
 ## Testing on a phone

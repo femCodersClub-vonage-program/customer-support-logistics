@@ -55,6 +55,7 @@ Accepted ADRs are not edited, except to change their status. To change a decisio
 | [0003](0003-vonage-as-communications-provider.md)        | Vonage as the communications provider                     | accepted | 2026-11-08 |
 | [0004](0004-shared-types-as-api-contract.md)             | `@csl/shared-types` is the API contract                   | accepted | 2026-11-08 |
 | [0005](0005-orm-and-migrations.md)                       | Drizzle ORM and SQL migrations for PostgreSQL             | proposed | 2026-11-08 |
+| [0006](0006-internationalisation.md)                     | Internationalisation with next-intl and use-intl          | proposed | 2026-11-08 |
 
 ### Pending decisions
 
@@ -65,10 +66,8 @@ These decisions still need an ADR. Each one is written as part of its issue and 
 | Authentication and session after Verify                 | [#31][i31] | to do  |
 | Evidence storage                                        | [#32][i32] | to do  |
 | Real-time updates for the CRM (SSE vs WebSocket)        | [#40][i40] | to do  |
-| Internationalisation (i18n)                             | [#26][i26] | to do  |
 | Hosting and preview deployments                         | -          | to do  |
 
-[i26]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/26
 [i31]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31
 [i32]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/32
 [i40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40

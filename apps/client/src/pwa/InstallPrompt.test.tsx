@@ -1,5 +1,7 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { renderWithIntl } from '../test/render.tsx';
 
 import { DISMISS_DURATION_MS, DISMISSED_AT_KEY, listenForInstallPrompt } from './installPrompt.ts';
 import { InstallPrompt } from './InstallPrompt.tsx';
@@ -73,13 +75,13 @@ describe('InstallPrompt', () => {
   });
 
   it('stays hidden until the browser offers an install prompt', () => {
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
 
     expect(queryInstallPrompt()).not.toBeInTheDocument();
   });
 
   it('shows the install button and opens the native dialog', async () => {
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
 
     const { event, prompt } = fireBeforeInstallPrompt();
 
@@ -95,7 +97,7 @@ describe('InstallPrompt', () => {
   });
 
   it('remembers when the user cancels the native dialog', async () => {
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
     fireBeforeInstallPrompt('dismissed');
 
     await act(async () => {
@@ -106,7 +108,7 @@ describe('InstallPrompt', () => {
   });
 
   it('hides after the app is installed', () => {
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
     fireBeforeInstallPrompt();
 
     act(() => {
@@ -118,14 +120,14 @@ describe('InstallPrompt', () => {
 
   it('stays hidden when the app is already running standalone', () => {
     setStandalone(true);
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
     fireBeforeInstallPrompt();
 
     expect(queryInstallPrompt()).not.toBeInTheDocument();
   });
 
   it('hides after dismissing and stays hidden on the next visit', async () => {
-    const { unmount } = render(<InstallPrompt />);
+    const { unmount } = renderWithIntl(<InstallPrompt />);
     fireBeforeInstallPrompt();
 
     await act(async () => {
@@ -135,14 +137,14 @@ describe('InstallPrompt', () => {
     expect(queryInstallPrompt()).not.toBeInTheDocument();
 
     unmount();
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
 
     expect(queryInstallPrompt()).not.toBeInTheDocument();
   });
 
   it('shows again once the dismissal has expired', () => {
     localStorage.setItem(DISMISSED_AT_KEY, String(Date.now() - DISMISS_DURATION_MS - 1));
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
     fireBeforeInstallPrompt();
 
     expect(screen.getByRole('complementary', { name: INSTALL_PROMPT_NAME })).toBeInTheDocument();
@@ -150,7 +152,7 @@ describe('InstallPrompt', () => {
 
   it('shows the Add to Home Screen steps on iOS Safari', () => {
     setUserAgent(IPHONE_SAFARI);
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
 
     expect(screen.getByRole('complementary', { name: INSTALL_PROMPT_NAME })).toBeInTheDocument();
     expect(screen.getByText('Choose “Add to Home Screen”.')).toBeInTheDocument();
@@ -159,13 +161,13 @@ describe('InstallPrompt', () => {
 
   it('does not show the iOS steps in other iOS browsers', () => {
     setUserAgent(IPHONE_CHROME);
-    render(<InstallPrompt />);
+    renderWithIntl(<InstallPrompt />);
 
     expect(queryInstallPrompt()).not.toBeInTheDocument();
   });
 
   it('stays hidden while interruptions are blocked', () => {
-    render(
+    renderWithIntl(
       <InterruptionsProvider>
         <BlockingRoute />
         <InstallPrompt />

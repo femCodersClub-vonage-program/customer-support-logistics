@@ -1,8 +1,9 @@
 import { ApiError } from '@csl/api-client';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '../api.ts';
+import { renderWithIntl } from '../test/render.tsx';
 
 import { ApiStatus } from './ApiStatus.tsx';
 
@@ -18,7 +19,7 @@ describe('ApiStatus', () => {
   it('shows the API version when the API is healthy', async () => {
     vi.mocked(api.getHealth).mockResolvedValue({ status: 'ok', version: '1.2.3' });
 
-    render(<ApiStatus />);
+    renderWithIntl(<ApiStatus />);
 
     expect(await screen.findByText('Online (version 1.2.3)')).toBeInTheDocument();
   });
@@ -26,7 +27,7 @@ describe('ApiStatus', () => {
   it('shows the HTTP status when the API responds with an error', async () => {
     vi.mocked(api.getHealth).mockRejectedValue(new ApiError('Request failed', 503, undefined));
 
-    render(<ApiStatus />);
+    renderWithIntl(<ApiStatus />);
 
     expect(await screen.findByText('Unreachable: HTTP 503')).toBeInTheDocument();
   });

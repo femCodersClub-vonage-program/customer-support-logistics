@@ -20,6 +20,7 @@
     "db:check": "drizzle-kit check"
   },
   "dependencies": {
+    "@csl/i18n": "workspace:*",
     "@csl/shared-types": "workspace:*",
     "@nestjs/common": "12.3.2",
     "@nestjs/config": "12.0.1",
@@ -29,6 +30,7 @@
     "pg": "8.23.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
+    "use-intl": "4.14.9",
     "zod": "4.6.7"
   },
   "devDependencies": {

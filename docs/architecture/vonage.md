@@ -115,7 +115,7 @@ If the digit is `1`, the input webhook answers with the NCCO that joins the conv
 [{ "action": "conversation", "name": "inc-1234" }]
 ```
 
-Any other key, or silence, hangs up and counts as a failed attempt. The text of the prompts will come from the translation files ([#26]).
+Any other key, or silence, hangs up and counts as a failed attempt. The `talk` text and its `language` come from the driver's `locale` (`buildDriverPromptNcco` in `apps/api/src/vonage/ncco.ts`); see [i18n](../i18n.md) ([#26]).
 
 ### Closing the call
 

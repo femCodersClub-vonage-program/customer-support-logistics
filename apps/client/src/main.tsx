@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 
 import { App } from './App.tsx';
+import { LocaleProvider } from './i18n/LocaleProvider.tsx';
+import { LocaleSwitcher } from './i18n/LocaleSwitcher.tsx';
 import { listenForInstallPrompt } from './pwa/installPrompt.ts';
 import { InterruptionsProvider } from './pwa/InterruptionsProvider.tsx';
 import { OfflineBanner } from './pwa/OfflineBanner.tsx';
@@ -20,12 +22,15 @@ listenForInstallPrompt();
 
 createRoot(container).render(
   <StrictMode>
-    <InterruptionsProvider>
-      <OfflineBanner />
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-      <UpdatePrompt />
-    </InterruptionsProvider>
+    <LocaleProvider>
+      <InterruptionsProvider>
+        <OfflineBanner />
+        <LocaleSwitcher />
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+        <UpdatePrompt />
+      </InterruptionsProvider>
+    </LocaleProvider>
   </StrictMode>,
 );

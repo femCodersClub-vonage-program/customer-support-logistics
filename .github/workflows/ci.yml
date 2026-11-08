@@ -13,6 +13,21 @@ env:
   NODE_VERSION: '22'
 
 jobs:
+  packages:
+    name: Shared packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run lint --filter=./packages/*
+      - run: pnpm exec turbo run typecheck --filter=./packages/*
+      - run: pnpm exec turbo run test --filter=./packages/*
+
   api:
     name: API (NestJS)
     runs-on: ubuntu-latest

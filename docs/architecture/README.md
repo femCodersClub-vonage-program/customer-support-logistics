@@ -134,7 +134,7 @@ Dashed arrows are dev dependencies. `apps/api` needs `@csl/shared-types` at runt
 
 **Background jobs.** _Planned_. Redis (`REDIS_URL`, optional for now) is meant for queues: driver call retries, scheduled SMS and slow webhook work. The technical proposal suggests BullMQ.
 
-**Internationalisation.** _Planned_ in [#26]. Screen copy in each app, and SMS, voice and Verify messages in each recipient's language.
+**Internationalisation.** Decided in [ADR 0006](../adr/0006-internationalisation.md) ([#26]). Screen copy comes from translation files in each app (`use-intl` in the client, `next-intl` in the CRM), and SMS, voice and Verify messages use each recipient's `locale`. How to add keys and languages, and the SMS length of each template, are in [i18n](../i18n.md).
 
 **Privacy.** Real phone numbers stay in the API (`Customer`, `Driver`) and are never shown to the other party: calls and SMS go through the Vonage virtual number. Logs must mask phone numbers and never print secrets.
 
