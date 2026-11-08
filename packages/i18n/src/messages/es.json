@@ -1,0 +1,26 @@
+{
+  "incidentStatus": {
+    "open": "Abierta",
+    "notified": "Notificada",
+    "in_mediation": "En mediación",
+    "resolved": "Resuelta",
+    "escalated": "Escalada"
+  },
+  "incidentType": {
+    "not_delivered": "No entregado",
+    "delayed": "Retrasado",
+    "damaged": "Dañado",
+    "wrong_item": "Artículo equivocado",
+    "other": "Otro"
+  },
+  "orderStatus": {
+    "pending": "Pendiente",
+    "in_transit": "En camino",
+    "delivered": "Entregado",
+    "failed": "Entrega fallida"
+  },
+  "localeName": {
+    "es": "Español",
+    "en": "Inglés"
+  }
+}
