@@ -21,6 +21,7 @@
     "db:check": "drizzle-kit check"
   },
   "dependencies": {
+    "@csl/contracts": "workspace:*",
     "@csl/i18n": "workspace:*",
     "@csl/shared-types": "workspace:*",
     "@nestjs/common": "12.3.2",

@@ -178,6 +178,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@csl/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@csl/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
