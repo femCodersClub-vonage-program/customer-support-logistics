@@ -6,8 +6,11 @@ import {
   INCIDENT_STATUSES,
   INCIDENT_TYPES,
   ORDER_STATUSES,
+  SUPPORTED_LOCALES,
 } from '@csl/shared-types';
 import { pgEnum } from 'drizzle-orm/pg-core';
+
+export const locale = pgEnum('locale', SUPPORTED_LOCALES);
 
 export const orderStatus = pgEnum('order_status', ORDER_STATUSES);
 

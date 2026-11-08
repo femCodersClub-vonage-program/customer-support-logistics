@@ -59,7 +59,8 @@ We use **Drizzle ORM** with the `pg` (node-postgres) driver, and **`drizzle-kit`
 
 - `@csl/shared-types` stays the API contract: ISO 8601 date strings, string IDs, no database details.
 - Database models live in `apps/api/src/database/schema/` and are mapped to the shared types at the boundary, as [ADR 0004](0004-shared-types-as-api-contract.md) says.
-- Postgres enums are built from the shared arrays (`INCIDENT_STATUSES`, `INCIDENT_TYPES`, `ORDER_STATUSES`, `ACTORS`, `COMMUNICATION_CHANNELS`, `COMMUNICATION_DIRECTIONS`, `COMMUNICATION_STATUSES`). Adding a value to an array produces a migration on the next `db:generate`.
+- Postgres enums are built from the shared arrays (`INCIDENT_STATUSES`, `INCIDENT_TYPES`, `ORDER_STATUSES`, `ACTORS`, `COMMUNICATION_CHANNELS`, `COMMUNICATION_DIRECTIONS`, `COMMUNICATION_STATUSES`, `SUPPORTED_LOCALES`). Adding a value to an array produces a migration on the next `db:generate`.
+- `customers.locale` and `drivers.locale` store each person's language, from `SUPPORTED_LOCALES`, with `DEFAULT_LOCALE` as the default. The API uses it to choose the language of SMS, voice prompts and Verify messages ([ADR 0006](0006-internationalisation.md)).
 - `@csl/shared-types` becomes a runtime dependency of `apps/api`, because the schema imports the arrays.
 
 ### Schema conventions
