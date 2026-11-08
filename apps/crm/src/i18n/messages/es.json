@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "title": "CSL Support CRM",
+    "description": "Bandeja de entrada, fichas de incidencia y consola de mediación para agentes de soporte."
+  },
+  "topBar": {
+    "brand": "CSL <accent>Support</accent>"
+  },
+  "nav": {
+    "label": "Principal",
+    "inbox": "Bandeja de entrada"
+  },
+  "localeSwitcher": {
+    "label": "Idioma"
+  },
+  "inbox": {
+    "title": "Bandeja de entrada"
+  },
+  "incident": {
+    "title": "Incidencia",
+    "reference": "Incidencia {id}"
+  },
+  "contactLanguage": {
+    "customer": "Idioma del cliente: {language}",
+    "driver": "Idioma del repartidor: {language}"
+  },
+  "mediation": {
+    "title": "Mediación",
+    "incident": "Incidencia {id}"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "backToInbox": "Volver a la bandeja de entrada"
+  },
+  "dev": {
+    "title": "Herramientas de desarrollo"
+  },
+  "apiStatus": {
+    "title": "Estado de la API",
+    "checking": "Comprobando…",
+    "online": "En línea (versión {version})",
+    "unreachable": "No disponible: {reason}",
+    "httpError": "HTTP {status}",
+    "unknownError": "Error desconocido"
+  }
+}

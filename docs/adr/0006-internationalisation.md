@@ -72,7 +72,7 @@ The main reason is a single message syntax (ICU), a single typing mechanism and 
 ### How each app picks the locale
 
 - **Client:** the user's saved choice (`localStorage`), then `navigator.languages`, then `es`. Changing it updates the state and `<html lang>`, without a reload.
-- **CRM:** an internal tool doesn't need localised URLs, so there is no `/es/...` prefix. The locale comes from the `NEXT_LOCALE` cookie, then `Accept-Language`, then `es`. Changing it sets the cookie with a Server Action and calls `router.refresh()`, so the current page is kept.
+- **CRM:** an internal tool doesn't need localised URLs, so there is no `/es/...` prefix. The locale comes from the `NEXT_LOCALE` cookie, then `Accept-Language`, then `es`. Changing it sets the cookie with a Server Action; Next.js then re-renders the current page on the server and keeps the client state, so there is no reload. Reading the cookie makes every CRM route dynamic, which is fine for an app behind a login.
 - **API:** always the `locale` stored on the recipient (customer or driver), never the request. The Vonage formats are mapped from it: TTS `language` (`es-ES`, `en-GB`) and Verify v2 `locale` (`es-es`, `en-gb`).
 
 ### PWA manifest
