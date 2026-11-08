@@ -1,9 +1,10 @@
-import { Controller, Get, Inject, ServiceUnavailableException } from '@nestjs/common';
+import { Controller, Get, HttpStatus, Inject, Res } from '@nestjs/common';
 
 import { DatabaseHealth } from '../database/database.health.js';
 import { APP_VERSION } from '../version.js';
 
 import type { HealthResponse, ReadinessResponse } from '@csl/shared-types';
+import type { Response } from 'express';
 
 @Controller('health')
 export class HealthController {
@@ -15,12 +16,13 @@ export class HealthController {
   }
 
   @Get('ready')
-  async ready(): Promise<ReadinessResponse> {
+  async ready(@Res({ passthrough: true }) response: Response): Promise<ReadinessResponse> {
     if (await this.database.isUp()) {
       return { status: 'ok', database: 'up' };
     }
 
-    const body: ReadinessResponse = { status: 'error', database: 'down' };
-    throw new ServiceUnavailableException(body);
+    response.status(HttpStatus.SERVICE_UNAVAILABLE);
+
+    return { status: 'error', database: 'down' };
   }
 }

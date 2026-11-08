@@ -56,6 +56,7 @@ Accepted ADRs are not edited, except to change their status. To change a decisio
 | [0004](0004-shared-types-as-api-contract.md)             | `@csl/shared-types` is the API contract                   | accepted | 2026-11-08 |
 | [0005](0005-orm-and-migrations.md)                       | Drizzle ORM and SQL migrations for PostgreSQL             | proposed | 2026-11-08 |
 | [0006](0006-internationalisation.md)                     | Internationalisation with next-intl and use-intl          | proposed | 2026-11-08 |
+| [0007](0007-zod-schemas-as-runtime-contract.md)          | Zod schemas in `@csl/contracts` as the runtime API contract | proposed | 2026-11-09 |
 
 ### Pending decisions
 

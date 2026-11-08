@@ -1,17 +1,23 @@
 import { z } from 'zod';
 
-export const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
-  REDIS_URL: z.url({ protocol: /^rediss?$/ }).optional(),
-  PUBLIC_URL: z.url({ protocol: /^https$/ }).optional(),
-  VONAGE_API_KEY: z.string().min(1).optional(),
-  VONAGE_API_SECRET: z.string().min(1).optional(),
-  VONAGE_APPLICATION_ID: z.string().min(1).optional(),
-  VONAGE_PRIVATE_KEY_PATH: z.string().min(1).optional(),
-  VONAGE_SIGNATURE_SECRET: z.string().min(1).optional(),
-});
+export const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+    REDIS_URL: z.url({ protocol: /^rediss?$/ }).optional(),
+    PUBLIC_URL: z.url({ protocol: /^https$/ }).optional(),
+    VONAGE_API_KEY: z.string().min(1).optional(),
+    VONAGE_API_SECRET: z.string().min(1).optional(),
+    VONAGE_APPLICATION_ID: z.string().min(1).optional(),
+    VONAGE_PRIVATE_KEY_PATH: z.string().min(1).optional(),
+    VONAGE_SIGNATURE_SECRET: z.string().min(1).optional(),
+    DEV_AUTH_ENABLED: z.stringbool().default(false),
+  })
+  .refine((env) => !(env.NODE_ENV === 'production' && env.DEV_AUTH_ENABLED), {
+    path: ['DEV_AUTH_ENABLED'],
+    message: 'DEV_AUTH_ENABLED must not be enabled in production',
+  });
 
 export type Env = z.infer<typeof envSchema>;
 
