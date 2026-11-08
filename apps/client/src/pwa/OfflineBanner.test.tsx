@@ -1,5 +1,7 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { renderWithIntl } from '../test/render.tsx';
 
 import { OfflineBanner } from './OfflineBanner.tsx';
 
@@ -20,13 +22,13 @@ describe('OfflineBanner', () => {
   });
 
   it('stays hidden while online', () => {
-    render(<OfflineBanner />);
+    renderWithIntl(<OfflineBanner />);
 
     expect(screen.queryByText(OFFLINE_MESSAGE)).not.toBeInTheDocument();
   });
 
   it('shows the message when the connection drops and hides it when it comes back', () => {
-    render(<OfflineBanner />);
+    renderWithIntl(<OfflineBanner />);
 
     goOffline(true);
     expect(screen.getByText(OFFLINE_MESSAGE)).toBeInTheDocument();

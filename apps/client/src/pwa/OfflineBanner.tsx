@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { useTranslations } from 'use-intl';
 
 import './pwa.css';
 
@@ -18,14 +19,9 @@ function getOnline() {
 
 export function OfflineBanner() {
   const online = useSyncExternalStore(subscribe, getOnline);
+  const t = useTranslations('offline');
 
   return (
-    <div aria-live="polite">
-      {!online && (
-        <p className="offline-banner">
-          You’re offline. Some information may be out of date until your connection comes back.
-        </p>
-      )}
-    </div>
+    <div aria-live="polite">{!online && <p className="offline-banner">{t('message')}</p>}</div>
   );
 }

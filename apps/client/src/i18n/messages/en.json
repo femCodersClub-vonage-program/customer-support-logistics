@@ -1,0 +1,56 @@
+{
+  "localeSwitcher": {
+    "label": "Language"
+  },
+  "orders": {
+    "title": "My orders",
+    "empty": "You have no orders yet."
+  },
+  "login": {
+    "title": "Log in"
+  },
+  "report": {
+    "title": "Report an incident",
+    "order": "Order {orderId}"
+  },
+  "incident": {
+    "title": "Incident",
+    "reference": "Incident {id}"
+  },
+  "call": {
+    "title": "Mediation call",
+    "incident": "Incident {id}"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "backToOrders": "Go to my orders"
+  },
+  "dev": {
+    "title": "Developer tools"
+  },
+  "apiStatus": {
+    "title": "API status",
+    "checking": "Checking…",
+    "online": "Online (version {version})",
+    "unreachable": "Unreachable: {reason}",
+    "httpError": "HTTP {status}",
+    "unknownError": "Unknown error"
+  },
+  "offline": {
+    "message": "You’re offline. Some information may be out of date until your connection comes back."
+  },
+  "update": {
+    "title": "New version available",
+    "description": "Reload to get the latest version of the app.",
+    "reload": "Reload",
+    "later": "Later"
+  },
+  "install": {
+    "title": "Install the app",
+    "native": "Add CSL to your home screen to follow your orders and incidents in one tap.",
+    "iosShare": "Tap the Share button <icon></icon> in the Safari toolbar.",
+    "iosAdd": "Choose “Add to Home Screen”.",
+    "install": "Install",
+    "dismiss": "Not now"
+  }
+}

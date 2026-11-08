@@ -1,3 +1,5 @@
+import { useTranslations } from 'use-intl';
+
 import { useInstallPrompt } from './installPrompt.ts';
 import { useInterruptionsBlocked } from './interruptions.ts';
 import './pwa.css';
@@ -27,6 +29,7 @@ function ShareIcon() {
 export function InstallPrompt() {
   const { mode, install, dismiss } = useInstallPrompt();
   const blocked = useInterruptionsBlocked();
+  const t = useTranslations('install');
   const visible = mode !== 'hidden' && !blocked;
 
   return (
@@ -34,26 +37,24 @@ export function InstallPrompt() {
       {visible && (
         <aside className="pwa-card" aria-labelledby="install-prompt-title">
           <h2 id="install-prompt-title" className="pwa-card__title">
-            Install the app
+            {t('title')}
           </h2>
           {mode === 'native' ? (
-            <p>Add CSL to your home screen to follow your orders and incidents in one tap.</p>
+            <p>{t('native')}</p>
           ) : (
             <ol className="install-prompt__steps">
-              <li>
-                Tap the Share button <ShareIcon /> in the Safari toolbar.
-              </li>
-              <li>Choose “Add to Home Screen”.</li>
+              <li>{t.rich('iosShare', { icon: () => <ShareIcon /> })}</li>
+              <li>{t('iosAdd')}</li>
             </ol>
           )}
           <div className="pwa-card__actions">
             {mode === 'native' && (
               <button type="button" className="pwa-button" onClick={() => void install()}>
-                Install
+                {t('install')}
               </button>
             )}
             <button type="button" className="pwa-button pwa-button--secondary" onClick={dismiss}>
-              Not now
+              {t('dismiss')}
             </button>
           </div>
         </aside>
