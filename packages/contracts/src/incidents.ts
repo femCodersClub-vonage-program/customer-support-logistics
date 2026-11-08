@@ -132,7 +132,9 @@ export type SortOrder = (typeof SORT_ORDERS)[number];
 export const listIncidentsQuerySchema = paginationQuerySchema
   .extend({
     status: z
-      .union([incidentStatusSchema, z.array(incidentStatusSchema).min(1)])
+      .union([incidentStatusSchema, z.array(incidentStatusSchema).min(1)], {
+        error: `Expected one or more of: ${INCIDENT_STATUSES.join(', ')}`,
+      })
       .transform((value) => (Array.isArray(value) ? value : [value]))
       .optional(),
     type: incidentTypeSchema.optional(),
