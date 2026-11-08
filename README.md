@@ -87,3 +87,7 @@ To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
 - [Architecture](docs/architecture/README.md): how the system is built, and [how we use Vonage](docs/architecture/vonage.md).
 - [Architecture Decision Records](docs/adr/README.md): why we made each important technical decision.
 - [Client PWA](docs/pwa.md): install, updates and testing on a phone.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or a pull request. It covers branches, commits, pull requests and the definition of done.
