@@ -1,4 +1,5 @@
 import { actorSchema, uuidSchema } from '@csl/contracts';
+import { ForbiddenException } from '@nestjs/common';
 import { z } from 'zod';
 
 import type { Request } from 'express';
@@ -28,4 +29,12 @@ export function parseDevActor(header: unknown): DevActor | null {
   const result = devActorHeaderSchema.safeParse(header);
 
   return result.success ? result.data : null;
+}
+
+export function requireCustomerId(actor: DevActor): string {
+  if (actor.role !== 'customer') {
+    throw new ForbiddenException('Only customers can perform this action');
+  }
+
+  return actor.id;
 }
