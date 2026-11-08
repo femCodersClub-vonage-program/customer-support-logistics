@@ -1,0 +1,98 @@
+# 0005. Drizzle ORM and SQL migrations for PostgreSQL
+
+- **Status:** proposed
+- **Date:** 2026-11-08
+
+## Context
+
+`apps/api` has no persistence yet. PostgreSQL 17 already runs in `docker-compose.yml` and in CI, and the API requires `DATABASE_URL`, but nothing connects to it ([#23][i23]).
+
+The domain is modelled in `@csl/shared-types` (`Customer`, `Driver`, `Route`, `Order`, `Incident`, `IncidentEvent`, `Communication`, `Evidence`), and enums are `as const` arrays such as `INCIDENT_STATUSES`. [ADR 0004](0004-shared-types-as-api-contract.md) says those types are the API contract and that database models stay inside `apps/api`.
+
+The ORM decides how the database schema relates to those types, how migrations are written and reviewed, and how the API talks to the database. We compared the candidates against these criteria:
+
+| Criterion              | Why it matters here                                                             |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| Type safety end to end | Queries should return types that match `@csl/shared-types` without casts.       |
+| Reuse of shared enums  | `INCIDENT_STATUSES`, `ORDER_STATUSES`, `COMMUNICATION_*` must not be redefined. |
+| Migrations             | Versioned SQL files, reviewable in PRs, runnable in CI and in deploys.          |
+| NestJS integration     | Works with dependency injection, `ConfigService` and `enableShutdownHooks()`.   |
+| ESM + TypeScript 6     | The monorepo is `"type": "module"`.                                             |
+| Testing                | Easy to run against a real PostgreSQL in CI and to stub in unit tests.          |
+| Learning curve         | The team is learning; docs and community matter.                                |
+
+## Options considered
+
+### Drizzle
+
+The schema is written in TypeScript, and row types are inferred from it. `drizzle-kit` generates plain SQL migrations by comparing the schema with the last snapshot.
+
+- **Pros:** `pgEnum('incident_status', INCIDENT_STATUSES)` takes the shared arrays directly, so the database and the contract can't drift. Migrations are readable `.sql` files. Native ESM, no code generation step. Queries look like SQL, so what the team learns carries over. Unit tests can stub the client.
+- **Cons:** no official NestJS module, so we write a small provider. Pre-1.0, so minor versions can bring breaking changes. Smaller ecosystem than Prisma.
+
+### Prisma
+
+The schema is written in its own `.prisma` language, and a typed client is generated from it. `prisma migrate` generates SQL migrations.
+
+- **Pros:** the best documentation and the gentlest learning curve. Mature migrations, with `migrate diff --exit-code` to detect drift. Large community.
+- **Cons:** enums have to be written again in `.prisma`, so we need a test to keep them in sync with `@csl/shared-types`. Adds a `prisma generate` step to install, build and CI. No official NestJS module either.
+
+### TypeORM
+
+Entities are classes with decorators. It has an official NestJS module, `@nestjs/typeorm`.
+
+- **Pros:** the most common choice in NestJS tutorials. Integration with dependency injection out of the box.
+- **Cons:** weak typing for relations and partial selects, so casts are common. Known friction with native ESM. Generated migrations need careful review. Maintenance has been irregular.
+
+### MikroORM
+
+A Data Mapper ORM with Unit of Work and identity map. It has an official NestJS module, `@mikro-orm/nestjs`.
+
+- **Pros:** good type safety, good migrations, ESM support, official NestJS integration.
+- **Cons:** Unit of Work, identity map and request contexts are concepts the team would have to learn on top of NestJS. A smaller community than Prisma or TypeORM.
+
+## Decision
+
+We use **Drizzle ORM** with the `pg` (node-postgres) driver, and **`drizzle-kit`** for migrations. The main reason is that the schema consumes the shared `as const` arrays directly, so enum values can't drift between the database and the contract, and migrations are plain SQL files that everyone can review.
+
+### Relation with `@csl/shared-types`
+
+- `@csl/shared-types` stays the API contract: ISO 8601 date strings, string IDs, no database details.
+- Database models live in `apps/api/src/database/schema/` and are mapped to the shared types at the boundary, as [ADR 0004](0004-shared-types-as-api-contract.md) says.
+- Postgres enums are built from the shared arrays (`INCIDENT_STATUSES`, `INCIDENT_TYPES`, `ORDER_STATUSES`, `ACTORS`, `COMMUNICATION_CHANNELS`, `COMMUNICATION_DIRECTIONS`, `COMMUNICATION_STATUSES`, `SUPPORTED_LOCALES`). Adding a value to an array produces a migration on the next `db:generate`.
+- `customers.locale` and `drivers.locale` store each person's language, from `SUPPORTED_LOCALES`, with `DEFAULT_LOCALE` as the default. The API uses it to choose the language of SMS, voice prompts and Verify messages ([ADR 0006](0006-internationalisation.md)).
+- `@csl/shared-types` becomes a runtime dependency of `apps/api`, because the schema imports the arrays.
+
+### Schema conventions
+
+- `uuid` primary keys generated by the database (`gen_random_uuid()`).
+- `snake_case` column names, mapped automatically from the camelCase TypeScript names.
+- `timestamptz` for points in time. Every table has `created_at` (`occurred_at` in `incident_events`), and mutable tables also have `updated_at`.
+- Phone numbers are stored in E.164 and checked with a `CHECK` constraint.
+- `incident_events` is append-only: a trigger rejects `UPDATE` and `DELETE`, and its foreign key to `incidents` is `ON DELETE RESTRICT`.
+
+### Migrations
+
+- `drizzle-kit generate` writes SQL files to `apps/api/drizzle/`, committed and reviewed in the PR. Hand-written SQL (such as triggers) goes in custom migrations (`drizzle-kit generate --custom`).
+- Migrations run as a **separate step**, never on app boot:
+  - Local and CI: `pnpm --filter ./apps/api run db:migrate` (`drizzle-kit migrate`).
+  - Docker image: `node dist/database/migrate.js`, which uses Drizzle's runtime migrator, so `drizzle-kit` stays a dev dependency.
+- CI fails if the schema changed without a migration: it runs `db:generate` and checks that `apps/api/drizzle/` has no changes.
+
+### Open questions from [#23][i23]
+
+- **`Incident.agentId`:** a `uuid` column without a foreign key until authentication is designed ([#31][i31]). An `agents` table now would guess its shape.
+- **`createdAt` / `updatedAt` on `Order`, `Customer`, `Driver`:** yes in the database, for all tables. They are not added to the contract until a frontend needs them.
+- **`Route.date`:** a `date` column, because a route is a delivery day. It is read as a `YYYY-MM-DD` string.
+- **Soft delete:** `drivers.active` is enough. No `deleted_at` elsewhere: incidents are closed by status, and nothing else is deleted in the MVP.
+
+## Consequences
+
+- The API gets a `DatabaseModule` that provides the Drizzle client through dependency injection and closes the pool on shutdown.
+- Schema changes are TypeScript changes plus a generated SQL file in the same PR.
+- `@csl/shared-types` must be built before `db:generate`, because `drizzle-kit` loads the schema, which imports it.
+- Drizzle is pre-1.0. We pin exact versions and read the changelog on upgrades.
+- If Drizzle's migrations or NestJS integration become a problem, Prisma is the fallback; the contract in `@csl/shared-types` doesn't change, only the code in `apps/api`.
+
+[i23]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/23
+[i31]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31
