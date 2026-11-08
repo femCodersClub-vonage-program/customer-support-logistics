@@ -1,4 +1,4 @@
-import { index, pgTable, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { id } from './columns.js';
 import { actor, incidentStatus } from './enums.js';
@@ -14,6 +14,8 @@ export const incidentEvents = pgTable(
     fromStatus: incidentStatus(),
     toStatus: incidentStatus().notNull(),
     actor: actor().notNull(),
+    actorId: uuid(),
+    reason: text(),
     occurredAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index().on(table.incidentId)],
