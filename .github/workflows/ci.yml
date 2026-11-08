@@ -42,6 +42,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec turbo run lint --filter=./apps/api
+      - name: Check that migrations match the schema
+        run: |
+          pnpm --filter ./apps/api run db:check
+          pnpm --filter ./apps/api run db:generate
+          if [ -n "$(git status --porcelain apps/api/drizzle)" ]; then
+            echo "::error::The schema has changes without a migration. Run 'pnpm --filter ./apps/api run db:generate' and commit the result."
+            git status --porcelain apps/api/drizzle
+            exit 1
+          fi
+      - name: Run migrations
+        run: pnpm --filter ./apps/api run db:migrate
       - run: pnpm exec turbo run test --filter=./apps/api
       - name: Build
         run: pnpm exec turbo run build --filter=./apps/api

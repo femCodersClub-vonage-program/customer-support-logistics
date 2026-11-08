@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { validateEnv } from './config/env.schema.js';
+import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IncidentsModule } from './incidents/incidents.module.js';
 import { VonageModule } from './vonage/vonage.module.js';
@@ -14,6 +15,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
       cache: true,
       validate: validateEnv,
     }),
+    DatabaseModule,
     HealthModule,
     IncidentsModule,
     VonageModule,
