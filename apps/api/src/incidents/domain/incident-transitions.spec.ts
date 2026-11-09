@@ -18,7 +18,9 @@ describe('allowedTransitions', () => {
     ['open', 'system', ['notified', 'escalated']],
     ['open', 'agent', ['escalated']],
     ['notified', 'customer', []],
+    ['notified', 'driver', ['in_mediation']],
     ['in_mediation', 'driver', []],
+    ['escalated', 'driver', []],
   ] as const)('filters the targets from %s by what %s may do', (from, actor, expected) => {
     expect(allowedTransitions(from, actor)).toEqual(expected);
   });
