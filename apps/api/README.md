@@ -119,13 +119,13 @@ It is disabled when `VONAGE_ENABLED=false` or `NODE_ENV=test`. Then no variable 
    A free ngrok URL changes every time you start it, so update `PUBLIC_URL` and the URLs below when it does.
 
 3. In **API Settings**:
-   - Set **Default SMS Setting** to **SMS API**. We use the SMS API, not the Messages API, and this decides the format of the SMS webhooks.
-   - Set **Delivery receipts** to `<PUBLIC_URL>/webhooks/sms/status` and **Inbound messages** to `<PUBLIC_URL>/webhooks/sms/inbound`.
+   - Set **Default SMS Setting** to **Messages API**. We send and receive SMS with the Messages API, and this decides the format of the SMS webhooks.
    - Copy the **Signature secret** into `VONAGE_SIGNATURE_SECRET`.
 
 4. In **Applications**, create an application:
    - Click **Generate public and private key**. The browser downloads `private.key`; keep it out of the repository (`*.key` is ignored).
    - Turn on **Voice**, with the answer URL `<PUBLIC_URL>/webhooks/voice/answer` and the event URL `<PUBLIC_URL>/webhooks/voice/event`.
+   - Turn on **Messages**, with the inbound URL `<PUBLIC_URL>/webhooks/sms/inbound` and the status URL `<PUBLIC_URL>/webhooks/sms/status`.
    - Save it and copy its id into `VONAGE_APPLICATION_ID`. Verify v2 needs no extra capability.
 
 5. Put the private key into `VONAGE_PRIVATE_KEY` on one line:

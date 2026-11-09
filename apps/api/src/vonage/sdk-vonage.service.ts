@@ -55,13 +55,15 @@ export class SdkVonageService implements VonageService {
       operation: 'sendSms',
       target: maskPhone(to),
       request: async () => {
-        const { messages } = await this.client.sms.send({
+        const { messageUUID } = await this.client.messages.send({
+          channel: 'sms',
+          messageType: 'text',
           to: toVonageNumber(to),
           from: toVonageNumber(this.virtualNumber),
           text,
         });
 
-        return { messageId: messages[0]?.messageId ?? '' };
+        return { messageId: messageUUID };
       },
     });
   }

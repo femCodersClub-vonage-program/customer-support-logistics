@@ -13,7 +13,7 @@ const NCCO: NccoAction[] = [{ action: 'conversation', name: 'inc-1234' }];
 
 function createClient() {
   return {
-    sms: { send: vi.fn().mockResolvedValue({ messages: [{ messageId: 'msg-1' }] }) },
+    messages: { send: vi.fn().mockResolvedValue({ messageUUID: 'msg-1' }) },
     voice: {
       createOutboundCall: vi.fn().mockResolvedValue({ uuid: 'call-1' }),
       transferCallWithNCCO: vi.fn().mockResolvedValue(undefined),
@@ -43,12 +43,6 @@ function httpError(status: number, body: Record<string, unknown>) {
   });
 }
 
-function smsFailure(status: string, errorText: string) {
-  return Object.assign(new Error('All SMS messages failed'), {
-    getFailedMessages: () => [{ status, errorText, to: DRIVER_PHONE }],
-  });
-}
-
 function abortError() {
   return new DOMException('This operation was aborted', 'AbortError');
 }
@@ -71,11 +65,13 @@ describe('SdkVonageService', () => {
   }
 
   describe('sendSms', () => {
-    it('sends the text from the virtual number without the leading +', async () => {
+    it('sends a Messages API SMS from the virtual number without the leading +', async () => {
       const { client, service } = createService();
 
       await expect(service.sendSms(DRIVER_PHONE, 'Hola')).resolves.toEqual({ messageId: 'msg-1' });
-      expect(client.sms.send).toHaveBeenCalledWith({
+      expect(client.messages.send).toHaveBeenCalledWith({
+        channel: 'sms',
+        messageType: 'text',
         to: '34611000009',
         from: '34600000000',
         text: 'Hola',
@@ -160,14 +156,20 @@ describe('SdkVonageService', () => {
       );
     });
 
-    it('maps a rejected SMS to a VonageRequestError with the SMS error text', async () => {
+    it('maps a rejected SMS to a VonageRequestError with the Messages API title', async () => {
       const { client, service } = createService();
-      client.sms.send.mockRejectedValue(smsFailure('15', 'Illegal Sender Address - rejected'));
+      client.messages.send.mockRejectedValue(
+        httpError(422, {
+          title: 'Invalid params',
+          type: 'https://developer.vonage.com/api-errors/messages#1150',
+        }),
+      );
 
       await expect(service.sendSms(DRIVER_PHONE, 'Hola')).rejects.toMatchObject({
         name: 'VonageRequestError',
         operation: 'sendSms',
-        reason: 'Illegal Sender Address - rejected',
+        status: 422,
+        reason: 'Invalid params',
       });
     });
 
@@ -192,7 +194,7 @@ describe('SdkVonageService', () => {
 
     it('does not keep the SDK error, which holds the request and its credentials', async () => {
       const { client, service } = createService();
-      client.sms.send.mockRejectedValue(httpError(500, { title: 'Internal Error' }));
+      client.messages.send.mockRejectedValue(httpError(500, { title: 'Internal Error' }));
 
       const error = await service.sendSms(DRIVER_PHONE, 'Hola').catch((e: unknown) => e);
 
@@ -242,7 +244,7 @@ describe('SdkVonageService', () => {
 
     it('logs a failure with the phone number masked and without secrets', async () => {
       const { client, service } = createService();
-      client.sms.send.mockRejectedValue(httpError(401, { title: 'Unauthorized' }));
+      client.messages.send.mockRejectedValue(httpError(401, { title: 'Unauthorized' }));
 
       await service.sendSms(DRIVER_PHONE, 'Hola').catch(() => undefined);
 
@@ -253,7 +255,7 @@ describe('SdkVonageService', () => {
 
     it('never logs the full phone number, the text or a secret', async () => {
       const { client, service } = createService();
-      client.sms.send.mockRejectedValueOnce(httpError(401, { title: 'Unauthorized' }));
+      client.messages.send.mockRejectedValueOnce(httpError(401, { title: 'Unauthorized' }));
       client.voice.createOutboundCall.mockRejectedValueOnce(abortError());
 
       await service.sendSms(DRIVER_PHONE, 'Texto privado').catch(() => undefined);

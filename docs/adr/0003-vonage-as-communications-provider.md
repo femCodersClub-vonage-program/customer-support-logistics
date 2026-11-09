@@ -35,7 +35,7 @@ For example, one service for SMS, a separate WebRTC media server (such as LiveKi
 Vonage is the only communications provider, through a single **Vonage Application** with a private key:
 
 - **Verify v2** for customer login: `silent_auth` first, then `sms` as fallback.
-- **SMS** for messages to the driver and the customer, delivery receipts and driver replies. Whether we use the SMS API or the Messages API is still open ([#29][i29], [#30][i30]).
+- **SMS** for messages to the driver and the customer, delivery receipts and driver replies, through the **Messages API** ([#29][i29], [#30][i30]): it authenticates with the application's private key and signs its webhooks the same way as the Voice API.
 - **Voice API** for the mediation call: a conversation named `inc-<id>`, an outbound PSTN call to the driver with an NCCO menu (press 1 to join), and inbound calls to the virtual number.
 - **Client SDK** (WebRTC) so the customer and the agent join the conversation from the browser.
 - **Video API** for customer–agent video, in phase 2. The driver would still join by audio only, through SIP to the Voice API.

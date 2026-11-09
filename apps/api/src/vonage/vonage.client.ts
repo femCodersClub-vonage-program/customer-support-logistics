@@ -9,10 +9,14 @@ type PhoneEndpoint = {
 };
 
 export interface VonageClient {
-  sms: {
-    send(params: { to: string; from: string; text: string }): Promise<{
-      messages: { messageId?: string }[];
-    }>;
+  messages: {
+    send(params: {
+      channel: 'sms';
+      messageType: 'text';
+      to: string;
+      from: string;
+      text: string;
+    }): Promise<{ messageUUID: string }>;
   };
   voice: {
     createOutboundCall(call: {
