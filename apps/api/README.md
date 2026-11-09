@@ -23,8 +23,41 @@ Migrations never run when the API starts. They are always a separate step.
 | `pnpm --filter ./apps/api run db:generate` | Compare the schema with the last migration and write a new SQL file |
 | `pnpm --filter ./apps/api run db:migrate`  | Apply pending migrations to `DATABASE_URL`                          |
 | `pnpm --filter ./apps/api run db:check`    | Check that the migration files are consistent                       |
+| `pnpm --filter ./apps/api run db:seed`     | Insert the [demo data](#demo-data) into `DATABASE_URL`              |
 
 `db:generate` loads the schema, which imports `@csl/shared-types`, so build it first if you haven't: `pnpm exec turbo run build --filter=@csl/shared-types`. The `db:*` scripts read `apps/api/.env` if it exists.
+
+### Demo data
+
+`db:seed` fills a local database with a small, consistent set of customers, a driver with a route, orders and incidents, so you can try the API, the PWA and the CRM without writing SQL. It runs the compiled script, so build the API first:
+
+```sh
+pnpm --filter ./apps/api run db:migrate
+pnpm exec turbo run build --filter=@csl/api
+pnpm --filter ./apps/api run db:seed
+```
+
+- It refuses to run when `NODE_ENV=production`.
+- It is idempotent: every row has a fixed id and is inserted with `ON CONFLICT DO NOTHING`, all in one transaction. Running it again changes nothing, and it never touches rows it didn't create.
+- Because existing rows are never updated, changes to the demo data in `src/database/seed-data.ts` don't reach a database that is already seeded. Recreate the database to start over.
+- The e2e tests empty the tables, so seed again after running them against the same database.
+
+The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that every incident's event history is a valid path through the state machine.
+
+#### Seeded actors
+
+Paste the value into **Authorize** in [Swagger UI](#openapi) or into the `X-Dev-Actor` header.
+
+| `X-Dev-Actor`                                    | Who           | Locale | What they have                                                    |
+| ------------------------------------------------ | ------------- | ------ | ----------------------------------------------------------------- |
+| `customer:5eed0000-0000-4000-8000-0000000000c1`  | Lucía Martín  | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
+| `customer:5eed0000-0000-4000-8000-0000000000c2`  | Carlos Romero | `es`   | Incidents in `notified`, `escalated` and `resolved`               |
+| `customer:5eed0000-0000-4000-8000-0000000000c3`  | Emma Wilson   | `en`   | Two incidents `in_mediation`                                      |
+| `customer:5eed0000-0000-4000-8000-0000000000c4`  | James Taylor  | `en`   | A `resolved` incident and a pending order without incidents       |
+| `agent:5eed0000-0000-4000-8000-0000000000a1`     | Agent A       | —      | Assigned to one `in_mediation` and one `resolved` incident        |
+| `agent:5eed0000-0000-4000-8000-0000000000a2`     | Agent B       | —      | Assigned to one `escalated` and one `resolved` incident           |
+
+Every agent sees every incident in `GET /incidents`. Four of them are unassigned (`?agentId=unassigned`). The driver is Javier Molina (`+34611000009`), on the route of `2026-11-02`.
 
 ### Changing the schema
 
@@ -114,8 +147,10 @@ Every error has the same shape:
 With `DEV_AUTH_ENABLED=true`, protected routes take the actor from the `X-Dev-Actor` header: `customer:<uuid>` or `agent:<uuid>`. With the flag off (the default), they return `401`. The API refuses to start if the flag is on and `NODE_ENV=production`.
 
 ```sh
-curl -H 'X-Dev-Actor: agent:00000000-0000-4000-8000-0000000000a1' 'http://localhost:3000/incidents?status=open'
+curl -H 'X-Dev-Actor: agent:5eed0000-0000-4000-8000-0000000000a1' 'http://localhost:3000/incidents?status=open'
 ```
+
+The [seeded actors](#seeded-actors) are ready to use.
 
 The header only identifies the actor. Customers only see their own incidents and orders, but the "who" column above isn't enforced yet.
 

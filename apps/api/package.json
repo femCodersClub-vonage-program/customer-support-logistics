@@ -18,7 +18,8 @@
     "test:coverage": "vitest run --coverage",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:check": "drizzle-kit check"
+    "db:check": "drizzle-kit check",
+    "db:seed": "node --env-file-if-exists=.env dist/database/seed.js"
   },
   "dependencies": {
     "@csl/contracts": "workspace:*",
