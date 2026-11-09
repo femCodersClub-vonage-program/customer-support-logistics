@@ -2,7 +2,7 @@ import { getTranslator } from '../i18n/translator.js';
 
 import { toTtsLanguage } from './locales.js';
 
-import type { Locale, Order } from '@csl/shared-types';
+import type { Incident, Locale, Order } from '@csl/shared-types';
 
 export interface TalkAction {
   action: 'talk';
@@ -48,6 +48,24 @@ export function buildDriverPromptNcco({
       type: ['dtmf'],
       dtmf: { maxDigits: 1, timeOut: DRIVER_PROMPT_TIMEOUT_SECONDS },
       eventUrl: [inputUrl],
+    },
+  ];
+}
+
+export function conversationName(incidentId: Incident['id']): string {
+  return `inc-${incidentId}`;
+}
+
+export function buildJoinConversationNcco(incidentId: Incident['id']): NccoAction[] {
+  return [{ action: 'conversation', name: conversationName(incidentId) }];
+}
+
+export function buildInvalidKeyNcco(locale: Locale): NccoAction[] {
+  return [
+    {
+      action: 'talk',
+      text: getTranslator(locale)('voice.invalidKey'),
+      language: toTtsLanguage(locale),
     },
   ];
 }

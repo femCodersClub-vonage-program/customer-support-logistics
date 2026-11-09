@@ -4,7 +4,9 @@ import { ThrottlerModule } from '@nestjs/throttler';
 
 import { VonageModule } from '../vonage/vonage.module.js';
 
+import { BackgroundTasks } from './background-tasks.js';
 import { VonageSignatureGuard } from './signature/vonage-signature.guard.js';
+import { WebhooksService } from './webhooks.service.js';
 
 import type { Env } from '../config/env.schema.js';
 
@@ -23,6 +25,6 @@ export const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
       ],
     }),
   ],
-  providers: [VonageSignatureGuard],
+  providers: [BackgroundTasks, VonageSignatureGuard, WebhooksService],
 })
 export class WebhooksModule {}

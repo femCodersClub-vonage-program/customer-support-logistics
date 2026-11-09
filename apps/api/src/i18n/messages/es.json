@@ -6,6 +6,7 @@
     "invalidReply": "CSL: responde 1, 2 o 3."
   },
   "voice": {
-    "driverPrompt": "Incidencia en el pedido {orderId}. Pulse 1 para conectar con soporte."
+    "driverPrompt": "Incidencia en el pedido {orderId}. Pulse 1 para conectar con soporte.",
+    "invalidKey": "No hemos recibido una opción válida. Le volveremos a llamar."
   }
 }
