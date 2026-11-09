@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 
-import { maskPhone } from '../common/privacy/mask-phone.js';
+import { maskPhone } from '../common/logging/mask-phone.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
   communications,
@@ -21,7 +21,7 @@ import {
   buildInvalidKeyNcco,
   buildJoinConversationNcco,
 } from '../vonage/ncco.js';
-import { SMS_SENDER } from '../vonage/sms-sender.js';
+import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 
 import { BackgroundTasks } from './background-tasks.js';
 import { advancesStatus, fromMessageStatus, fromVoiceStatus } from './communication-status.js';
@@ -41,7 +41,7 @@ import type { Database, DatabaseTransaction } from '../database/database.constan
 import type { WebhookEventSource } from '../database/schema/index.js';
 import type { CommunicationRow, DriverRow, IncidentRow } from '../incidents/incidents.mapper.js';
 import type { NccoAction } from '../vonage/ncco.js';
-import type { SmsSender } from '../vonage/sms-sender.js';
+import type { VonageService } from '../vonage/vonage.service.js';
 import type { IncidentStatus } from '@csl/shared-types';
 
 type Executor = Database | DatabaseTransaction;
@@ -78,7 +78,7 @@ export class WebhooksService {
 
   constructor(
     @Inject(DATABASE) private readonly db: Database,
-    @Inject(SMS_SENDER) private readonly smsSender: SmsSender,
+    @Inject(VONAGE_SERVICE) private readonly vonage: VonageService,
     @Inject(BackgroundTasks) private readonly background: BackgroundTasks,
     @Inject(ConfigService) private readonly config: ConfigService<Env, true>,
   ) {}
@@ -371,10 +371,7 @@ export class WebhooksService {
     driver,
     virtualNumber,
   }: InvalidReplyFollowUp): Promise<void> {
-    const { messageId } = await this.smsSender.sendSms(
-      driver.phone,
-      invalidReplySms(driver.locale),
-    );
+    const { messageId } = await this.vonage.sendSms(driver.phone, invalidReplySms(driver.locale));
 
     await this.db.insert(communications).values({
       incidentId,

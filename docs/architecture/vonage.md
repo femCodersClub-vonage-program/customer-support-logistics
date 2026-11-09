@@ -2,13 +2,13 @@
 
 How the platform uses each Vonage API, and which webhooks Vonage sends us. Why we chose Vonage is in [ADR 0003](../adr/0003-vonage-as-communications-provider.md). What each user sees and does is in the [user flows](../design/user-flows/README.md); this page covers the technical side only.
 
-The webhooks are implemented in `apps/api/src/webhooks` ([#30]). Sending SMS and creating calls is still _planned_ ([#29]): until then the API logs each SMS it would send instead of sending it.
+`VonageService` in `apps/api` is in place ([#29]): configuration, the SDK client, error handling and a test SMS script are described in the [API README](../../apps/api/README.md#vonage). The webhooks are implemented in `apps/api/src/webhooks` ([#30]) and answer invalid driver replies through `VonageService`. The other flows that use it are still _planned_.
 
 ## One Vonage Application
 
 All APIs use a single **Vonage Application** with a private key and a virtual phone number:
 
-- Only `apps/api` holds the credentials (`VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_APPLICATION_ID`, the private key and `VONAGE_SIGNATURE_SECRET`) and calls Vonage.
+- Only `apps/api` holds the credentials (`VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_APPLICATION_ID`, `VONAGE_PRIVATE_KEY` and `VONAGE_SIGNATURE_SECRET`) and calls Vonage, always through `VonageService`. The private key is passed as its content, not as a file path, which is easier in containers.
 - The private key also signs the short-lived JWTs that the client and the CRM use to join calls with the Client SDK.
 - The application's webhook URLs point to `PUBLIC_URL` + `/webhooks/*`, which must be public HTTPS (a tunnel such as ngrok in development).
 
@@ -17,7 +17,7 @@ All APIs use a single **Vonage Application** with a private key and a virtual ph
 | Vonage API             | What we use it for                                                                                                                       | Called from                                            | Webhooks it sends us                                                                  |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
 | **Verify v2**          | Customer login: workflow `silent_auth`, then `sms` as fallback                                                                           | `apps/api` auth module ([#31]), through `VonageService` | Verification status                                                                   |
-| **SMS** (or Messages)  | Messages to the driver (incident details, "we'll call you in 2 minutes", fallback when they don't answer) and confirmations to the customer and driver when the incident is resolved | `apps/api` incidents module, through `VonageService`   | Delivery receipts (`/webhooks/sms/status`), inbound SMS from the driver (`/webhooks/sms/inbound`) |
+| **Messages API** (SMS) | Messages to the driver (incident details, "we'll call you in 2 minutes", fallback when they don't answer) and confirmations to the customer and driver when the incident is resolved | `apps/api` incidents module, through `VonageService`   | Delivery receipts (`/webhooks/sms/status`), inbound SMS from the driver (`/webhooks/sms/inbound`) |
 | **Voice API**          | Conversation `inc-<id>`, outbound PSTN call to the driver with an NCCO menu (`talk` + DTMF `input`), inbound calls to the virtual number | `apps/api` incidents module, through `VonageService`   | Answer URL (`/webhooks/voice/answer`), event URL (`/webhooks/voice/event`), DTMF input (`/webhooks/voice/input`) |
 | **Client SDK** (WebRTC) | Customer and agent audio from the browser, in the same conversation as the driver                                                       | `apps/client` (`/call/:id`, [#36]) and `apps/crm` (`/incidents/:id/mediation`, [#39]), with a JWT from `apps/api` | No webhooks of its own: calls from the browser go through the Voice API answer and event URLs |
 | **Video API** (phase 2) | Customer–agent video. The driver still joins by audio only, through SIP to the Voice API                                               | `apps/client`, `apps/crm`                              | Session events                                                                        |
@@ -184,7 +184,7 @@ In the [Vonage dashboard](https://dashboard.nexmo.com):
 With the tunnel and the application set up, a driver in the database whose phone you have, and an order on their route with an incident in `notified`:
 
 1. **SMS reply:** text `2` from the driver's phone to the virtual number. Expect `204` in the API logs, the incident in `in_mediation` and an `IncidentEvent` with `actor: driver` and reason `address_not_found`.
-2. **Invalid reply:** set another incident to `notified` and text `hola`. The API logs the "please answer 1, 2 or 3" SMS it would send (it isn't sent until [#29]).
+2. **Invalid reply:** set another incident to `notified` and text `hola`. Expect the "please answer 1, 2 or 3" SMS on the driver's phone.
 3. **Call and DTMF:** until [#29] creates calls, create one to the driver's phone with the Voice API (for example with the Vonage CLI) using the application's Answer URL. Expect the prompt in the driver's language, then: pressing `1` joins `inc-<id>` and moves the incident to `in_mediation`; another key plays the short message and hangs up.
 4. **Call back:** call the virtual number from the driver's phone while their incident is in mediation; the call joins `inc-<id>`.
 5. **Signature:** send a request with `curl` to any `/webhooks/*` route; expect `401`.

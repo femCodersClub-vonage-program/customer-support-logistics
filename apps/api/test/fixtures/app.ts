@@ -4,9 +4,9 @@ import { sql } from 'drizzle-orm';
 import { AppModule } from '../../src/app.module.js';
 import { DATABASE } from '../../src/database/database.constants.js';
 import { setupOpenApi } from '../../src/openapi/setup-openapi.js';
-import { SMS_SENDER } from '../../src/vonage/sms-sender.js';
+import { VONAGE_SERVICE } from '../../src/vonage/vonage.service.js';
 
-import { FakeSmsSender } from './vonage/fake-sms-sender.js';
+import { FakeVonageService } from './fake-vonage.service.js';
 
 import type { Database } from '../../src/database/database.constants.js';
 import type { INestApplication } from '@nestjs/common';
@@ -15,23 +15,23 @@ import type { TestingModuleBuilder } from '@nestjs/testing';
 export interface TestApp {
   app: INestApplication;
   db: Database;
-  smsSender: FakeSmsSender;
+  vonage: FakeVonageService;
 }
 
 export async function createTestApp(
   customize: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,
 ): Promise<TestApp> {
-  const smsSender = new FakeSmsSender();
+  const vonage = new FakeVonageService();
   const builder = Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(SMS_SENDER)
-    .useValue(smsSender);
+    .overrideProvider(VONAGE_SERVICE)
+    .useValue(vonage);
   const moduleRef = await customize(builder).compile();
   const app = moduleRef.createNestApplication({ rawBody: true });
 
   setupOpenApi(app, 'development');
   await app.init();
 
-  return { app, db: app.get<Database>(DATABASE), smsSender };
+  return { app, db: app.get<Database>(DATABASE), vonage };
 }
 
 export async function waitForLockWait(db: Database, timeoutMs = 5000): Promise<void> {

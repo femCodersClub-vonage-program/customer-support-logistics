@@ -81,7 +81,7 @@ describe('Webhooks (e2e)', () => {
   beforeEach(async () => {
     await resetDatabase(testApp.db);
     await seed(testApp.db);
-    testApp.smsSender.reset();
+    testApp.vonage.reset();
   });
 
   afterAll(async () => {
@@ -201,8 +201,8 @@ describe('Webhooks (e2e)', () => {
 
       expect(await statusOf(ids.notifiedIncident)).toBe('notified');
       expect(await eventsOf(ids.notifiedIncident)).toEqual([]);
-      expect(testApp.smsSender.sent).toEqual([
-        { to: DRIVER_PHONE, text: 'CSL: responde 1, 2 o 3.', messageId: 'fake-sms-1' },
+      expect(testApp.vonage.callsTo('sendSms')).toEqual([
+        { operation: 'sendSms', to: DRIVER_PHONE, text: 'CSL: responde 1, 2 o 3.' },
       ]);
       expect(await communicationsWith('fake-sms-1')).toEqual([
         expect.objectContaining({
@@ -224,7 +224,7 @@ describe('Webhooks (e2e)', () => {
       ).expect(204);
       await testApp.app.get(BackgroundTasks).whenIdle();
 
-      expect(testApp.smsSender.sent).toEqual([]);
+      expect(testApp.vonage.callsTo('sendSms')).toEqual([]);
       expect(await eventsOf(ids.notifiedIncident)).toEqual([]);
     });
 
@@ -237,7 +237,7 @@ describe('Webhooks (e2e)', () => {
       expect(await communicationsWith(payload.message_uuid as string)).toEqual([
         expect.objectContaining({ incidentId: null, fromNumber: '+34611111111' }),
       ]);
-      expect(testApp.smsSender.sent).toEqual([]);
+      expect(testApp.vonage.callsTo('sendSms')).toEqual([]);
       expect(await statusOf(ids.notifiedIncident)).toBe('notified');
     });
 
