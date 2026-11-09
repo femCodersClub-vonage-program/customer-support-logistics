@@ -11,6 +11,7 @@ describe('validateEnv', () => {
       PORT: 3000,
       DATABASE_URL,
       DEV_AUTH_ENABLED: false,
+      WEBHOOK_RATE_LIMIT_PER_MINUTE: 120,
     });
   });
 
@@ -20,6 +21,7 @@ describe('validateEnv', () => {
       PORT: 8080,
       DATABASE_URL,
       DEV_AUTH_ENABLED: false,
+      WEBHOOK_RATE_LIMIT_PER_MINUTE: 120,
     });
   });
 
@@ -64,6 +66,15 @@ describe('validateEnv', () => {
     };
 
     expect(validateEnv(env)).toMatchObject(env);
+  });
+
+  it('coerces WEBHOOK_RATE_LIMIT_PER_MINUTE to a positive integer', () => {
+    expect(validateEnv({ DATABASE_URL, WEBHOOK_RATE_LIMIT_PER_MINUTE: '5' })).toMatchObject({
+      WEBHOOK_RATE_LIMIT_PER_MINUTE: 5,
+    });
+    expect(() => validateEnv({ DATABASE_URL, WEBHOOK_RATE_LIMIT_PER_MINUTE: '0' })).toThrow(
+      /WEBHOOK_RATE_LIMIT_PER_MINUTE/,
+    );
   });
 
   it('throws when PUBLIC_URL is not HTTPS', () => {

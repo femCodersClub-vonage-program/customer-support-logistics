@@ -15,7 +15,7 @@ export interface TestApp {
 
 export async function createTestApp(): Promise<TestApp> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  const app = moduleRef.createNestApplication();
+  const app = moduleRef.createNestApplication({ rawBody: true });
 
   setupOpenApi(app, 'development');
   await app.init();

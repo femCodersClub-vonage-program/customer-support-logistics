@@ -8,7 +8,7 @@ import { setupOpenApi } from './openapi/setup-openapi.js';
 
 import type { Env } from './config/env.schema.js';
 
-const app = await NestFactory.create(AppModule);
+const app = await NestFactory.create(AppModule, { rawBody: true });
 app.enableShutdownHooks();
 
 const config = app.get<ConfigService<Env, true>>(ConfigService);

@@ -13,6 +13,7 @@ export const envSchema = z
     VONAGE_PRIVATE_KEY_PATH: z.string().min(1).optional(),
     VONAGE_SIGNATURE_SECRET: z.string().min(1).optional(),
     DEV_AUTH_ENABLED: z.stringbool().default(false),
+    WEBHOOK_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
   })
   .refine((env) => !(env.NODE_ENV === 'production' && env.DEV_AUTH_ENABLED), {
     path: ['DEV_AUTH_ENABLED'],

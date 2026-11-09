@@ -67,6 +67,7 @@ describe('toApiErrorReply', () => {
     [new ForbiddenException('No'), 403, 'FORBIDDEN'],
     [new NotFoundException('Incident not found'), 404, 'NOT_FOUND'],
     [new HttpException('Conflict', 409), 409, 'CONFLICT'],
+    [new HttpException('Slow down', 429), 429, 'RATE_LIMITED'],
     [new HttpException('Teapot', 418), 418, 'HTTP_ERROR'],
     [new ServiceUnavailableException('Down'), 503, 'HTTP_ERROR'],
   ])('maps %s to its status and code', (exception, status, code) => {
