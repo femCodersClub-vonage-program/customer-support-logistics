@@ -4,6 +4,9 @@ import { sql } from 'drizzle-orm';
 import { AppModule } from '../../src/app.module.js';
 import { DATABASE } from '../../src/database/database.constants.js';
 import { setupOpenApi } from '../../src/openapi/setup-openapi.js';
+import { VONAGE_SERVICE } from '../../src/vonage/vonage.service.js';
+
+import { FakeVonageService } from './fake-vonage.service.js';
 
 import type { Database } from '../../src/database/database.constants.js';
 import type { INestApplication } from '@nestjs/common';
@@ -11,16 +14,21 @@ import type { INestApplication } from '@nestjs/common';
 export interface TestApp {
   app: INestApplication;
   db: Database;
+  vonage: FakeVonageService;
 }
 
 export async function createTestApp(): Promise<TestApp> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const vonage = new FakeVonageService();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(VONAGE_SERVICE)
+    .useValue(vonage)
+    .compile();
   const app = moduleRef.createNestApplication();
 
   setupOpenApi(app, 'development');
   await app.init();
 
-  return { app, db: app.get<Database>(DATABASE) };
+  return { app, db: app.get<Database>(DATABASE), vonage };
 }
 
 export async function waitForLockWait(db: Database, timeoutMs = 5000): Promise<void> {

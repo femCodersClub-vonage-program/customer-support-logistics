@@ -4,23 +4,23 @@ import { toTtsLanguage } from './locales.js';
 
 import type { Locale, Order } from '@csl/shared-types';
 
-export interface TalkAction {
+export type TalkAction = {
   action: 'talk';
   text: string;
   language: string;
-}
+};
 
-export interface InputAction {
+export type InputAction = {
   action: 'input';
   type: ['dtmf'];
   dtmf: { maxDigits: number; timeOut: number };
   eventUrl: [string];
-}
+};
 
-export interface ConversationAction {
+export type ConversationAction = {
   action: 'conversation';
   name: string;
-}
+};
 
 export type NccoAction = TalkAction | InputAction | ConversationAction;
 
