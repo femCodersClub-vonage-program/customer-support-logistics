@@ -9,11 +9,11 @@ export const communications = pgTable(
   'communications',
   {
     id: id(),
-    incidentId: uuid()
-      .notNull()
-      .references(() => incidents.id),
+    incidentId: uuid().references(() => incidents.id),
     channel: communicationChannel().notNull(),
     direction: communicationDirection().notNull(),
+    fromNumber: text(),
+    toNumber: text(),
     vonageUuid: text().notNull().unique('communications_vonage_uuid_unique'),
     status: communicationStatus().notNull(),
     durationSeconds: integer(),

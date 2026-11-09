@@ -58,6 +58,8 @@ export function toCommunication(row: CommunicationRow): Communication {
     incidentId: row.incidentId,
     channel: row.channel,
     direction: row.direction,
+    fromNumber: row.fromNumber,
+    toNumber: row.toNumber,
     vonageUuid: row.vonageUuid,
     status: row.status,
     durationSeconds: row.durationSeconds,
