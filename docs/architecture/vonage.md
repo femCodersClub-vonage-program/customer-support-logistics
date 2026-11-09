@@ -2,13 +2,13 @@
 
 How the platform uses each Vonage API, and which webhooks Vonage sends us. Why we chose Vonage is in [ADR 0003](../adr/0003-vonage-as-communications-provider.md). What each user sees and does is in the [user flows](../design/user-flows/README.md); this page covers the technical side only.
 
-Everything here is _planned_: the `vonage` and `webhooks` modules in `apps/api` are still empty ([#29], [#30]).
+`VonageService` in `apps/api` is in place ([#29]): configuration, the SDK client, error handling and a test SMS script are described in the [API README](../../apps/api/README.md#vonage). The flows that use it and the `webhooks` module ([#30]) are still _planned_.
 
 ## One Vonage Application
 
 All APIs use a single **Vonage Application** with a private key and a virtual phone number:
 
-- Only `apps/api` holds the credentials (`VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_APPLICATION_ID`, the private key and `VONAGE_SIGNATURE_SECRET`) and calls Vonage.
+- Only `apps/api` holds the credentials (`VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_APPLICATION_ID`, `VONAGE_PRIVATE_KEY` and `VONAGE_SIGNATURE_SECRET`) and calls Vonage, always through `VonageService`. The private key is passed as its content, not as a file path, which is easier in containers.
 - The private key also signs the short-lived JWTs that the client and the CRM use to join calls with the Client SDK.
 - The application's webhook URLs point to `PUBLIC_URL` + `/webhooks/*`, which must be public HTTPS (a tunnel such as ngrok in development).
 
@@ -17,10 +17,12 @@ All APIs use a single **Vonage Application** with a private key and a virtual ph
 | Vonage API             | What we use it for                                                                                                                       | Called from                                            | Webhooks it sends us                                                                  |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
 | **Verify v2**          | Customer login: workflow `silent_auth`, then `sms` as fallback                                                                           | `apps/api` auth module ([#31]), through `VonageService` | Verification status                                                                   |
-| **SMS** (or Messages)  | Messages to the driver (incident details, "we'll call you in 2 minutes", fallback when they don't answer) and confirmations to the customer and driver when the incident is resolved | `apps/api` incidents module, through `VonageService`   | Delivery receipts (`/webhooks/sms/status`), inbound SMS from the driver (`/webhooks/sms/inbound`) |
+| **SMS API**            | Messages to the driver (incident details, "we'll call you in 2 minutes", fallback when they don't answer) and confirmations to the customer and driver when the incident is resolved | `apps/api` incidents module, through `VonageService`   | Delivery receipts (`/webhooks/sms/status`), inbound SMS from the driver (`/webhooks/sms/inbound`) |
 | **Voice API**          | Conversation `inc-<id>`, outbound PSTN call to the driver with an NCCO menu (`talk` + DTMF `input`), inbound calls to the virtual number | `apps/api` incidents module, through `VonageService`   | Answer URL (`/webhooks/voice/answer`), event URL (`/webhooks/voice/event`), DTMF input (`/webhooks/voice/input`) |
 | **Client SDK** (WebRTC) | Customer and agent audio from the browser, in the same conversation as the driver                                                       | `apps/client` (`/call/:id`, [#36]) and `apps/crm` (`/incidents/:id/mediation`, [#39]), with a JWT from `apps/api` | No webhooks of its own: calls from the browser go through the Voice API answer and event URLs |
 | **Video API** (phase 2) | Customer–agent video. The driver still joins by audio only, through SIP to the Voice API                                               | `apps/client`, `apps/crm`                              | Session events                                                                        |
+
+We use the **SMS API**, not the Messages API ([#29]): it covers every SMS we send, works with the API key and secret, and signs its webhooks with `VONAGE_SIGNATURE_SECRET`. The account's **Default SMS Setting** must be **SMS API**. The Messages API would only be worth it for other channels, such as WhatsApp.
 
 Webhook paths come from [#30] and can still change, but stay under `/webhooks/*`. Every webhook checks Vonage's signature and is idempotent (see [cross-cutting concerns](README.md#cross-cutting-concerns)).
 
