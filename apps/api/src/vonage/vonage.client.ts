@@ -39,6 +39,8 @@ export interface VonageCredentials {
   privateKey: string;
 }
 
+export const VONAGE_TIMEOUT_MS = 10_000;
+
 export function createVonageClient(credentials: VonageCredentials): VonageClient {
-  return new Vonage(credentials);
+  return new Vonage(credentials, { timeout: VONAGE_TIMEOUT_MS });
 }
