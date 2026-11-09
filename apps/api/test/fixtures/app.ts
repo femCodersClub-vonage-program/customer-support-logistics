@@ -10,6 +10,7 @@ import { FakeSmsSender } from './vonage/fake-sms-sender.js';
 
 import type { Database } from '../../src/database/database.constants.js';
 import type { INestApplication } from '@nestjs/common';
+import type { TestingModuleBuilder } from '@nestjs/testing';
 
 export interface TestApp {
   app: INestApplication;
@@ -17,12 +18,14 @@ export interface TestApp {
   smsSender: FakeSmsSender;
 }
 
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(
+  customize: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,
+): Promise<TestApp> {
   const smsSender = new FakeSmsSender();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(SMS_SENDER)
-    .useValue(smsSender)
-    .compile();
+    .useValue(smsSender);
+  const moduleRef = await customize(builder).compile();
   const app = moduleRef.createNestApplication({ rawBody: true });
 
   setupOpenApi(app, 'development');

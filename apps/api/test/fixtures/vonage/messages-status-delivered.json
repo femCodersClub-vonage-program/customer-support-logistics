@@ -1,0 +1,11 @@
+{
+  "channel": "sms",
+  "message_uuid": "aaaaaaaa-bbbb-4ccc-8ddd-000000000002",
+  "to": "34600000009",
+  "from": "34900000000",
+  "timestamp": "2026-11-09T10:00:05Z",
+  "status": "delivered",
+  "usage": { "currency": "EUR", "price": "0.0057" },
+  "destination": { "network_code": "21407" },
+  "sms": { "count_total": "1" }
+}

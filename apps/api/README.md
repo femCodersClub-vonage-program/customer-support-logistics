@@ -100,10 +100,11 @@ Every error has the same shape:
 | ------ | --------------------------------------------------------- | --------------------------------------------------------------------- |
 | 400    | `VALIDATION_FAILED`                                       | Invalid body, query or path; `details` lists each offending field     |
 | 400    | `BAD_REQUEST`                                             | Malformed request, such as invalid JSON                               |
-| 401    | `UNAUTHORIZED`                                            | Missing or invalid `X-Dev-Actor` header, or dev auth disabled         |
+| 401    | `UNAUTHORIZED`                                            | Bad `X-Dev-Actor` header, dev auth off, or bad Vonage signature       |
 | 403    | `FORBIDDEN`                                               | The actor can't use the route, such as an agent calling `GET /orders` |
 | 404    | `NOT_FOUND`                                               | Missing resource, or one that belongs to another customer             |
 | 409    | `INVALID_TRANSITION` / `TRANSITION_NOT_ALLOWED_FOR_ACTOR` | The state machine rejects the status change                           |
+| 429    | `RATE_LIMITED`                                            | Too many requests to `/webhooks/*` (`WEBHOOK_RATE_LIMIT_PER_MINUTE`)  |
 | 500    | `INTERNAL_ERROR`                                          | Unexpected error; the details are only in the logs                    |
 
 ### Temporary dev authentication
@@ -119,6 +120,19 @@ curl -H 'X-Dev-Actor: agent:00000000-0000-4000-8000-0000000000a1' 'http://localh
 
 The header only identifies the actor. Customers only see their own incidents and orders, but the "who" column above isn't enforced yet.
 
+### Vonage webhooks
+
+Vonage calls the routes under `/webhooks/*`. They don't use `X-Dev-Actor`; they check Vonage's signature with `VONAGE_SIGNATURE_SECRET` instead, and reject everything if it isn't set. What each route does, how to point a Vonage application to a local tunnel and how to test with a real phone are in [Vonage integration](../../docs/architecture/vonage.md#webhooks).
+
+To replay a sample payload against the local API without a phone, sign it with the secret from `.env`:
+
+```sh
+node --env-file=.env scripts/replay-vonage-webhook.mjs messages-inbound-sms text=2
+node --env-file=.env scripts/replay-vonage-webhook.mjs voice-input-dtmf incident=<incident-id>
+```
+
+The payloads are in `test/fixtures/vonage/`, and the e2e tests use the same files.
+
 ### OpenAPI
 
 Outside production, the API serves Swagger UI at [`/docs`](http://localhost:3000/docs) and the OpenAPI 3.1 document at `/docs/json`. Both are generated from the `@csl/contracts` schemas with [`zod-openapi`](https://github.com/samchungy/zod-openapi).
@@ -129,6 +143,6 @@ Outside production, the API serves Swagger UI at [`/docs`](http://localhost:3000
 pnpm --filter ./apps/api run test
 ```
 
-Unit tests (`src/**/*.spec.ts`) don't need a database. End-to-end tests (`test/**/*.e2e-spec.ts`) need a running PostgreSQL with migrations applied, at `DATABASE_URL` or at the default from `.env.example`. They empty the tables before each test, so don't point them at a database you care about. They run one file at a time and turn on `DEV_AUTH_ENABLED` themselves.
+Unit tests (`src/**/*.spec.ts`) don't need a database. End-to-end tests (`test/**/*.e2e-spec.ts`) need a running PostgreSQL with migrations applied, at `DATABASE_URL` or at the default from `.env.example`. They empty the tables before each test, so don't point them at a database you care about. They run one file at a time and set `DEV_AUTH_ENABLED`, `PUBLIC_URL` and the Vonage webhook variables themselves (see `vitest.config.ts`); the SMS sender is replaced by `FakeSmsSender`, so nothing reaches Vonage.
 
 [1.5]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31

@@ -1,0 +1,8 @@
+{
+  "to": "34600000009",
+  "from": "34900000000",
+  "uuid": "bbbbbbbb-cccc-4ddd-8eee-000000000001",
+  "conversation_uuid": "CON-bbbbbbbb-cccc-4ddd-8eee-000000000001",
+  "region_url": "https://api-eu-1.vonage.com",
+  "endpoint_type": "phone"
+}
