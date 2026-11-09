@@ -10,6 +10,7 @@ describe('validateEnv', () => {
       NODE_ENV: 'development',
       PORT: 3000,
       DATABASE_URL,
+      DEV_AUTH_ENABLED: false,
     });
   });
 
@@ -18,7 +19,20 @@ describe('validateEnv', () => {
       NODE_ENV: 'production',
       PORT: 8080,
       DATABASE_URL,
+      DEV_AUTH_ENABLED: false,
     });
+  });
+
+  it('parses DEV_AUTH_ENABLED as a boolean', () => {
+    expect(validateEnv({ DATABASE_URL, DEV_AUTH_ENABLED: 'true' })).toMatchObject({
+      DEV_AUTH_ENABLED: true,
+    });
+  });
+
+  it('throws when DEV_AUTH_ENABLED is enabled in production', () => {
+    expect(() =>
+      validateEnv({ NODE_ENV: 'production', DATABASE_URL, DEV_AUTH_ENABLED: 'true' }),
+    ).toThrow(/DEV_AUTH_ENABLED/);
   });
 
   it('throws when a variable is invalid', () => {

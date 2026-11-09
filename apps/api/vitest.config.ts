@@ -2,6 +2,16 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.spec.ts'],
+      thresholds: {
+        'src/incidents/domain/**': {
+          100: true,
+        },
+      },
+    },
     projects: [
       {
         extends: true,
@@ -15,7 +25,9 @@ export default defineConfig({
         test: {
           name: 'e2e',
           include: ['test/**/*.e2e-spec.ts'],
+          fileParallelism: false,
           env: {
+            DEV_AUTH_ENABLED: 'true',
             DATABASE_URL:
               process.env.DATABASE_URL ??
               'postgresql://app:dev_only_password@localhost:5432/customer_support_logistics',

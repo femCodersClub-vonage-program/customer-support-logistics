@@ -1,14 +1,18 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
 import { App } from './App.tsx';
+import { renderWithIntl } from './test/render.tsx';
 
-function renderAt(path: string) {
-  return render(
+import type { Locale } from '@csl/shared-types';
+
+function renderAt(path: string, locale: Locale = 'en') {
+  return renderWithIntl(
     <MemoryRouter initialEntries={[path]}>
       <App />
     </MemoryRouter>,
+    { locale },
   );
 }
 
@@ -30,5 +34,12 @@ describe('App', () => {
     renderAt('/unknown');
 
     expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+  });
+
+  it('renders the pages in Spanish', () => {
+    renderAt('/report/123', 'es');
+
+    expect(screen.getByRole('heading', { name: 'Reportar una incidencia' })).toBeInTheDocument();
+    expect(screen.getByText('Pedido 123')).toBeInTheDocument();
   });
 });
