@@ -26,6 +26,7 @@ describe('validateEnv', () => {
       DATABASE_URL,
       VONAGE_ENABLED: false,
       DEV_AUTH_ENABLED: false,
+      WEBHOOK_RATE_LIMIT_PER_MINUTE: 120,
     });
   });
 
@@ -68,6 +69,15 @@ describe('validateEnv', () => {
     expect(validateEnv({ ...DISABLED, REDIS_URL: 'redis://localhost:6379' })).toMatchObject({
       REDIS_URL: 'redis://localhost:6379',
     });
+  });
+
+  it('coerces WEBHOOK_RATE_LIMIT_PER_MINUTE to a positive integer', () => {
+    expect(validateEnv({ ...DISABLED, WEBHOOK_RATE_LIMIT_PER_MINUTE: '5' })).toMatchObject({
+      WEBHOOK_RATE_LIMIT_PER_MINUTE: 5,
+    });
+    expect(() => validateEnv({ ...DISABLED, WEBHOOK_RATE_LIMIT_PER_MINUTE: '0' })).toThrow(
+      /WEBHOOK_RATE_LIMIT_PER_MINUTE/,
+    );
   });
 
   it('throws when PUBLIC_URL is not HTTPS', () => {

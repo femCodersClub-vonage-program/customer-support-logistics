@@ -28,6 +28,10 @@ export default defineConfig({
           fileParallelism: false,
           env: {
             DEV_AUTH_ENABLED: 'true',
+            PUBLIC_URL: 'https://csl.test',
+            VONAGE_API_KEY: 'test-api-key',
+            VONAGE_SIGNATURE_SECRET: 'test-signature-secret-0123456789abcdef',
+            WEBHOOK_RATE_LIMIT_PER_MINUTE: '10000',
             DATABASE_URL:
               process.env.DATABASE_URL ??
               'postgresql://app:dev_only_password@localhost:5432/customer_support_logistics',

@@ -1,0 +1,9 @@
+{
+  "from": "34600000009",
+  "to": "34900000000",
+  "uuid": "bbbbbbbb-cccc-4ddd-8eee-000000000001",
+  "conversation_uuid": "CON-bbbbbbbb-cccc-4ddd-8eee-000000000001",
+  "timestamp": "2026-11-09T10:01:10.000Z",
+  "dtmf": { "digits": "1", "timed_out": false },
+  "speech": { "results": [] }
+}

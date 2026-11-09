@@ -2,7 +2,7 @@
 
 How the platform uses each Vonage API, and which webhooks Vonage sends us. Why we chose Vonage is in [ADR 0003](../adr/0003-vonage-as-communications-provider.md). What each user sees and does is in the [user flows](../design/user-flows/README.md); this page covers the technical side only.
 
-`VonageService` in `apps/api` is in place ([#29]): configuration, the SDK client, error handling and a test SMS script are described in the [API README](../../apps/api/README.md#vonage). The flows that use it and the `webhooks` module ([#30]) are still _planned_.
+`VonageService` in `apps/api` is in place ([#29]): configuration, the SDK client, error handling and a test SMS script are described in the [API README](../../apps/api/README.md#vonage). The webhooks are implemented in `apps/api/src/webhooks` ([#30]) and answer invalid driver replies through `VonageService`. The other flows that use it are still _planned_.
 
 ## One Vonage Application
 
@@ -17,18 +17,38 @@ All APIs use a single **Vonage Application** with a private key and a virtual ph
 | Vonage API             | What we use it for                                                                                                                       | Called from                                            | Webhooks it sends us                                                                  |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
 | **Verify v2**          | Customer login: workflow `silent_auth`, then `sms` as fallback                                                                           | `apps/api` auth module ([#31]), through `VonageService` | Verification status                                                                   |
-| **SMS API**            | Messages to the driver (incident details, "we'll call you in 2 minutes", fallback when they don't answer) and confirmations to the customer and driver when the incident is resolved | `apps/api` incidents module, through `VonageService`   | Delivery receipts (`/webhooks/sms/status`), inbound SMS from the driver (`/webhooks/sms/inbound`) |
+| **Messages API** (SMS) | Messages to the driver (incident details, "we'll call you in 2 minutes", fallback when they don't answer) and confirmations to the customer and driver when the incident is resolved | `apps/api` incidents module, through `VonageService`   | Delivery receipts (`/webhooks/sms/status`), inbound SMS from the driver (`/webhooks/sms/inbound`) |
 | **Voice API**          | Conversation `inc-<id>`, outbound PSTN call to the driver with an NCCO menu (`talk` + DTMF `input`), inbound calls to the virtual number | `apps/api` incidents module, through `VonageService`   | Answer URL (`/webhooks/voice/answer`), event URL (`/webhooks/voice/event`), DTMF input (`/webhooks/voice/input`) |
 | **Client SDK** (WebRTC) | Customer and agent audio from the browser, in the same conversation as the driver                                                       | `apps/client` (`/call/:id`, [#36]) and `apps/crm` (`/incidents/:id/mediation`, [#39]), with a JWT from `apps/api` | No webhooks of its own: calls from the browser go through the Voice API answer and event URLs |
 | **Video API** (phase 2) | Customer–agent video. The driver still joins by audio only, through SIP to the Voice API                                               | `apps/client`, `apps/crm`                              | Session events                                                                        |
 
-We use the **SMS API**, not the Messages API ([#29]): it covers every SMS we send, works with the API key and secret, and signs its webhooks with `VONAGE_SIGNATURE_SECRET`. The account's **Default SMS Setting** must be **SMS API**. The Messages API would only be worth it for other channels, such as WhatsApp.
+SMS go through the **Messages API**, not the older SMS API: its webhooks are signed the same way as the Voice API ones, so one guard checks both.
 
-Webhook paths come from [#30] and can still change, but stay under `/webhooks/*`. Every webhook checks Vonage's signature and is idempotent (see [cross-cutting concerns](README.md#cross-cutting-concerns)).
+## Webhooks
+
+| Route                        | Vonage setting                        | Response           | Idempotency key                               |
+| ---------------------------- | ------------------------------------- | ------------------ | --------------------------------------------- |
+| `POST /webhooks/sms/inbound` | Messages: Inbound URL                 | `204`              | `message_uuid`                                |
+| `POST /webhooks/sms/status`  | Messages: Status URL                  | `204`              | `message_uuid` + `status`                     |
+| `GET /webhooks/voice/answer` | Voice: Answer URL (also `POST`)       | `200` with an NCCO | None: it only reads                           |
+| `POST /webhooks/voice/event` | Voice: Event URL                      | `204`              | `uuid` + `status` + `timestamp`               |
+| `POST /webhooks/voice/input` | `eventUrl` of the NCCO `input` action | `200` with an NCCO | `uuid` (or `conversation_uuid`) + `timestamp` |
+
+**Signature.** Vonage signs Voice and Messages webhooks with an HS256 JWT in `Authorization: Bearer`, using the account's signature secret (`VONAGE_SIGNATURE_SECRET`). `VonageSignatureGuard` checks the signature, `iss: Vonage`, `api_key` (when `VONAGE_API_KEY` is set), that `iat` is within 5 minutes and that `payload_hash` is the SHA-256 of the raw body. Anything else gets `401` and a log line with the reason; nothing is processed.
+
+**Idempotency.** Each event is stored in `webhook_events` with a unique `(source, event_key)` before anything else, in the same transaction as its effects. A repeated event answers `2xx` and does nothing; a failed one rolls back, so Vonage's retry processes it again. The input webhook answers a repeated event with the same NCCO.
+
+**Speed.** The work is a few queries per event. The only slow step, sending the "please reply 1, 2 or 3" SMS, runs after the response (`BackgroundTasks`).
+
+**Rate limit.** `WEBHOOK_RATE_LIMIT_PER_MINUTE` per client IP and route (see [cross-cutting concerns](README.md#cross-cutting-concerns)).
+
+**Communications.** Every SMS and call is stored as a `Communication`, also from unknown numbers (without incident). Numbers are stored in E.164; Vonage sends them without `+`. Statuses map to ours: `submitted` → `in_progress`, `delivered` → `completed`, `rejected` / `undeliverable` → `failed`; for calls, `started` / `ringing` → `queued`, `answered` → `in_progress`, `completed` → `completed`, `busy`, `cancelled`, `unanswered`, `rejected`, `failed` and `timeout` → `failed`. A status never goes back, so late events don't undo newer ones.
+
+**Finding the incident.** By the driver's phone (`drivers` → `routes` → `orders`), taking their most recent incident in `notified` or `in_mediation`; by `?incident=<id>` on the input URL; and, for browser calls, by `incidentId` in the Client SDK's `custom_data`.
 
 ### Driver SMS replies
 
-The driver can reply to an incident SMS with a short option, for example `1` delivered, `2` can't find the address, `3` customer not home. The inbound SMS webhook finds the incident by the sender's number, records the reply as a `Communication` and, when relevant, changes the incident status. An unknown reply gets a short "please answer 1, 2 or 3" and changes nothing.
+The driver can reply to an incident SMS with a short option, for example `1` delivered, `2` can't find the address, `3` customer not home. The inbound SMS webhook finds the incident by the sender's number, records the reply as a `Communication` and, when relevant, changes the incident status. If the incident is `notified`, `1`, `2` or `3` move it to `in_mediation` with `actor: driver` and the option as reason (`delivered`, `address_not_found`, `customer_not_home`). Any other reply gets a short "please answer 1, 2 or 3" and changes nothing. Once the incident is in mediation, messages are only recorded.
 
 If an SMS delivery receipt says the message wasn't delivered, the CRM alerts the agent.
 
@@ -117,7 +137,7 @@ If the digit is `1`, the input webhook answers with the NCCO that joins the conv
 [{ "action": "conversation", "name": "inc-1234" }]
 ```
 
-Any other key, or silence, hangs up and counts as a failed attempt. The `talk` text and its `language` come from the driver's `locale` (`buildDriverPromptNcco` in `apps/api/src/vonage/ncco.ts`); see [i18n](../i18n.md) ([#26]).
+Pressing `1` also moves a `notified` incident to `in_mediation` with `actor: driver` and reason `accepted_call`; answering the call doesn't, since a voicemail can answer too. Any other key, or silence, gets a short message and the call ends; it counts as a failed attempt. The `talk` text and its `language` come from the driver's `locale` (`buildDriverPromptNcco` in `apps/api/src/vonage/ncco.ts`); see [i18n](../i18n.md) ([#26]).
 
 ### Closing the call
 
@@ -131,6 +151,45 @@ If the driver calls or texts the virtual number, the API looks up their active i
 - **Inbound SMS:** the message is recorded in the incident and the assigned agent is alerted.
 
 Unknown numbers are recorded and logged, and nothing else happens.
+
+## Local development
+
+### Tunnel
+
+Vonage needs public HTTPS URLs. Start the API, then a tunnel to its port, and put the tunnel's URL in `PUBLIC_URL` (the API uses it to build the input URL of the driver's call):
+
+```sh
+ngrok http 3000
+# or
+cloudflared tunnel --url http://localhost:3000
+```
+
+Free ngrok and quick cloudflared tunnels change their URL on each run, so update `PUBLIC_URL` and the Vonage application each time.
+
+### Vonage application
+
+In the [Vonage dashboard](https://dashboard.nexmo.com):
+
+1. **API settings:** copy the signature secret to `VONAGE_SIGNATURE_SECRET` and the API key to `VONAGE_API_KEY`, and set the default SMS setting to the **Messages API**.
+2. **Applications → your application → Voice:** Answer URL `GET <PUBLIC_URL>/webhooks/voice/answer`, Event URL `POST <PUBLIC_URL>/webhooks/voice/event`, and turn on signed webhooks (older applications have them off).
+3. **Applications → your application → Messages:** Inbound URL `<PUBLIC_URL>/webhooks/sms/inbound` and Status URL `<PUBLIC_URL>/webhooks/sms/status`.
+4. Link the virtual number to the application.
+
+### Without a phone
+
+`apps/api/scripts/replay-vonage-webhook.mjs` signs a sample payload from `apps/api/test/fixtures/vonage/` with your secret and sends it to the local API; see the [API README](../../apps/api/README.md#vonage-webhooks). The e2e tests (`apps/api/test/webhooks.e2e-spec.ts`) use the same payloads.
+
+### Manual end-to-end check
+
+With the tunnel and the application set up, a driver in the database whose phone you have, and an order on their route with an incident in `notified`:
+
+1. **SMS reply:** text `2` from the driver's phone to the virtual number. Expect `204` in the API logs, the incident in `in_mediation` and an `IncidentEvent` with `actor: driver` and reason `address_not_found`.
+2. **Invalid reply:** set another incident to `notified` and text `hola`. Expect the "please answer 1, 2 or 3" SMS on the driver's phone.
+3. **Call and DTMF:** until [#29] creates calls, create one to the driver's phone with the Voice API (for example with the Vonage CLI) using the application's Answer URL. Expect the prompt in the driver's language, then: pressing `1` joins `inc-<id>` and moves the incident to `in_mediation`; another key plays the short message and hangs up.
+4. **Call back:** call the virtual number from the driver's phone while their incident is in mediation; the call joins `inc-<id>`.
+5. **Signature:** send a request with `curl` to any `/webhooks/*` route; expect `401`.
+
+Check as well, since the docs don't say it: that the `GET` answer webhook carries the JWT, that `payload_hash` is hex, and that an empty NCCO (`[]`) hangs up.
 
 [#26]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/26
 [#29]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/29

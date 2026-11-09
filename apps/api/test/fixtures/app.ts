@@ -10,6 +10,7 @@ import { FakeVonageService } from './fake-vonage.service.js';
 
 import type { Database } from '../../src/database/database.constants.js';
 import type { INestApplication } from '@nestjs/common';
+import type { TestingModuleBuilder } from '@nestjs/testing';
 
 export interface TestApp {
   app: INestApplication;
@@ -17,13 +18,15 @@ export interface TestApp {
   vonage: FakeVonageService;
 }
 
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(
+  customize: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,
+): Promise<TestApp> {
   const vonage = new FakeVonageService();
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(VONAGE_SERVICE)
-    .useValue(vonage)
-    .compile();
-  const app = moduleRef.createNestApplication();
+    .useValue(vonage);
+  const moduleRef = await customize(builder).compile();
+  const app = moduleRef.createNestApplication({ rawBody: true });
 
   setupOpenApi(app, 'development');
   await app.init();
@@ -51,6 +54,6 @@ export async function waitForLockWait(db: Database, timeoutMs = 5000): Promise<v
 
 export async function resetDatabase(db: Database): Promise<void> {
   await db.execute(
-    sql`TRUNCATE incident_events, communications, evidence, incidents, orders, routes, drivers, customers CASCADE`,
+    sql`TRUNCATE incident_events, webhook_events, communications, evidence, incidents, orders, routes, drivers, customers CASCADE`,
   );
 }

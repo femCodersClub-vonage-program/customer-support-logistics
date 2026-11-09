@@ -6,6 +6,7 @@
     "invalidReply": "CSL: please reply 1, 2 or 3."
   },
   "voice": {
-    "driverPrompt": "Incident on order {orderId}. Press 1 to connect with support."
+    "driverPrompt": "Incident on order {orderId}. Press 1 to connect with support.",
+    "invalidKey": "We did not get a valid option. We will call you again."
   }
 }

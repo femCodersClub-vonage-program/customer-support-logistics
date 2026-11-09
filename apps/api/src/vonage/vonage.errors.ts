@@ -64,12 +64,6 @@ function hasResponse(error: unknown): error is { response: Response } {
   );
 }
 
-function hasFailedSmsMessages(
-  error: unknown,
-): error is { getFailedMessages(): { status?: unknown; errorText?: unknown }[] } {
-  return isRecord(error) && typeof error.getFailedMessages === 'function';
-}
-
 export function isAbortError(error: unknown): boolean {
   return isRecord(error) && (error.name === 'AbortError' || error.name === 'TimeoutError');
 }
@@ -95,14 +89,6 @@ export async function readVonageErrorDetails(error: unknown): Promise<VonageErro
   if (hasResponse(error)) {
     const { title, type } = await readProblem(error.response);
     return { status: error.response.status, reason: title, type };
-  }
-
-  if (hasFailedSmsMessages(error)) {
-    const [failed] = error.getFailedMessages();
-    return {
-      reason: typeof failed?.errorText === 'string' ? failed.errorText : undefined,
-      type: typeof failed?.status === 'string' ? `sms-status-${failed.status}` : undefined,
-    };
   }
 
   return {};

@@ -1,0 +1,8 @@
+{
+  "from_user": "agent-a",
+  "uuid": "bbbbbbbb-cccc-4ddd-8eee-000000000002",
+  "conversation_uuid": "CON-bbbbbbbb-cccc-4ddd-8eee-000000000002",
+  "region_url": "https://api-eu-1.vonage.com",
+  "endpoint_type": "app",
+  "custom_data": "{\"incidentId\":\"00000000-0000-4000-8000-000000000103\"}"
+}
