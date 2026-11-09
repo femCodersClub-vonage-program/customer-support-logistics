@@ -4,6 +4,9 @@ import { sql } from 'drizzle-orm';
 import { AppModule } from '../../src/app.module.js';
 import { DATABASE } from '../../src/database/database.constants.js';
 import { setupOpenApi } from '../../src/openapi/setup-openapi.js';
+import { SMS_SENDER } from '../../src/vonage/sms-sender.js';
+
+import { FakeSmsSender } from './vonage/fake-sms-sender.js';
 
 import type { Database } from '../../src/database/database.constants.js';
 import type { INestApplication } from '@nestjs/common';
@@ -11,16 +14,21 @@ import type { INestApplication } from '@nestjs/common';
 export interface TestApp {
   app: INestApplication;
   db: Database;
+  smsSender: FakeSmsSender;
 }
 
 export async function createTestApp(): Promise<TestApp> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const smsSender = new FakeSmsSender();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(SMS_SENDER)
+    .useValue(smsSender)
+    .compile();
   const app = moduleRef.createNestApplication({ rawBody: true });
 
   setupOpenApi(app, 'development');
   await app.init();
 
-  return { app, db: app.get<Database>(DATABASE) };
+  return { app, db: app.get<Database>(DATABASE), smsSender };
 }
 
 export async function waitForLockWait(db: Database, timeoutMs = 5000): Promise<void> {
