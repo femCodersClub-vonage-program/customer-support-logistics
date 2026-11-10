@@ -17,6 +17,11 @@
     "title": "Inbox",
     "empty": "No incidents to show.",
     "unassigned": "Unassigned",
+    "loading": "Loading incidents…",
+    "error": {
+      "message": "Could not load the incidents.",
+      "retry": "Try again"
+    },
     "columns": {
       "reference": "Reference",
       "type": "Type",
@@ -37,7 +42,20 @@
       "to": "Created to",
       "search": "Search",
       "searchHint": "Order, customer or phone",
+      "sort": "Sort by",
       "apply": "Filter"
+    },
+    "sort": {
+      "createdAsc": "Created (oldest first)",
+      "createdDesc": "Created (newest first)",
+      "updatedAsc": "Last update (oldest first)",
+      "updatedDesc": "Last update (newest first)"
+    },
+    "pagination": {
+      "label": "Pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "status": "Page {page} of {pages} · {total, plural, one {# incident} other {# incidents}}"
     }
   },
   "incident": {
