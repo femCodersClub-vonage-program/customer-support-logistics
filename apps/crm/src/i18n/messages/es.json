@@ -26,6 +26,18 @@
       "agent": "Agente",
       "created": "Creada",
       "updated": "Última actualización"
+    },
+    "filters": {
+      "status": "Estado",
+      "type": "Tipo",
+      "any": "Cualquiera",
+      "assignee": "Asignada a",
+      "assigneeMe": "Yo",
+      "from": "Creada desde",
+      "to": "Creada hasta",
+      "search": "Buscar",
+      "searchHint": "Pedido, cliente o teléfono",
+      "apply": "Filtrar"
     }
   },
   "incident": {

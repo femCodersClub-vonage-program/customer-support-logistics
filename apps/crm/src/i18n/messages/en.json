@@ -26,6 +26,18 @@
       "agent": "Agent",
       "created": "Created",
       "updated": "Last update"
+    },
+    "filters": {
+      "status": "Status",
+      "type": "Type",
+      "any": "Any",
+      "assignee": "Assigned to",
+      "assigneeMe": "Me",
+      "from": "Created from",
+      "to": "Created to",
+      "search": "Search",
+      "searchHint": "Order, customer or phone",
+      "apply": "Filter"
     }
   },
   "incident": {
