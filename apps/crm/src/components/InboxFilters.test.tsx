@@ -15,6 +15,12 @@ describe('InboxFilters', () => {
     expect(screen.getByRole('checkbox', { name: 'Resolved' })).not.toBeChecked();
   });
 
+  it('summarises the selected statuses in the dropdown button', () => {
+    renderWithIntl(<InboxFilters params={{}} status={['open', 'resolved']} />);
+
+    expect(screen.getByText('Open, Resolved')).toBeInTheDocument();
+  });
+
   it('fills the fields from the URL params', () => {
     renderWithIntl(
       <InboxFilters params={{ q: 'lucia', type: 'damaged', agentId: 'me' }} status={ACTIVE} />,
