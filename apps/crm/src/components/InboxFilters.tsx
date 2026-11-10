@@ -19,15 +19,27 @@ export function InboxFilters({
 
   return (
     <form method="get" action="/inbox" className={styles.form}>
-      <fieldset className={styles.statuses}>
-        <legend>{t('filters.status')}</legend>
-        {INCIDENT_STATUSES.map((value) => (
-          <label key={value}>
-            <input type="checkbox" name="status" value={value} defaultChecked={status.includes(value)} />{' '}
-            {tStatus(value)}
-          </label>
-        ))}
-      </fieldset>
+      <div className={styles.group}>
+        <span>{t('filters.status')}</span>
+        <details className={styles.dropdown}>
+          <summary className={styles.summary}>
+            {status.length > 0 ? status.map((value) => tStatus(value)).join(', ') : t('filters.any')}
+          </summary>
+          <div className={styles.panel}>
+            {INCIDENT_STATUSES.map((value) => (
+              <label key={value} className={styles.option}>
+                <input
+                  type="checkbox"
+                  name="status"
+                  value={value}
+                  defaultChecked={status.includes(value)}
+                />
+                {tStatus(value)}
+              </label>
+            ))}
+          </div>
+        </details>
+      </div>
 
       <label className={styles.field}>
         {t('filters.type')}
