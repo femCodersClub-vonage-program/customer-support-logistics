@@ -1,6 +1,7 @@
 import { useTranslations } from 'use-intl';
 import type { Order } from '@csl/shared-types';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 import { Truck } from 'lucide-react';
 interface OrderCardProps {
   order: Order;
@@ -24,6 +25,10 @@ export function OrderCard({ order }: OrderCardProps) {
   <span  className="order-card__icon" aria-hidden="true">{statusIcons[order.status]}</span>
   <span>{t(`statuses.${order.status}`)}</span>
 </p>
+<Link to={`/report/${order.id}`} className="order-card__button">
+  {t('reportProblem')}
+</Link>
   </article>
-);
+  );
+
 }

@@ -4,6 +4,7 @@
   },
   "orders": {
     "title": "My orders",
+    "reportProblem": "Report a problem",
     "empty": "You don't have any orders yet.",
     "order": "Order {id}",
     "address": "Address",

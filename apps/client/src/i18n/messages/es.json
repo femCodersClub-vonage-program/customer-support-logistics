@@ -4,6 +4,7 @@
   },
   "orders": {
     "title": "Mis pedidos",
+    "reportProblem": "Comunicar un problema",
     "empty": "Todavía no tienes pedidos.",
     "order": "Pedido {id}",
     "address": "Dirección",
