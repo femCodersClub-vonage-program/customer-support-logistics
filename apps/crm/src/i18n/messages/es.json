@@ -14,11 +14,37 @@
     "label": "Idioma"
   },
   "inbox": {
-    "title": "Bandeja de entrada"
+    "title": "Bandeja de entrada",
+    "empty": "No hay incidencias que mostrar.",
+    "unassigned": "Sin asignar",
+    "columns": {
+      "reference": "Referencia",
+      "type": "Tipo",
+      "order": "Pedido",
+      "customer": "Cliente",
+      "status": "Estado",
+      "agent": "Agente",
+      "created": "Creada",
+      "updated": "Última actualización"
+    }
   },
   "incident": {
     "title": "Incidencia",
-    "reference": "Incidencia {id}"
+    "reference": "Incidencia {id}",
+    "status": {
+      "open": "Abierta",
+      "notified": "Notificada",
+      "in_mediation": "En mediación",
+      "resolved": "Resuelta",
+      "escalated": "Escalada"
+    },
+    "type": {
+      "not_delivered": "No entregado",
+      "delayed": "Retrasado",
+      "damaged": "Dañado",
+      "wrong_item": "Artículo incorrecto",
+      "other": "Otro"
+    }
   },
   "contactLanguage": {
     "customer": "Idioma del cliente: {language}",
