@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
-import { IncidentTable } from '../../components/IncidentTable';
 import { InboxFilters } from '../../components/InboxFilters';
+import { IncidentTable } from '../../components/IncidentTable';
 import { CURRENT_AGENT_ID, serverApi } from '../../lib/api.server';
 import { parseInboxQuery } from '../../lib/inbox-query';
 
