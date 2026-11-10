@@ -2,7 +2,7 @@ import { UNASSIGNED_AGENT } from '@csl/contracts';
 import { INCIDENT_STATUSES, INCIDENT_TYPES } from '@csl/shared-types';
 import { useTranslations } from 'next-intl';
 
-import { ASSIGNEE_ME, firstParam } from '../lib/inbox-query';
+import { ASSIGNEE_ME, DEFAULT_SORT, firstParam, SORT_OPTIONS } from '../lib/inbox-query';
 
 import styles from './InboxFilters.module.css';
 
@@ -16,6 +16,7 @@ export function InboxFilters({
   const t = useTranslations('inbox');
   const tStatus = useTranslations('incident.status');
   const tType = useTranslations('incident.type');
+  const tSort = useTranslations('inbox.sort');
 
   return (
     <form method="get" action="/inbox" className={styles.form}>
@@ -82,6 +83,17 @@ export function InboxFilters({
           placeholder={t('filters.searchHint')}
           defaultValue={firstParam(params.q)}
         />
+      </label>
+
+      <label className={styles.field}>
+        {t('filters.sort')}
+        <select name="sort" defaultValue={firstParam(params.sort) ?? DEFAULT_SORT}>
+          {SORT_OPTIONS.map(({ value, labelKey }) => (
+            <option key={value} value={value}>
+              {tSort(labelKey)}
+            </option>
+          ))}
+        </select>
       </label>
 
       <button type="submit" className={styles.button}>
