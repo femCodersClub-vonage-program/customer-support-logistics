@@ -5,6 +5,7 @@
   "orders": {
     "title": "My orders",
     "reportProblem": "Report a problem",
+    "viewIncident": "View my incident",
     "empty": "You don't have any orders yet.",
     "order": "Order {id}",
     "address": "Address",
@@ -24,8 +25,16 @@
     "order": "Order {orderId}"
   },
   "incident": {
-    "title": "Incident",
-    "reference": "Incident {id}"
+    "title": "Incident details",
+    "reference": "Incident {id}",
+    "order": "Order",
+    "type": "Incident type",
+    "status": "Current status",
+    "description": "Description",
+    "resolution": "Resolution",
+    "timeline": "Incident timeline",
+    "createdAt": "Opening date",
+    "closedAt": "Closing date"
   },
   "call": {
     "title": "Mediation call",

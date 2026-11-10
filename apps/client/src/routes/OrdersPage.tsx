@@ -28,6 +28,9 @@ const orders: Order[] = [
     status: 'failed',
   },
 ];
+const incidentByOrderId: Record<string, string> = {
+  'ORD-003': 'INC-001',
+};
 
 export function OrdersPage() {
   const t = useTranslations('orders');
@@ -39,7 +42,10 @@ export function OrdersPage() {
       {orders.length === 0 && <p>{t('empty')}</p>}
 <section className="orders-page__list" aria-label={t('title')}>
       {orders.map((order) => (
-        <OrderCard key={order.id} order={order} />
+        <OrderCard
+        key={order.id}
+        order={order}
+        incidentId={incidentByOrderId[order.id]} />
       ))}
 </section>
       <InstallPrompt />

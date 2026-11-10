@@ -5,6 +5,7 @@
   "orders": {
     "title": "Mis pedidos",
     "reportProblem": "Comunicar un problema",
+    "viewIncident": "Ver mi incidencia",
     "empty": "Todavía no tienes pedidos.",
     "order": "Pedido {id}",
     "address": "Dirección",
@@ -24,8 +25,16 @@
     "order": "Pedido {orderId}"
   },
   "incident": {
-    "title": "Incidencia",
-    "reference": "Incidencia {id}"
+    "title": "Detalle de la incidencia",
+    "reference": "Incidencia {id}",
+    "order": "Pedido",
+    "type": "Tipo de incidencia",
+    "status": "Estado actual",
+    "description": "Descripción",
+    "resolution": "Resolución",
+    "timeline": "Seguimiento de la incidencia",
+    "createdAt": "Fecha de apertura",
+    "closedAt": "Fecha de cierre"
   },
   "call": {
     "title": "Llamada de mediación",

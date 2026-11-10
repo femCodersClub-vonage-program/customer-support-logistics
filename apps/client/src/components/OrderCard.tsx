@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { Truck } from 'lucide-react';
 interface OrderCardProps {
   order: Order;
+  incidentId?: string;
 }
 const statusIcons: Record<Order['status'], ReactNode> = {
   pending: '◷',
@@ -13,7 +14,7 @@ const statusIcons: Record<Order['status'], ReactNode> = {
   failed: '!',
 };
 
-export function OrderCard({ order }: OrderCardProps) {
+export function OrderCard({ order, incidentId }: OrderCardProps) {
   const t = useTranslations('orders');
   return (
     <article className="order-card">
@@ -25,9 +26,16 @@ export function OrderCard({ order }: OrderCardProps) {
   <span  className="order-card__icon" aria-hidden="true">{statusIcons[order.status]}</span>
   <span>{t(`statuses.${order.status}`)}</span>
 </p>
-<Link to={`/report/${order.id}`} className="order-card__button">
-  {t('reportProblem')}
-</Link>
+{incidentId ? (
+  <Link to={`/incidents/${incidentId}`} className="order-card__button">
+    {t('viewIncident')}
+  </Link>
+) : (
+  <Link to={`/report/${order.id}`} className="order-card__button">
+    {t('reportProblem')}
+  </Link>
+)}
+
   </article>
   );
 
