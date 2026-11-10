@@ -1,13 +1,15 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
+import { sortHref } from '../lib/inbox-query';
 import { shortId } from '../lib/short-id';
 
 import styles from './IncidentTable.module.css';
 import { RelativeTime } from './RelativeTime';
 import { StatusBadge } from './StatusBadge';
 
-import type { IncidentListItem } from '@csl/contracts';
+import type { SearchParams } from '../lib/inbox-query';
+import type { IncidentListItem, ListIncidentsQuery } from '@csl/contracts';
 
 const COLUMNS = [
   'reference',
@@ -20,7 +22,24 @@ const COLUMNS = [
   'updated',
 ] as const;
 
-export function IncidentTable({ items }: Readonly<{ items: IncidentListItem[] }>) {
+const SORT_FIELDS: Partial<Record<(typeof COLUMNS)[number], ListIncidentsQuery['sort']>> = {
+  created: 'createdAt',
+  updated: 'updatedAt',
+};
+
+const ARIA_SORT = { asc: 'ascending', desc: 'descending' } as const;
+
+export function IncidentTable({
+  items,
+  params,
+  sort,
+  order,
+}: Readonly<{
+  items: IncidentListItem[];
+  params: SearchParams;
+  sort: ListIncidentsQuery['sort'];
+  order: ListIncidentsQuery['order'];
+}>) {
   const t = useTranslations('inbox');
   const tType = useTranslations('incident.type');
 
@@ -33,11 +52,30 @@ export function IncidentTable({ items }: Readonly<{ items: IncidentListItem[] }>
       <table className={styles.table} aria-label={t('title')}>
         <thead>
           <tr>
-            {COLUMNS.map((column) => (
-              <th key={column} scope="col">
-                {t(`columns.${column}`)}
-              </th>
-            ))}
+            {COLUMNS.map((column) => {
+              const field = SORT_FIELDS[column];
+              const isActive = field === sort;
+              const label = t(`columns.${column}`);
+
+              return (
+                <th
+                  key={column}
+                  scope="col"
+                  aria-sort={field !== undefined && isActive ? ARIA_SORT[order] : undefined}
+                >
+                  {field === undefined ? (
+                    label
+                  ) : (
+                    <Link
+                      href={sortHref(params, field, isActive && order === 'asc' ? 'desc' : 'asc')}
+                      className={styles.sortLink}
+                    >
+                      {label}
+                    </Link>
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

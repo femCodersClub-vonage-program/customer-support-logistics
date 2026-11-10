@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { pageHref, parseInboxQuery } from './inbox-query';
+import { pageHref, parseInboxQuery, sortHref } from './inbox-query';
 
 const AGENT_ID = '5eed0000-0000-4000-8000-0000000000a1';
 
@@ -83,6 +83,14 @@ describe('pageHref', () => {
   it('keeps repeated params and replaces the current page', () => {
     expect(pageHref({ status: ['open', 'escalated'], page: '2' }, 3)).toBe(
       '/inbox?status=open&status=escalated&page=3',
+    );
+  });
+});
+
+describe('sortHref', () => {
+  it('sets the sort, keeps the filters and goes back to the first page', () => {
+    expect(sortHref({ q: 'lucia', page: '3', sort: 'createdAt:asc' }, 'updatedAt', 'desc')).toBe(
+      '/inbox?q=lucia&sort=updatedAt%3Adesc',
     );
   });
 });

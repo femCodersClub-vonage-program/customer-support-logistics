@@ -42,14 +42,7 @@
       "to": "Created to",
       "search": "Search",
       "searchHint": "Order, customer or phone",
-      "sort": "Sort by",
       "apply": "Filter"
-    },
-    "sort": {
-      "createdAsc": "Created (oldest first)",
-      "createdDesc": "Created (newest first)",
-      "updatedAsc": "Last update (oldest first)",
-      "updatedDesc": "Last update (newest first)"
     },
     "pagination": {
       "label": "Pagination",

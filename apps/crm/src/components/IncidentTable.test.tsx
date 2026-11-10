@@ -20,9 +20,11 @@ const incident: IncidentListItem = {
   customer: { id: 'c3d4e5f6-0000-4000-8000-000000000003', name: 'Lucía Martín' },
 };
 
+const defaultSort = { params: {}, sort: 'createdAt', order: 'asc' } as const;
+
 describe('IncidentTable', () => {
   it('renders one row per incident with its data', () => {
-    renderWithIntl(<IncidentTable items={[incident]} />);
+    renderWithIntl(<IncidentTable items={[incident]} {...defaultSort} />);
 
     const row = screen.getAllByRole('row')[1] as HTMLElement;
 
@@ -34,7 +36,7 @@ describe('IncidentTable', () => {
   });
 
   it('links the reference to the incident page', () => {
-    renderWithIntl(<IncidentTable items={[incident]} />);
+    renderWithIntl(<IncidentTable items={[incident]} {...defaultSort} />);
 
     expect(screen.getByRole('link', { name: 'a1b2c3d4' })).toHaveAttribute(
       'href',
@@ -45,23 +47,83 @@ describe('IncidentTable', () => {
   it('shows a short agent id when the incident is assigned', () => {
     const agentId = '5eed0000-0000-4000-8000-0000000000a1';
 
-    renderWithIntl(<IncidentTable items={[{ ...incident, agentId }]} />);
+    renderWithIntl(<IncidentTable items={[{ ...incident, agentId }]} {...defaultSort} />);
 
     expect(screen.getByText('5eed0000')).toBeInTheDocument();
     expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
   });
 
   it('shows the empty state when there are no incidents', () => {
-    renderWithIntl(<IncidentTable items={[]} />);
+    renderWithIntl(<IncidentTable items={[]} {...defaultSort} />);
 
     expect(screen.getByText('No incidents to show.')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('renders the column headers in Spanish', () => {
-    renderWithIntl(<IncidentTable items={[incident]} />, { locale: 'es' });
+    renderWithIntl(<IncidentTable items={[incident]} {...defaultSort} />, { locale: 'es' });
 
     expect(screen.getByRole('columnheader', { name: 'Cliente' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Última actualización' })).toBeInTheDocument();
+  });
+
+  describe('sorting', () => {
+    it('marks the sorted column and leaves the others as they are', () => {
+      renderWithIntl(<IncidentTable items={[incident]} {...defaultSort} />);
+
+      expect(screen.getByRole('columnheader', { name: 'Created' })).toHaveAttribute(
+        'aria-sort',
+        'ascending',
+      );
+      expect(screen.getByRole('columnheader', { name: 'Last update' })).not.toHaveAttribute(
+        'aria-sort',
+      );
+    });
+
+    it('only makes created and last update sortable', () => {
+      renderWithIntl(<IncidentTable items={[incident]} {...defaultSort} />);
+
+      const customer = screen.getByRole('columnheader', { name: 'Customer' });
+
+      expect(within(customer).queryByRole('link')).not.toBeInTheDocument();
+    });
+
+    it('reverses the order when the sorted column is clicked again', () => {
+      renderWithIntl(<IncidentTable items={[incident]} {...defaultSort} />);
+
+      expect(screen.getByRole('link', { name: 'Created' })).toHaveAttribute(
+        'href',
+        '/inbox?sort=createdAt%3Adesc',
+      );
+    });
+
+    it('sorts ascending when another column is chosen', () => {
+      renderWithIntl(<IncidentTable items={[incident]} {...defaultSort} />);
+
+      expect(screen.getByRole('link', { name: 'Last update' })).toHaveAttribute(
+        'href',
+        '/inbox?sort=updatedAt%3Aasc',
+      );
+    });
+
+    it('shows a descending column and keeps the filters in the links', () => {
+      renderWithIntl(
+        <IncidentTable
+          items={[incident]}
+          params={{ q: 'lucia', page: '2' }}
+          sort="updatedAt"
+          order="desc"
+        />,
+      );
+
+      expect(screen.getByRole('columnheader', { name: 'Last update' })).toHaveAttribute(
+        'aria-sort',
+        'descending',
+      );
+      expect(screen.getByRole('link', { name: 'Last update' })).toHaveAttribute(
+        'href',
+        '/inbox?q=lucia&sort=updatedAt%3Aasc',
+      );
+    });
   });
 });

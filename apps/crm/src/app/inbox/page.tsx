@@ -20,7 +20,7 @@ export default async function InboxPage({
     <>
       <h1>{t('title')}</h1>
       <InboxFilters params={params} status={query.status ?? []} />
-      <IncidentTable items={items} />
+      <IncidentTable items={items} params={params} sort={query.sort} order={query.order} />
       {total > 0 && <Pagination params={params} total={total} limit={limit} offset={offset} />}
     </>
   );

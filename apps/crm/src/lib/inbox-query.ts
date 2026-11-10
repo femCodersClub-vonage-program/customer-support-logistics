@@ -7,14 +7,8 @@ export type SearchParams = Record<string, string | string[] | undefined>;
 
 export const ASSIGNEE_ME = 'me';
 
-export const SORT_OPTIONS = [
-  { value: 'createdAt:asc', labelKey: 'createdAsc' },
-  { value: 'createdAt:desc', labelKey: 'createdDesc' },
-  { value: 'updatedAt:asc', labelKey: 'updatedAsc' },
-  { value: 'updatedAt:desc', labelKey: 'updatedDesc' },
-] as const;
-
-export const DEFAULT_SORT = 'createdAt:asc';
+const SORT_VALUES = ['createdAt:asc', 'createdAt:desc', 'updatedAt:asc', 'updatedAt:desc'];
+const DEFAULT_SORT = 'createdAt:asc';
 
 const ACTIVE_STATUSES = INCIDENT_STATUSES.filter((status) => status !== 'resolved');
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
@@ -30,7 +24,7 @@ function withTime(value: unknown, time: string): unknown {
 }
 
 function parseSort(value: unknown) {
-  const option = SORT_OPTIONS.find((candidate) => candidate.value === value)?.value ?? DEFAULT_SORT;
+  const option = SORT_VALUES.find((candidate) => candidate === value) ?? DEFAULT_SORT;
   const [sort, order] = option.split(':');
 
   return { sort, order };
@@ -63,11 +57,11 @@ export function parseInboxQuery(params: SearchParams, agentId: string): ListInci
   return result.success ? result.data : listIncidentsQuerySchema.parse(DEFAULT_QUERY);
 }
 
-export function pageHref(params: SearchParams, page: number): string {
+function buildHref(params: SearchParams, changes: Record<string, string | undefined>): string {
   const search = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
-    if (key === 'page') {
+    if (key in changes) {
       continue;
     }
 
@@ -78,11 +72,25 @@ export function pageHref(params: SearchParams, page: number): string {
     }
   }
 
-  if (page > 1) {
-    search.set('page', String(page));
+  for (const [key, value] of Object.entries(changes)) {
+    if (value !== undefined) {
+      search.set(key, value);
+    }
   }
 
   const queryString = search.toString();
 
   return queryString === '' ? '/inbox' : `/inbox?${queryString}`;
+}
+
+export function pageHref(params: SearchParams, page: number): string {
+  return buildHref(params, { page: page > 1 ? String(page) : undefined });
+}
+
+export function sortHref(
+  params: SearchParams,
+  sort: ListIncidentsQuery['sort'],
+  order: ListIncidentsQuery['order'],
+): string {
+  return buildHref(params, { sort: `${sort}:${order}`, page: undefined });
 }

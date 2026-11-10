@@ -23,22 +23,24 @@ describe('InboxFilters', () => {
 
   it('fills the fields from the URL params', () => {
     renderWithIntl(
-      <InboxFilters
-        params={{ q: 'lucia', type: 'damaged', agentId: 'me', sort: 'updatedAt:desc' }}
-        status={ACTIVE}
-      />,
+      <InboxFilters params={{ q: 'lucia', type: 'damaged', agentId: 'me' }} status={ACTIVE} />,
     );
 
     expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('lucia');
     expect(screen.getByRole('combobox', { name: 'Type' })).toHaveValue('damaged');
     expect(screen.getByRole('combobox', { name: 'Assigned to' })).toHaveValue('me');
-    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('updatedAt:desc');
   });
 
-  it('sorts by oldest created first by default', () => {
+  it('keeps the current sort when the filters are applied', () => {
+    renderWithIntl(<InboxFilters params={{ sort: 'updatedAt:desc' }} status={ACTIVE} />);
+
+    expect(screen.getByDisplayValue('updatedAt:desc')).toHaveAttribute('name', 'sort');
+  });
+
+  it('does not send a sort when the URL has none', () => {
     renderWithIntl(<InboxFilters params={{}} status={ACTIVE} />);
 
-    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('createdAt:asc');
+    expect(screen.queryByDisplayValue(/At:(asc|desc)/)).not.toBeInTheDocument();
   });
 
   it('submits with GET so the filters end up in the URL', () => {
