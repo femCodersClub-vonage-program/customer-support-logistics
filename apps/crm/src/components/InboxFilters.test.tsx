@@ -23,12 +23,22 @@ describe('InboxFilters', () => {
 
   it('fills the fields from the URL params', () => {
     renderWithIntl(
-      <InboxFilters params={{ q: 'lucia', type: 'damaged', agentId: 'me' }} status={ACTIVE} />,
+      <InboxFilters
+        params={{ q: 'lucia', type: 'damaged', agentId: 'me', sort: 'updatedAt:desc' }}
+        status={ACTIVE}
+      />,
     );
 
     expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveValue('lucia');
     expect(screen.getByRole('combobox', { name: 'Type' })).toHaveValue('damaged');
     expect(screen.getByRole('combobox', { name: 'Assigned to' })).toHaveValue('me');
+    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('updatedAt:desc');
+  });
+
+  it('sorts by oldest created first by default', () => {
+    renderWithIntl(<InboxFilters params={{}} status={ACTIVE} />);
+
+    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('createdAt:asc');
   });
 
   it('submits with GET so the filters end up in the URL', () => {
