@@ -23,7 +23,9 @@ export function InboxFilters({
         <span>{t('filters.status')}</span>
         <details className={styles.dropdown}>
           <summary className={styles.summary}>
-            {status.length > 0 ? status.map((value) => tStatus(value)).join(', ') : t('filters.any')}
+            {status.length > 0
+              ? status.map((value) => tStatus(value)).join(', ')
+              : t('filters.any')}
           </summary>
           <div className={styles.panel}>
             {INCIDENT_STATUSES.map((value) => (
