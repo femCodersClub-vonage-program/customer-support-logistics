@@ -4,7 +4,16 @@
   },
   "orders": {
     "title": "My orders",
-    "empty": "You have no orders yet."
+    "empty": "You don't have any orders yet.",
+    "order": "Order {id}",
+    "address": "Address",
+    "status": "Status",
+    "statuses": {
+      "pending": "Pending",
+      "in_transit": "On the way",
+      "delivered": "Delivered",
+      "failed": "Not delivered"
+    }
   },
   "login": {
     "title": "Log in"

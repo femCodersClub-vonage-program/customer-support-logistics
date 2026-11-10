@@ -4,7 +4,16 @@
   },
   "orders": {
     "title": "Mis pedidos",
-    "empty": "Todavía no tienes pedidos."
+    "empty": "Todavía no tienes pedidos.",
+    "order": "Pedido {id}",
+    "address": "Dirección",
+    "status": "Estado",
+    "statuses": {
+      "pending": "Pendiente",
+      "in_transit": "En camino",
+      "delivered": "Entregado",
+      "failed": "No entregado"
+    }
   },
   "login": {
     "title": "Iniciar sesión"
