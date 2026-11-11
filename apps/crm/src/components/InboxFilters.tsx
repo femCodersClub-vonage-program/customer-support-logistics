@@ -16,10 +16,12 @@ export function InboxFilters({
   const t = useTranslations('inbox');
   const tStatus = useTranslations('incident.status');
   const tType = useTranslations('incident.type');
+  const sort = firstParam(params.sort);
 
   return (
     <form method="get" action="/inbox" className={styles.form}>
       <input type="hidden" name="status" value="" />
+      {sort !== undefined && <input type="hidden" name="sort" value={sort} />}
 
       <div className={styles.group}>
         <span>{t('filters.status')}</span>

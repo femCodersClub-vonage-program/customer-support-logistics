@@ -17,6 +17,11 @@
     "title": "Bandeja de entrada",
     "empty": "No hay incidencias que mostrar.",
     "unassigned": "Sin asignar",
+    "loading": "Cargando incidencias…",
+    "error": {
+      "message": "No se pudieron cargar las incidencias.",
+      "retry": "Reintentar"
+    },
     "columns": {
       "reference": "Referencia",
       "type": "Tipo",
@@ -38,6 +43,12 @@
       "search": "Buscar",
       "searchHint": "Pedido, cliente o teléfono",
       "apply": "Filtrar"
+    },
+    "pagination": {
+      "label": "Paginación",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "status": "Página {page} de {pages} · {total, plural, one {# incidencia} other {# incidencias}}"
     }
   },
   "incident": {

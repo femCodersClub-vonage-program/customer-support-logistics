@@ -17,6 +17,11 @@
     "title": "Inbox",
     "empty": "No incidents to show.",
     "unassigned": "Unassigned",
+    "loading": "Loading incidents…",
+    "error": {
+      "message": "Could not load the incidents.",
+      "retry": "Try again"
+    },
     "columns": {
       "reference": "Reference",
       "type": "Type",
@@ -38,6 +43,12 @@
       "search": "Search",
       "searchHint": "Order, customer or phone",
       "apply": "Filter"
+    },
+    "pagination": {
+      "label": "Pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "status": "Page {page} of {pages} · {total, plural, one {# incident} other {# incidents}}"
     }
   },
   "incident": {

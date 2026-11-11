@@ -22,6 +22,31 @@
   font-weight: 600;
 }
 
+.table th[aria-sort] {
+  color: var(--color-text);
+}
+
+.sortLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sortLink:hover {
+  color: var(--color-primary);
+}
+
+.sortLink::after {
+  content: ' ↕';
+}
+
+.table th[aria-sort='ascending'] .sortLink::after {
+  content: ' ▲';
+}
+
+.table th[aria-sort='descending'] .sortLink::after {
+  content: ' ▼';
+}
+
 .row {
   position: relative;
 }

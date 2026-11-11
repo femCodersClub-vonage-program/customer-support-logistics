@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseInboxQuery } from './inbox-query';
+import { pageHref, parseInboxQuery, sortHref } from './inbox-query';
 
 import type { SearchParams } from './inbox-query';
 
@@ -12,11 +12,14 @@ function parse(params: SearchParams) {
 }
 
 describe('parseInboxQuery', () => {
-  it('defaults to active incidents, oldest first', () => {
+  it('defaults to active incidents, oldest first, first page', () => {
     const { query } = parse({});
 
     expect(query.status).toEqual(ACTIVE);
+    expect(query.sort).toBe('createdAt');
     expect(query.order).toBe('asc');
+    expect(query.limit).toBe(20);
+    expect(query.offset).toBe(0);
   });
 
   it('reads a single status as an array', () => {
@@ -65,6 +68,31 @@ describe('parseInboxQuery', () => {
     expect(parse({ q: 'ana' }).params).toEqual({ q: 'ana' });
   });
 
+  it('splits the sort option into field and order', () => {
+    const { query } = parse({ sort: 'updatedAt:desc' });
+
+    expect(query.sort).toBe('updatedAt');
+    expect(query.order).toBe('desc');
+  });
+
+  it('ignores an unknown sort option', () => {
+    const { query } = parse({ sort: 'bogus' });
+
+    expect(query.sort).toBe('createdAt');
+    expect(query.order).toBe('asc');
+  });
+
+  it('converts the page into an offset', () => {
+    const { query } = parse({ page: '3' });
+
+    expect(query.limit).toBe(20);
+    expect(query.offset).toBe(40);
+  });
+
+  it.each(['abc', '0', '-2'])('treats page "%s" as the first page', (page) => {
+    expect(parse({ page }).query.offset).toBe(0);
+  });
+
   describe('with invalid params', () => {
     it('drops an unknown type and keeps the default status', () => {
       const { query, params } = parse({ type: 'bogus' });
@@ -108,5 +136,40 @@ describe('parseInboxQuery', () => {
       expect(query.createdFrom).toBeUndefined();
       expect(params).toEqual({});
     });
+
+    it('drops several invalid params, also the ones that only fail after the others', () => {
+      const { query, params } = parse({
+        q: 'a'.repeat(101),
+        createdFrom: '2026-11-10',
+        createdTo: '2026-11-09',
+        type: 'damaged',
+      });
+
+      expect(query.q).toBeUndefined();
+      expect(query.createdTo).toBeUndefined();
+      expect(query.type).toBe('damaged');
+      expect(params).toEqual({ createdFrom: '2026-11-10', type: 'damaged' });
+    });
+  });
+});
+
+describe('pageHref', () => {
+  it('omits the page parameter for the first page', () => {
+    expect(pageHref({ q: 'lucia' }, 1)).toBe('/inbox?q=lucia');
+    expect(pageHref({}, 1)).toBe('/inbox');
+  });
+
+  it('keeps repeated params and replaces the current page', () => {
+    expect(pageHref({ status: ['open', 'escalated'], page: '2' }, 3)).toBe(
+      '/inbox?status=open&status=escalated&page=3',
+    );
+  });
+});
+
+describe('sortHref', () => {
+  it('sets the sort, keeps the filters and goes back to the first page', () => {
+    expect(sortHref({ q: 'lucia', page: '3', sort: 'createdAt:asc' }, 'updatedAt', 'desc')).toBe(
+      '/inbox?q=lucia&sort=updatedAt%3Adesc',
+    );
   });
 });
