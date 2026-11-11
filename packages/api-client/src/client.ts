@@ -1,5 +1,6 @@
 import { ApiError } from './errors.js';
 
+import type { ListIncidentsQueryInput, ListIncidentsResponse } from '@csl/contracts';
 import type { HealthResponse } from '@csl/shared-types';
 
 type MaybePromise<T> = T | Promise<T>;
@@ -18,6 +19,10 @@ export interface RequestOptions {
 
 export interface ApiClient {
   getHealth(options?: RequestOptions): Promise<HealthResponse>;
+  listIncidents(
+    query?: ListIncidentsQueryInput,
+    options?: RequestOptions,
+  ): Promise<ListIncidentsResponse>;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -30,6 +35,22 @@ async function parseBody(response: Response): Promise<unknown> {
   const text = await response.text();
 
   return text === '' ? undefined : text;
+}
+
+function toQueryString(query: object): string {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(query)) {
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined) {
+        params.append(key, String(item));
+      }
+    }
+  }
+
+  const queryString = params.toString();
+
+  return queryString === '' ? '' : `?${queryString}`;
 }
 
 export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions): ApiClient {
@@ -63,5 +84,10 @@ export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions):
 
   return {
     getHealth: ({ signal } = {}) => request<HealthResponse>('/health', { method: 'GET', signal }),
+    listIncidents: (query = {}, { signal } = {}) =>
+      request<ListIncidentsResponse>(`/incidents${toQueryString(query)}`, {
+        method: 'GET',
+        signal,
+      }),
   };
 }
