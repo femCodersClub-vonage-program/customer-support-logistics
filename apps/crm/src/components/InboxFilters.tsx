@@ -19,6 +19,8 @@ export function InboxFilters({
 
   return (
     <form method="get" action="/inbox" className={styles.form}>
+      <input type="hidden" name="status" value="" />
+
       <div className={styles.group}>
         <span>{t('filters.status')}</span>
         <details className={styles.dropdown}>
