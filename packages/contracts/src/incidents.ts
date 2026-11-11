@@ -159,8 +159,14 @@ export type ListIncidentsQueryInput = z.input<typeof listIncidentsQuerySchema>;
 
 export type ListIncidentsQuery = z.output<typeof listIncidentsQuerySchema>;
 
-export const listIncidentsResponseSchema = paginatedSchema(incidentListItemSchema).meta({
-  id: 'ListIncidentsResponse',
-});
+export const incidentStatusCountsSchema = z
+  .record(incidentStatusSchema, z.number().int().min(0))
+  .meta({ id: 'IncidentStatusCounts' });
+
+export type IncidentStatusCounts = z.infer<typeof incidentStatusCountsSchema>;
+
+export const listIncidentsResponseSchema = paginatedSchema(incidentListItemSchema)
+  .extend({ statusCounts: incidentStatusCountsSchema })
+  .meta({ id: 'ListIncidentsResponse' });
 
 export type ListIncidentsResponse = z.infer<typeof listIncidentsResponseSchema>;
