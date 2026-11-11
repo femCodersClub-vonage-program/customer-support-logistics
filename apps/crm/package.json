@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@csl/api-client": "workspace:*",
+    "@csl/design-tokens": "workspace:*",
     "@csl/i18n": "workspace:*",
     "@csl/shared-types": "workspace:*",
     "next": "16.4.5",
