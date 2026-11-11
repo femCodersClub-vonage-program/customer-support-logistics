@@ -7,6 +7,12 @@ import { InboxFilters } from './InboxFilters';
 
 const ACTIVE = ['open', 'notified', 'in_mediation', 'escalated'] as const;
 
+function submittedStatuses() {
+  const form = screen.getByRole('button', { name: 'Filter' }).closest('form') as HTMLFormElement;
+
+  return new FormData(form).getAll('status');
+}
+
 describe('InboxFilters', () => {
   it('checks the given statuses', () => {
     renderWithIntl(<InboxFilters params={{}} status={ACTIVE} />);
@@ -19,6 +25,24 @@ describe('InboxFilters', () => {
     renderWithIntl(<InboxFilters params={{}} status={['open', 'resolved']} />);
 
     expect(screen.getByText('Open, Resolved')).toBeInTheDocument();
+  });
+
+  it('shows "Any" in the dropdown button when no status is selected', () => {
+    renderWithIntl(<InboxFilters params={{}} status={[]} />);
+
+    expect(screen.getByText('Any', { selector: 'summary' })).toBeInTheDocument();
+  });
+
+  it('always sends a status, so that no status checked means any status', () => {
+    renderWithIntl(<InboxFilters params={{}} status={[]} />);
+
+    expect(submittedStatuses()).toEqual(['']);
+  });
+
+  it('sends the checked statuses after the empty one', () => {
+    renderWithIntl(<InboxFilters params={{}} status={['open', 'resolved']} />);
+
+    expect(submittedStatuses()).toEqual(['', 'open', 'resolved']);
   });
 
   it('fills the fields from the URL params', () => {
