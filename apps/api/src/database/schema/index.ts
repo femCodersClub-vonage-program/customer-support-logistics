@@ -1,3 +1,4 @@
+export * from './agents.js';
 export * from './communications.js';
 export * from './customers.js';
 export * from './drivers.js';
@@ -7,4 +8,5 @@ export * from './incident-events.js';
 export * from './incidents.js';
 export * from './orders.js';
 export * from './routes.js';
+export * from './sessions.js';
 export * from './webhook-events.js';

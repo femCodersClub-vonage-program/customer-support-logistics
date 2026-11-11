@@ -1,5 +1,6 @@
 import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
+import { agents } from './agents.js';
 import { createdAt, id, updatedAt } from './columns.js';
 import { incidentStatus, incidentType } from './enums.js';
 import { orders } from './orders.js';
@@ -13,7 +14,7 @@ export const incidents = pgTable(
       .references(() => orders.id),
     type: incidentType().notNull(),
     status: incidentStatus().notNull().default('open'),
-    agentId: uuid(),
+    agentId: uuid().references(() => agents.id),
     resolution: text(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

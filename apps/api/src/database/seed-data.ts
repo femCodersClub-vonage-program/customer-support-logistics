@@ -1,4 +1,5 @@
 import type {
+  agents,
   communications,
   customers,
   drivers,
@@ -8,6 +9,7 @@ import type {
   routes,
 } from './schema/index.js';
 
+type AgentRow = typeof agents.$inferInsert;
 type CustomerRow = typeof customers.$inferInsert;
 type DriverRow = typeof drivers.$inferInsert;
 type RouteRow = typeof routes.$inferInsert;
@@ -48,6 +50,11 @@ export const seedIds = {
 } as const;
 
 const ids = seedIds;
+
+const seededAgents: AgentRow[] = [
+  { id: ids.agentA, email: 'marta.vidal@example.com', name: 'Marta Vidal', locale: 'es' },
+  { id: ids.agentB, email: 'olivia.brown@example.com', name: 'Olivia Brown', locale: 'en' },
+];
 
 const seededCustomers: CustomerRow[] = [
   {
@@ -529,6 +536,7 @@ const seededCommunications: CommunicationRow[] = [
 ];
 
 export const seedData = {
+  agents: seededAgents,
   customers: seededCustomers,
   drivers: seededDrivers,
   routes: seededRoutes,
