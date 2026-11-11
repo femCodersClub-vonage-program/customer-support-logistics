@@ -1,6 +1,6 @@
 # 0008. Authentication and sessions
 
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-11-11
 
 ## Context
