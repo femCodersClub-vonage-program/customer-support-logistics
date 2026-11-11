@@ -357,6 +357,9 @@ importers:
       '@csl/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@csl/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@csl/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -421,6 +424,9 @@ importers:
 
   packages/api-client:
     dependencies:
+      '@csl/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@csl/shared-types':
         specifier: workspace:*
         version: link:../shared-types
