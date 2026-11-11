@@ -9,8 +9,9 @@ import { renderWithIntl } from '../../test/render';
 import InboxPage from './page';
 
 import type { SearchParams } from '../../lib/inbox-query';
-import type { IncidentListItem } from '@csl/contracts';
+import type { IncidentListItem, IncidentStatusCounts } from '@csl/contracts';
 
+// next-intl/server needs a Next.js request and the page only uses the title.
 vi.mock('next-intl/server', async () => {
   const { getMessages } = await import('../../i18n/messages');
 
@@ -30,6 +31,14 @@ const incident: IncidentListItem = {
   customer: { id: 'c3d4e5f6-0000-4000-8000-000000000003', name: 'Lucía Martín' },
 };
 
+const statusCounts: IncidentStatusCounts = {
+  open: 3,
+  notified: 0,
+  in_mediation: 1,
+  resolved: 2,
+  escalated: 1,
+};
+
 const server = setupServer();
 const requests: Request[] = [];
 
@@ -38,7 +47,7 @@ function respondWith(items: IncidentListItem[], total = items.length) {
     http.get('*/incidents', ({ request }) => {
       requests.push(request);
 
-      return HttpResponse.json({ items, total, limit: 20, offset: 0 });
+      return HttpResponse.json({ items, total, limit: 20, offset: 0, statusCounts });
     }),
   );
 }
@@ -50,7 +59,7 @@ async function renderInbox(params: SearchParams = {}) {
 }
 
 beforeAll(() => {
-  server.listen({ onUnhandledFrame: 'error' });
+  server.listen({ onUnhandledRequest: 'error' });
 });
 
 afterEach(() => {
@@ -85,6 +94,16 @@ describe('InboxPage', () => {
     await renderInbox();
 
     expect((requests[0] as Request).headers.get('x-dev-actor')).toBe(`agent:${CURRENT_AGENT_ID}`);
+  });
+
+  it('shows how many incidents each status has next to the status options', async () => {
+    respondWith([incident]);
+
+    await renderInbox();
+
+    expect(screen.getByRole('checkbox', { name: 'Open (3)' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Notified (0)' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Resolved (2)' })).not.toBeChecked();
   });
 
   describe('filters', () => {
