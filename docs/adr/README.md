@@ -57,6 +57,7 @@ Accepted ADRs are not edited, except to change their status. To change a decisio
 | [0005](0005-orm-and-migrations.md)                       | Drizzle ORM and SQL migrations for PostgreSQL             | proposed | 2026-11-08 |
 | [0006](0006-internationalisation.md)                     | Internationalisation with next-intl and use-intl          | proposed | 2026-11-08 |
 | [0007](0007-zod-schemas-as-runtime-contract.md)          | Zod schemas in `@csl/contracts` as the runtime API contract | proposed | 2026-11-09 |
+| [0008](0008-authentication-and-sessions.md)              | Authentication and sessions                               | proposed | 2026-11-11 |
 
 ### Pending decisions
 
@@ -64,11 +65,9 @@ These decisions still need an ADR. Each one is written as part of its issue and 
 
 | Decision                                                | Issue      | Status |
 | ------------------------------------------------------- | ---------- | ------ |
-| Authentication and session after Verify                 | [#31][i31] | to do  |
 | Evidence storage                                        | [#32][i32] | to do  |
 | Real-time updates for the CRM (SSE vs WebSocket)        | [#40][i40] | to do  |
 | Hosting and preview deployments                         | -          | to do  |
 
-[i31]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31
 [i32]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/32
 [i40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40
