@@ -65,9 +65,15 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
 
 const databaseEnvSchema = baseEnvSchema.pick({ NODE_ENV: true, DATABASE_URL: true });
 
+const seedEnvSchema = databaseEnvSchema.extend({
+  SEED_AGENT_PASSWORD: z.string().min(12).optional(),
+});
+
 export type Env = z.infer<typeof envSchema>;
 
 export type DatabaseEnv = z.infer<typeof databaseEnvSchema>;
+
+export type SeedEnv = z.infer<typeof seedEnvSchema>;
 
 function parseEnv<T extends z.ZodType>(schema: T, config: Record<string, unknown>): z.infer<T> {
   const result = schema.safeParse(config);
@@ -85,4 +91,8 @@ export function validateEnv(config: Record<string, unknown>): Env {
 
 export function validateDatabaseEnv(config: Record<string, unknown>): DatabaseEnv {
   return parseEnv(databaseEnvSchema, config);
+}
+
+export function validateSeedEnv(config: Record<string, unknown>): SeedEnv {
+  return parseEnv(seedEnvSchema, config);
 }
