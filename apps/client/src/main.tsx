@@ -9,8 +9,7 @@ import { listenForInstallPrompt } from './pwa/installPrompt.ts';
 import { InterruptionsProvider } from './pwa/InterruptionsProvider.tsx';
 import { OfflineBanner } from './pwa/OfflineBanner.tsx';
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx';
-import './styles/tokens.css';
-import './styles/global.css';
+import '@csl/design-tokens';
 
 const container = document.getElementById('root');
 
