@@ -12,8 +12,7 @@ export default async function InboxPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   const t = await getTranslations('inbox');
-  const params = await searchParams;
-  const query = parseInboxQuery(params, CURRENT_AGENT_ID);
+  const { query, params } = parseInboxQuery(await searchParams, CURRENT_AGENT_ID);
   const { items, total, limit, offset } = await serverApi.listIncidents(query);
 
   return (

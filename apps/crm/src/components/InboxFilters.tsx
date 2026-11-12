@@ -20,6 +20,9 @@ export function InboxFilters({
 
   return (
     <form method="get" action="/inbox" className={styles.form}>
+      <input type="hidden" name="status" value="" />
+      {sort !== undefined && <input type="hidden" name="sort" value={sort} />}
+
       <div className={styles.group}>
         <span>{t('filters.status')}</span>
         <details className={styles.dropdown}>
@@ -84,8 +87,6 @@ export function InboxFilters({
           defaultValue={firstParam(params.q)}
         />
       </label>
-
-      {sort !== undefined && <input type="hidden" name="sort" value={sort} />}
 
       <button type="submit" className={styles.button}>
         {t('filters.apply')}

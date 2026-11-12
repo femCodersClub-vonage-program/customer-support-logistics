@@ -1,33 +1,40 @@
 import { DEFAULT_PAGE_LIMIT, listIncidentsQuerySchema } from '@csl/contracts';
 import { INCIDENT_STATUSES } from '@csl/shared-types';
 
+import { endOfDay, startOfDay } from './zoned-day';
+
 import type { ListIncidentsQuery } from '@csl/contracts';
 
 export type SearchParams = Record<string, string | string[] | undefined>;
+
+export interface ParsedInboxQuery {
+  query: ListIncidentsQuery;
+  params: SearchParams;
+}
 
 export const ASSIGNEE_ME = 'me';
 
 const SORT_VALUES = ['createdAt:asc', 'createdAt:desc', 'updatedAt:asc', 'updatedAt:desc'];
 const DEFAULT_SORT = 'createdAt:asc';
-
 const ACTIVE_STATUSES = INCIDENT_STATUSES.filter((status) => status !== 'resolved');
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-const START_OF_DAY = 'T00:00:00.000Z';
-const END_OF_DAY = 'T23:59:59.999Z';
 
 export function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function withTime(value: unknown, time: string): unknown {
-  return typeof value === 'string' && DATE_ONLY.test(value) ? `${value}${time}` : value;
+function toBound(value: unknown, bound: (date: string) => string): unknown {
+  return typeof value === 'string' && DATE_ONLY.test(value) ? bound(value) : value;
 }
 
-function parseSort(value: unknown) {
-  const option = SORT_VALUES.find((candidate) => candidate === value) ?? DEFAULT_SORT;
-  const [sort, order] = option.split(':');
+function parseStatus(value: string | string[] | undefined) {
+  if (value === undefined) {
+    return ACTIVE_STATUSES;
+  }
 
-  return { sort, order };
+  const selected = [value].flat().filter((status) => status !== '');
+
+  return selected.length > 0 ? selected : undefined;
 }
 
 function parsePage(value: string | string[] | undefined): number {
@@ -36,25 +43,41 @@ function parsePage(value: string | string[] | undefined): number {
   return Number.isNaN(page) ? 1 : Math.max(1, page);
 }
 
-const DEFAULT_QUERY = { status: ACTIVE_STATUSES, ...parseSort(DEFAULT_SORT) };
-
-export function parseInboxQuery(params: SearchParams, agentId: string): ListIncidentsQuery {
+function toInput(params: SearchParams, agentId: string) {
   const raw: Record<string, unknown> = Object.fromEntries(
     Object.entries(params).filter(([, value]) => value !== undefined && value !== ''),
   );
+  const sortParam = firstParam(params.sort);
+  const [sort, order] = (SORT_VALUES.find((value) => value === sortParam) ?? DEFAULT_SORT).split(
+    ':',
+  );
 
-  const result = listIncidentsQuerySchema.safeParse({
-    ...DEFAULT_QUERY,
+  return {
     ...raw,
-    ...parseSort(raw.sort),
+    status: parseStatus(params.status),
+    sort,
+    order,
     agentId: raw.agentId === ASSIGNEE_ME ? agentId : raw.agentId,
-    createdFrom: withTime(raw.createdFrom, START_OF_DAY),
-    createdTo: withTime(raw.createdTo, END_OF_DAY),
+    createdFrom: toBound(raw.createdFrom, startOfDay),
+    createdTo: toBound(raw.createdTo, endOfDay),
     limit: DEFAULT_PAGE_LIMIT,
     offset: (parsePage(params.page) - 1) * DEFAULT_PAGE_LIMIT,
-  });
+  };
+}
 
-  return result.success ? result.data : listIncidentsQuerySchema.parse(DEFAULT_QUERY);
+export function parseInboxQuery(params: SearchParams, agentId: string): ParsedInboxQuery {
+  const result = listIncidentsQuerySchema.safeParse(toInput(params, agentId));
+
+  if (result.success) {
+    return { query: result.data, params };
+  }
+
+  const failed = new Set(result.error.issues.map(({ path }) => path[0]));
+  const applied = Object.fromEntries(Object.entries(params).filter(([key]) => !failed.has(key)));
+
+  return Object.keys(applied).length < Object.keys(params).length
+    ? parseInboxQuery(applied, agentId)
+    : { query: listIncidentsQuerySchema.parse(toInput({}, agentId)), params: {} };
 }
 
 function buildHref(params: SearchParams, changes: Record<string, string | undefined>): string {

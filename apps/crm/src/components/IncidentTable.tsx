@@ -55,22 +55,17 @@ export function IncidentTable({
             {COLUMNS.map((column) => {
               const field = SORT_FIELDS[column];
               const isActive = field === sort;
-              const label = t(`columns.${column}`);
 
               return (
-                <th
-                  key={column}
-                  scope="col"
-                  aria-sort={field !== undefined && isActive ? ARIA_SORT[order] : undefined}
-                >
+                <th key={column} scope="col" aria-sort={isActive ? ARIA_SORT[order] : undefined}>
                   {field === undefined ? (
-                    label
+                    t(`columns.${column}`)
                   ) : (
                     <Link
                       href={sortHref(params, field, isActive && order === 'asc' ? 'desc' : 'asc')}
                       className={styles.sortLink}
                     >
-                      {label}
+                      {t(`columns.${column}`)}
                     </Link>
                   )}
                 </th>
