@@ -128,7 +128,10 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             'Moves a `notified` incident to `in_mediation` (nothing changes if it is already in mediation), assigns it to the agent if it has none, and calls the driver, who joins the conversation `inc-<id>` after pressing 1. If Vonage fails, the status change is kept and the agent can call the driver again.',
           requestParams: { path: incidentIdParamsSchema },
           responses: {
-            '201': json('The incident and the outbound call to the driver', startMediationResponseSchema),
+            '201': json(
+              'The incident and the outbound call to the driver',
+              startMediationResponseSchema,
+            ),
             ...driverCallErrors,
             '409': error(
               'The incident cannot move to `in_mediation`, has no driver, or a call to the driver is already in progress',

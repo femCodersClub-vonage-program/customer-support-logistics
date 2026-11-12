@@ -101,9 +101,9 @@ export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions):
         signal,
       }),
     callDriver: (incidentId, { signal } = {}) =>
-      request<Communication>(
-        `/incidents/${encodeURIComponent(incidentId)}/mediation/driver-call`,
-        { method: 'POST', signal },
-      ),
+      request<Communication>(`/incidents/${encodeURIComponent(incidentId)}/mediation/driver-call`, {
+        method: 'POST',
+        signal,
+      }),
   };
 }

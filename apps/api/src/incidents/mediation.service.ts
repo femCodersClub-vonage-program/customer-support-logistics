@@ -58,7 +58,6 @@ export class MediationService {
 
     const { incident, attempt } = await this.db.transaction(async (tx) => {
       const locked = await this.lockIncident(tx, id);
-      const prepared = await this.prepareCall(tx, locked);
       let current = locked.incident;
 
       if (current.status !== 'in_mediation') {
@@ -78,6 +77,8 @@ export class MediationService {
             .returning(),
         );
       }
+
+      const prepared = await this.prepareCall(tx, { incident: current, driver: locked.driver });
 
       return { incident: current, attempt: await this.placeCall(tx, current.id, prepared) };
     });
