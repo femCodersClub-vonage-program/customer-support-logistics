@@ -66,44 +66,7 @@ Used for the in-call screen and the CRM header.
 
 ### CSS definition
 
-```css
-:root {
-  --color-primary: #871eff;
-  --color-primary-hover: #6405d1;
-  --color-primary-soft: #f5f0fd;
-  --color-secondary: #d6219c;
-  --color-accent: #fa7454;
-
-  --color-bg: #f2f2f2;
-  --color-surface: #ffffff;
-  --color-text: #0d0d0d;
-  --color-text-muted: #666666;
-  --color-border: #cccccc;
-  --color-border-input: #757575;
-  --color-border-card: #e6e6e6;
-  --color-border-button-secondary: #929292;
-
-  --color-success: #1c8731;
-  --color-warning: #be5702;
-  --color-error: #cd0d0d;
-  --color-info: #0276d5;
-
-  --status-open: #a64c03;
-  --status-open-bg: #fdf5d4;
-  --status-notified: #0e65c2;
-  --status-notified-bg: #e8f4fb;
-  --status-in-mediation: #871eff;
-  --status-resolved: #167629;
-  --status-resolved-bg: #e1f8e5;
-  --status-escalated: #cd0d0d;
-
-  --color-alert: #cd0d0d;
-
-  --color-dark-bg: #191828;
-  --color-dark-surface: #31304f;
-  --color-dark-accent: #cba1fa;
-}
-```
+The canonical CSS tokens are maintained in [`packages/design-tokens/src/tokens.css`](../../packages/design-tokens/src/tokens.css).
 
 ## 2. Typography
 
