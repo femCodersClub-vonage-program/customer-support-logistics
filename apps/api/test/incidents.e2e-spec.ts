@@ -444,14 +444,17 @@ describe('Incidents (e2e)', () => {
       expect((emptyReason.body as ApiErrorResponse).error.details?.[0]?.path).toBe('reason');
     });
 
-    it('returns 404 for a missing incident and for another customer’s incident', async () => {
+    it('returns 404 for a missing incident', async () => {
       expectError(
         (await patch(ids.missing, { status: 'escalated' }).expect(404)).body,
         'NOT_FOUND',
       );
+    });
+
+    it('returns 403 for customers, who cannot change the status', async () => {
       expectError(
-        (await patch(ids.openIncident, { status: 'escalated' }, actor.stranger).expect(404)).body,
-        'NOT_FOUND',
+        (await patch(ids.openIncident, { status: 'escalated' }, actor.ana).expect(403)).body,
+        'FORBIDDEN',
       );
     });
   });
