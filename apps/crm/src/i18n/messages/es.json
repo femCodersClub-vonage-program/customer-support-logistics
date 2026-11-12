@@ -14,11 +14,60 @@
     "label": "Idioma"
   },
   "inbox": {
-    "title": "Bandeja de entrada"
+    "title": "Bandeja de entrada",
+    "empty": "No hay incidencias que mostrar.",
+    "unassigned": "Sin asignar",
+    "loading": "Cargando incidencias…",
+    "error": {
+      "message": "No se pudieron cargar las incidencias.",
+      "retry": "Reintentar"
+    },
+    "columns": {
+      "reference": "Referencia",
+      "type": "Tipo",
+      "order": "Pedido",
+      "customer": "Cliente",
+      "status": "Estado",
+      "agent": "Agente",
+      "created": "Creada",
+      "updated": "Última actualización"
+    },
+    "filters": {
+      "status": "Estado",
+      "type": "Tipo",
+      "any": "Cualquiera",
+      "assignee": "Asignada a",
+      "assigneeMe": "Yo",
+      "from": "Creada desde",
+      "to": "Creada hasta",
+      "search": "Buscar",
+      "searchHint": "Pedido, cliente o teléfono",
+      "apply": "Filtrar"
+    },
+    "pagination": {
+      "label": "Paginación",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "status": "Página {page} de {pages} · {total, plural, one {# incidencia} other {# incidencias}}"
+    }
   },
   "incident": {
     "title": "Incidencia",
-    "reference": "Incidencia {id}"
+    "reference": "Incidencia {id}",
+    "status": {
+      "open": "Abierta",
+      "notified": "Notificada",
+      "in_mediation": "En mediación",
+      "resolved": "Resuelta",
+      "escalated": "Escalada"
+    },
+    "type": {
+      "not_delivered": "No entregado",
+      "delayed": "Retrasado",
+      "damaged": "Dañado",
+      "wrong_item": "Artículo incorrecto",
+      "other": "Otro"
+    }
   },
   "contactLanguage": {
     "customer": "Idioma del cliente: {language}",

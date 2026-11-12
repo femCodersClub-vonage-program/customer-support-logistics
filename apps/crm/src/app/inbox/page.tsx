@@ -1,7 +1,26 @@
-import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
-export default function InboxPage() {
-  const t = useTranslations('inbox');
+import { InboxFilters } from '../../components/InboxFilters';
+import { IncidentTable } from '../../components/IncidentTable';
+import { Pagination } from '../../components/Pagination';
+import { CURRENT_AGENT_ID, serverApi } from '../../lib/api.server';
+import { parseInboxQuery } from '../../lib/inbox-query';
 
-  return <h1>{t('title')}</h1>;
+import type { SearchParams } from '../../lib/inbox-query';
+
+export default async function InboxPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<SearchParams> }>) {
+  const t = await getTranslations('inbox');
+  const { query, params } = parseInboxQuery(await searchParams, CURRENT_AGENT_ID);
+  const { items, total, limit, offset } = await serverApi.listIncidents(query);
+
+  return (
+    <>
+      <h1>{t('title')}</h1>
+      <InboxFilters params={params} status={query.status ?? []} />
+      <IncidentTable items={items} params={params} sort={query.sort} order={query.order} />
+      {total > 0 && <Pagination params={params} total={total} limit={limit} offset={offset} />}
+    </>
+  );
 }

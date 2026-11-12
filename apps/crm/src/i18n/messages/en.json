@@ -14,11 +14,60 @@
     "label": "Language"
   },
   "inbox": {
-    "title": "Inbox"
+    "title": "Inbox",
+    "empty": "No incidents to show.",
+    "unassigned": "Unassigned",
+    "loading": "Loading incidents…",
+    "error": {
+      "message": "Could not load the incidents.",
+      "retry": "Try again"
+    },
+    "columns": {
+      "reference": "Reference",
+      "type": "Type",
+      "order": "Order",
+      "customer": "Customer",
+      "status": "Status",
+      "agent": "Agent",
+      "created": "Created",
+      "updated": "Last update"
+    },
+    "filters": {
+      "status": "Status",
+      "type": "Type",
+      "any": "Any",
+      "assignee": "Assigned to",
+      "assigneeMe": "Me",
+      "from": "Created from",
+      "to": "Created to",
+      "search": "Search",
+      "searchHint": "Order, customer or phone",
+      "apply": "Filter"
+    },
+    "pagination": {
+      "label": "Pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "status": "Page {page} of {pages} · {total, plural, one {# incident} other {# incidents}}"
+    }
   },
   "incident": {
     "title": "Incident",
-    "reference": "Incident {id}"
+    "reference": "Incident {id}",
+    "status": {
+      "open": "Open",
+      "notified": "Notified",
+      "in_mediation": "In mediation",
+      "resolved": "Resolved",
+      "escalated": "Escalated"
+    },
+    "type": {
+      "not_delivered": "Not delivered",
+      "delayed": "Delayed",
+      "damaged": "Damaged",
+      "wrong_item": "Wrong item",
+      "other": "Other"
+    }
   },
   "contactLanguage": {
     "customer": "Customer’s language: {language}",
