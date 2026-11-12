@@ -20,14 +20,10 @@ import type { Env } from '../config/env.schema.js';
 import type { Database, DatabaseTransaction } from '../database/database.constants.js';
 import type { NccoAction } from '../vonage/ncco.js';
 import type { VonageService } from '../vonage/vonage.service.js';
-import type { Communication, Incident } from '@csl/shared-types';
+import type { StartMediationResponse } from '@csl/contracts';
+import type { Communication } from '@csl/shared-types';
 
 export const STALE_QUEUED_CALL_MS = 2 * 60 * 1000;
-
-export interface StartedMediation {
-  incident: Incident;
-  call: Communication;
-}
 
 interface LockedIncident {
   incident: IncidentRow;
@@ -57,7 +53,7 @@ export class MediationService {
     @Inject(ConfigService) private readonly config: ConfigService<Env, true>,
   ) {}
 
-  async start(actor: DevActor, id: string): Promise<StartedMediation> {
+  async start(actor: DevActor, id: string): Promise<StartMediationResponse> {
     const agentId = requireAgentId(actor);
 
     const { incident, attempt } = await this.db.transaction(async (tx) => {

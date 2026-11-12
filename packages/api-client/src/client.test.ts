@@ -83,3 +83,22 @@ describe('listIncidents', () => {
     expect(requestFrom(fetchMock).url).toBe('/api/incidents');
   });
 });
+
+describe('mediation', () => {
+  const incidentId = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
+
+  it.each([
+    ['startMediation', `/api/incidents/${incidentId}/mediation`],
+    ['callDriver', `/api/incidents/${incidentId}/mediation/driver-call`],
+  ] as const)('%s posts to %s', async (method, expectedUrl) => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 201));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await client[method](incidentId);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe(expectedUrl);
+    expect(init?.method).toBe('POST');
+  });
+});

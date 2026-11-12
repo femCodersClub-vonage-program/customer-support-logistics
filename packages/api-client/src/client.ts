@@ -1,7 +1,11 @@
 import { ApiError } from './errors.js';
 
-import type { ListIncidentsQueryInput, ListIncidentsResponse } from '@csl/contracts';
-import type { HealthResponse } from '@csl/shared-types';
+import type {
+  ListIncidentsQueryInput,
+  ListIncidentsResponse,
+  StartMediationResponse,
+} from '@csl/contracts';
+import type { Communication, HealthResponse } from '@csl/shared-types';
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -23,6 +27,8 @@ export interface ApiClient {
     query?: ListIncidentsQueryInput,
     options?: RequestOptions,
   ): Promise<ListIncidentsResponse>;
+  startMediation(incidentId: string, options?: RequestOptions): Promise<StartMediationResponse>;
+  callDriver(incidentId: string, options?: RequestOptions): Promise<Communication>;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -89,5 +95,15 @@ export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions):
         method: 'GET',
         signal,
       }),
+    startMediation: (incidentId, { signal } = {}) =>
+      request<StartMediationResponse>(`/incidents/${encodeURIComponent(incidentId)}/mediation`, {
+        method: 'POST',
+        signal,
+      }),
+    callDriver: (incidentId, { signal } = {}) =>
+      request<Communication>(
+        `/incidents/${encodeURIComponent(incidentId)}/mediation/driver-call`,
+        { method: 'POST', signal },
+      ),
   };
 }

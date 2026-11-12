@@ -7,9 +7,8 @@ import { ZodValidationPipe } from '../common/validation/zod-validation.pipe.js';
 
 import { MediationService } from './mediation.service.js';
 
-import type { StartedMediation } from './mediation.service.js';
 import type { DevActor } from '../common/dev-auth/dev-actor.js';
-import type { IncidentIdParams } from '@csl/contracts';
+import type { IncidentIdParams, StartMediationResponse } from '@csl/contracts';
 import type { Communication } from '@csl/shared-types';
 
 @Controller('incidents/:id/mediation')
@@ -21,7 +20,7 @@ export class MediationController {
   start(
     @CurrentActor() actor: DevActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
-  ): Promise<StartedMediation> {
+  ): Promise<StartMediationResponse> {
     return this.mediation.start(actor, params.id);
   }
 
