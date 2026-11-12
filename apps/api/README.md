@@ -6,6 +6,8 @@ NestJS API. It is the only part of the platform that talks to the database and t
 
 Copy `.env.example` to `.env` and adjust the values. `DATABASE_URL` is required: the API refuses to start if it is missing or is not a `postgres://` or `postgresql://` URL. The Vonage variables are explained in [Vonage](#vonage).
 
+`CLIENT_IP_HEADER` names the header the API takes the client IP from, for rate limits and logs. Leave it unset locally: anyone could send that header. Behind Railway it is `x-real-ip`; the reason, and every variable of the deployment, are in [Deployment](../../docs/architecture/deployment.md).
+
 Any PostgreSQL 17 works. The easiest way is the one in the root `docker-compose.yml`:
 
 ```sh
@@ -48,14 +50,14 @@ The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that 
 
 Paste the value into **Authorize** in [Swagger UI](#openapi) or into the `X-Dev-Actor` header.
 
-| `X-Dev-Actor`                                    | Who           | Locale | What they have                                                    |
-| ------------------------------------------------ | ------------- | ------ | ----------------------------------------------------------------- |
-| `customer:5eed0000-0000-4000-8000-0000000000c1`  | Lucía Martín  | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
-| `customer:5eed0000-0000-4000-8000-0000000000c2`  | Carlos Romero | `es`   | Incidents in `notified`, `escalated` and `resolved`               |
-| `customer:5eed0000-0000-4000-8000-0000000000c3`  | Emma Wilson   | `en`   | Two incidents `in_mediation`                                      |
-| `customer:5eed0000-0000-4000-8000-0000000000c4`  | James Taylor  | `en`   | A `resolved` incident and a pending order without incidents       |
-| `agent:5eed0000-0000-4000-8000-0000000000a1`     | Agent A       | —      | Assigned to one `in_mediation` and one `resolved` incident        |
-| `agent:5eed0000-0000-4000-8000-0000000000a2`     | Agent B       | —      | Assigned to one `escalated` and one `resolved` incident           |
+| `X-Dev-Actor`                                   | Who           | Locale | What they have                                                              |
+| ----------------------------------------------- | ------------- | ------ | --------------------------------------------------------------------------- |
+| `customer:5eed0000-0000-4000-8000-0000000000c1` | Lucía Martín  | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
+| `customer:5eed0000-0000-4000-8000-0000000000c2` | Carlos Romero | `es`   | Incidents in `notified`, `escalated` and `resolved`                         |
+| `customer:5eed0000-0000-4000-8000-0000000000c3` | Emma Wilson   | `en`   | Two incidents `in_mediation`                                                |
+| `customer:5eed0000-0000-4000-8000-0000000000c4` | James Taylor  | `en`   | A `resolved` incident and a pending order without incidents                 |
+| `agent:5eed0000-0000-4000-8000-0000000000a1`    | Agent A       | —      | Assigned to one `in_mediation` and one `resolved` incident                  |
+| `agent:5eed0000-0000-4000-8000-0000000000a2`    | Agent B       | —      | Assigned to one `escalated` and one `resolved` incident                     |
 
 Every agent sees every incident in `GET /incidents`. Four of them are unassigned (`?agentId=unassigned`). The driver is Javier Molina (`+34611000009`), on the route of `2026-11-02`.
 

@@ -30,6 +30,16 @@ describe('validateEnv', () => {
     });
   });
 
+  it('reads CLIENT_IP_HEADER as a lowercase header name', () => {
+    expect(validateEnv({ ...DISABLED, CLIENT_IP_HEADER: ' X-Real-IP ' })).toMatchObject({
+      CLIENT_IP_HEADER: 'x-real-ip',
+    });
+  });
+
+  it('treats an empty CLIENT_IP_HEADER as unset', () => {
+    expect(validateEnv({ ...DISABLED, CLIENT_IP_HEADER: '' }).CLIENT_IP_HEADER).toBeUndefined();
+  });
+
   it('coerces PORT to a number', () => {
     expect(validateEnv({ ...DISABLED, NODE_ENV: 'production', PORT: '8080' })).toMatchObject({
       NODE_ENV: 'production',
