@@ -7,7 +7,10 @@
     "*.css"
   ],
   "exports": {
-    ".": "./src/index.css",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.css"
+    },
     "./tokens.css": "./src/tokens.css",
     "./base.css": "./src/base.css"
   }
