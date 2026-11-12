@@ -2,7 +2,7 @@
 
 How the platform uses each Vonage API, and which webhooks Vonage sends us. Why we chose Vonage is in [ADR 0003](../adr/0003-vonage-as-communications-provider.md). What each user sees and does is in the [user flows](../design/user-flows/README.md); this page covers the technical side only.
 
-`VonageService` in `apps/api` is in place ([#29]): configuration, the SDK client, error handling and a test SMS script are described in the [API README](../../apps/api/README.md#vonage). The webhooks are implemented in `apps/api/src/webhooks` ([#30]) and answer invalid driver replies through `VonageService`. The other flows that use it are still _planned_.
+`VonageService` in `apps/api` is in place ([#29]): configuration, the SDK client, error handling and a test SMS script are described in the [API README](../../apps/api/README.md#vonage). The webhooks are implemented in `apps/api/src/webhooks` ([#30]) and answer invalid driver replies through `VonageService`. The outbound call to the driver when the agent starts the mediation is in place too ([#39]; see [Starting the mediation](#starting-the-mediation)). The other flows that use it are still _planned_.
 
 ## One Vonage Application
 
@@ -56,7 +56,7 @@ If an SMS delivery receipt says the message wasn't delivered, the CRM alerts the
 
 The agent starts the mediation from the CRM. The customer and the agent join the conversation `inc-<id>` over WebRTC; the API calls the driver over PSTN, and the driver only joins after pressing 1, so a voicemail never joins the call.
 
-The diagram uses incident `1234`, so the conversation is `inc-1234`.
+The diagram uses incident `1234`, so the conversation is `inc-1234`. Only the status change and the call to the driver are in place ([#39]). The SMS before the call, the Client SDK JWTs, the notice to the customer, and the retries and fallback SMS when the driver doesn't answer are still _planned_.
 
 ```mermaid
 sequenceDiagram
@@ -90,11 +90,9 @@ sequenceDiagram
     API-->>Vonage: NCCO conversation inc-1234
   end
 
-  API->>Vonage: Create outbound call to the driver from the virtual number
+  API->>Vonage: Create outbound call to the driver with the NCCO talk + DTMF input
   Vonage->>Driver: Phone call (PSTN)
   Driver->>Vonage: Answers
-  Vonage->>API: Answer URL webhook
-  API-->>Vonage: NCCO talk + DTMF input
   Vonage->>Driver: Incident on order 1234. Press 1 to connect with support.
 
   alt Driver presses 1
@@ -113,7 +111,7 @@ sequenceDiagram
 
 ### NCCOs
 
-When the driver answers, the Voice API asks the answer URL for an NCCO. First it announces the incident and waits for one key:
+The API sends the driver's NCCO with the outbound call, so Vonage doesn't ask the answer URL for it. The answer URL returns the same NCCO for calls to the driver created without one, for example by hand. First it announces the incident and waits for one key:
 
 ```json
 [
@@ -138,6 +136,24 @@ If the digit is `1`, the input webhook answers with the NCCO that joins the conv
 ```
 
 Pressing `1` also moves a `notified` incident to `in_mediation` with `actor: driver` and reason `accepted_call`; answering the call doesn't, since a voicemail can answer too. Any other key, or silence, gets a short message and the call ends; it counts as a failed attempt. The `talk` text and its `language` come from the driver's `locale` (`buildDriverPromptNcco` in `apps/api/src/vonage/ncco.ts`); see [i18n](../i18n.md) ([#26]).
+
+### Starting the mediation
+
+Two agent-only endpoints in `apps/api` (`MediationService` in `apps/api/src/incidents/mediation.service.ts`) create the call to the driver:
+
+| Route                                       | What it does                                                                                                                                                                    | Response                              |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `POST /incidents/:id/mediation`             | Moves a `notified` incident to `in_mediation` with `actor: agent` (nothing changes if it is already in mediation), assigns it to the agent if it has none, and calls the driver | `201` with `{ incident, call }`       |
+| `POST /incidents/:id/mediation/driver-call` | Calls the driver again while the incident is `in_mediation`                                                                                                                     | `201` with the call (`Communication`) |
+
+Each call is stored as an outbound voice `Communication` in `queued`, with the Vonage call id as `vonageUuid`, and the event webhook updates it from there. The incident row is locked while the call is created, so two agents starting the mediation at once create a single call.
+
+- **`403`:** the actor is not an agent.
+- **`404`:** the incident doesn't exist.
+- **`409`:** the incident can't move to `in_mediation` (`INVALID_TRANSITION`), `driver-call` was sent for an incident that isn't in mediation, the incident has no driver, or a call to the driver is still active. A call counts as active while it is `in_progress`, or while it is `queued` and less than 2 minutes old, so a call whose events never arrive doesn't block the agent.
+- **`502`** (`BAD_GATEWAY`): Vonage didn't create the call. The status change and the assignment are kept, nothing is stored for the call, and the agent can retry with either endpoint.
+
+Starting the mediation requires the incident to be `notified`, so it follows the "Notify driver" action ([#38]). Automatic retries when the driver doesn't answer are a follow-up of [#39].
 
 ### Closing the call
 
@@ -185,7 +201,7 @@ With the tunnel and the application set up, a driver in the database whose phone
 
 1. **SMS reply:** text `2` from the driver's phone to the virtual number. Expect `204` in the API logs, the incident in `in_mediation` and an `IncidentEvent` with `actor: driver` and reason `address_not_found`.
 2. **Invalid reply:** set another incident to `notified` and text `hola`. Expect the "please answer 1, 2 or 3" SMS on the driver's phone.
-3. **Call and DTMF:** until [#29] creates calls, create one to the driver's phone with the Voice API (for example with the Vonage CLI) using the application's Answer URL. Expect the prompt in the driver's language, then: pressing `1` joins `inc-<id>` and moves the incident to `in_mediation`; another key plays the short message and hangs up.
+3. **Call and DTMF:** set another incident to `notified` and send `POST /incidents/<id>/mediation` with `X-Dev-Actor: agent:<uuid>`. Expect `201`, the incident in `in_mediation` and assigned to the agent, and a call to the driver's phone with the prompt in their language. Pressing `1` joins `inc-<id>`; another key plays the short message and hangs up. Then `POST /incidents/<id>/mediation/driver-call` calls again once the first call has ended.
 4. **Call back:** call the virtual number from the driver's phone while their incident is in mediation; the call joins `inc-<id>`.
 5. **Signature:** send a request with `curl` to any `/webhooks/*` route; expect `401`.
 
@@ -196,4 +212,5 @@ Check as well, since the docs don't say it: that the `GET` answer webhook carrie
 [#30]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/30
 [#31]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31
 [#36]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/36
+[#38]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/38
 [#39]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/39
