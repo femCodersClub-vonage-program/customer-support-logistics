@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
+import { Public } from '../auth/auth.decorators.js';
 import { ZodValidationPipe } from '../common/validation/zod-validation.pipe.js';
 
 import { VonageSignatureGuard } from './signature/vonage-signature.guard.js';
@@ -35,6 +36,7 @@ import type {
 import type { NccoAction } from '../vonage/ncco.js';
 
 @Controller('webhooks')
+@Public()
 @UseGuards(ThrottlerGuard, VonageSignatureGuard)
 export class WebhooksController {
   constructor(@Inject(WebhooksService) private readonly webhooks: WebhooksService) {}

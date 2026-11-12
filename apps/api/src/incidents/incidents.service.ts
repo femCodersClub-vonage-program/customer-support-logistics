@@ -3,7 +3,7 @@ import { INCIDENT_STATUSES } from '@csl/shared-types';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 
-import { requireCustomerId } from '../common/dev-auth/dev-actor.js';
+import { requireCustomerId } from '../auth/auth-actor.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
   communications,
@@ -20,7 +20,7 @@ import { toOrder } from '../orders/orders.mapper.js';
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
 import { persistTransition } from './persist-transition.js';
 
-import type { DevActor } from '../common/dev-auth/dev-actor.js';
+import type { AuthActor } from '../auth/auth-actor.js';
 import type { Database } from '../database/database.constants.js';
 import type {
   ChangeIncidentStatusBody,
@@ -39,7 +39,7 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
 }
 
-function ownedBy(actor: DevActor): SQL | undefined {
+function ownedBy(actor: AuthActor): SQL | undefined {
   return actor.role === 'customer' ? eq(orders.customerId, actor.id) : undefined;
 }
 
@@ -100,7 +100,7 @@ function toStatusCounts(rows: { status: IncidentStatus; total: number }[]): Inci
 export class IncidentsService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async create(actor: DevActor, body: CreateIncidentBody): Promise<Incident> {
+  async create(actor: AuthActor, body: CreateIncidentBody): Promise<Incident> {
     const customerId = requireCustomerId(actor);
 
     return this.db.transaction(async (tx) => {
@@ -167,7 +167,7 @@ export class IncidentsService {
     };
   }
 
-  async findOne(actor: DevActor, id: string): Promise<IncidentDetail> {
+  async findOne(actor: AuthActor, id: string): Promise<IncidentDetail> {
     const [row] = await this.db
       .select({ incident: incidents, order: orders, customer: customers, driver: drivers })
       .from(incidents)
@@ -205,7 +205,7 @@ export class IncidentsService {
   }
 
   async changeStatus(
-    actor: DevActor,
+    actor: AuthActor,
     id: string,
     body: ChangeIncidentStatusBody,
   ): Promise<Incident> {
