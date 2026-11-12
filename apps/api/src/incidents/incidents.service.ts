@@ -33,6 +33,16 @@ import type { SQL } from 'drizzle-orm';
 
 const INCIDENT_NOT_FOUND = 'Incident not found';
 
+// Typed against the contract so that adding a status without updating this
+// object fails to compile.
+const NO_INCIDENTS_PER_STATUS: ListIncidentsResponse['statusCounts'] = {
+  open: 0,
+  notified: 0,
+  in_mediation: 0,
+  resolved: 0,
+  escalated: 0,
+};
+
 function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
 }
@@ -41,10 +51,13 @@ function ownedBy(actor: DevActor): SQL | undefined {
   return actor.role === 'customer' ? eq(orders.customerId, actor.id) : undefined;
 }
 
-function listFilters(query: ListIncidentsQuery): SQL | undefined {
+function listFilters(
+  query: ListIncidentsQuery,
+  { includeStatus = true }: { includeStatus?: boolean } = {},
+): SQL | undefined {
   const conditions: (SQL | undefined)[] = [];
 
-  if (query.status !== undefined) {
+  if (includeStatus && query.status !== undefined) {
     conditions.push(inArray(incidents.status, query.status));
   }
 
@@ -117,10 +130,11 @@ export class IncidentsService {
 
   async list(query: ListIncidentsQuery): Promise<ListIncidentsResponse> {
     const where = listFilters(query);
+    const countsWhere = listFilters(query, { includeStatus: false });
     const direction = query.order === 'asc' ? asc : desc;
     const sortColumn = query.sort === 'updatedAt' ? incidents.updatedAt : incidents.createdAt;
 
-    const [rows, totals] = await Promise.all([
+    const [rows, totals, perStatus] = await Promise.all([
       this.db
         .select({ incident: incidents, customer: { id: customers.id, name: customers.name } })
         .from(incidents)
@@ -136,13 +150,27 @@ export class IncidentsService {
         .innerJoin(orders, eq(orders.id, incidents.orderId))
         .innerJoin(customers, eq(customers.id, orders.customerId))
         .where(where),
+      this.db
+        .select({ status: incidents.status, total: count() })
+        .from(incidents)
+        .innerJoin(orders, eq(orders.id, incidents.orderId))
+        .innerJoin(customers, eq(customers.id, orders.customerId))
+        .where(countsWhere)
+        .groupBy(incidents.status),
     ]);
+
+    const statusCounts = { ...NO_INCIDENTS_PER_STATUS };
+
+    for (const { status, total } of perStatus) {
+      statusCounts[status] = total;
+    }
 
     return {
       items: rows.map(({ incident, customer }) => toIncidentListItem(incident, customer)),
       total: singleRow(totals).total,
       limit: query.limit,
       offset: query.offset,
+      statusCounts,
     };
   }
 
