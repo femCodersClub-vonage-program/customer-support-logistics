@@ -1,0 +1,27 @@
+.card {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border-card);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.list dt {
+  color: var(--color-text-muted);
+}
+
+.list dd {
+  margin: 0;
+}
