@@ -74,6 +74,76 @@ describe('Incidents (e2e)', () => {
       ]);
     });
 
+        it('stores the trimmed description and returns it in the detail', async () => {
+      const created = await http()
+        .post('/incidents')
+        .set(DEV_ACTOR, actor.ana)
+        .send({ orderId: ids.anaOrder, type: 'damaged', description: '  The box was crushed  ' })
+        .expect(201);
+
+      const detail = await http()
+        .get(`/incidents/${incidentSchema.parse(created.body).id}`)
+        .set(DEV_ACTOR, actor.ana)
+        .expect(200);
+
+      expect(incidentDetailSchema.parse(detail.body).description).toBe('The box was crushed');
+    });
+
+    it('returns a null description when none is sent', async () => {
+      const created = await http()
+        .post('/incidents')
+        .set(DEV_ACTOR, actor.ana)
+        .send({ orderId: ids.anaOrder, type: 'damaged' })
+        .expect(201);
+
+      const detail = await http()
+        .get(`/incidents/${incidentSchema.parse(created.body).id}`)
+        .set(DEV_ACTOR, actor.ana)
+        .expect(200);
+
+      expect(incidentDetailSchema.parse(detail.body).description).toBeNull();
+    });
+
+    it('accepts the type other when it has a description', async () => {
+      await http()
+        .post('/incidents')
+        .set(DEV_ACTOR, actor.ana)
+        .send({ orderId: ids.anaOrder, type: 'other', description: 'Wrong floor' })
+        .expect(201);
+    });
+
+    it.each([
+      ['no description', {}],
+      ['a blank description', { description: '   ' }],
+    ])('returns 400 for the type other with %s', async (_name, extra) => {
+      const response = await http()
+        .post('/incidents')
+        .set(DEV_ACTOR, actor.ana)
+        .send({ orderId: ids.anaOrder, type: 'other', ...extra })
+        .expect(400);
+
+      expectError(response.body, 'VALIDATION_FAILED');
+      expect((response.body as ApiErrorResponse).error.details?.map(({ path }) => path)).toEqual([
+        'description',
+      ]);
+    });
+
+    it.each([
+      ['empty', ''],
+      ['too long', 'a'.repeat(1001)],
+    ])('returns 400 for a description that is %s', async (_name, description) => {
+      const response = await http()
+        .post('/incidents')
+        .set(DEV_ACTOR, actor.ana)
+        .send({ orderId: ids.anaOrder, type: 'damaged', description })
+        .expect(400);
+
+      expectError(response.body, 'VALIDATION_FAILED');
+      expect((response.body as ApiErrorResponse).error.details?.map(({ path }) => path)).toEqual([
+        'description',
+      ]);
+    });
+
     it('returns 404 for another customer’s order, without leaking that it exists', async () => {
       const response = await http()
         .post('/incidents')
