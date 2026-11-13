@@ -20,5 +20,5 @@ export const incidents = pgTable(
     updatedAt: updatedAt(),
     closedAt: timestamp({ withTimezone: true }),
   },
-  (table) => [index().on(table.status), index().on(table.orderId)],
+  (table) => [index().on(table.status), index().on(table.orderId), index().on(table.agentId)],
 );

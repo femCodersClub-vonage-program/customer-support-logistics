@@ -1,5 +1,5 @@
 {
-  "id": "0e855190-c393-49a0-a700-c496d38a0a05",
+  "id": "fefa2c54-628b-4ab0-9bc2-c22aa253355d",
   "prevId": "ac07c612-b5dd-4aca-9c8b-8ccfa5dd2fb6",
   "version": "7",
   "dialect": "postgresql",
@@ -77,12 +77,7 @@
         }
       },
       "policies": {},
-      "checkConstraints": {
-        "agents_email_lowercase": {
-          "name": "agents_email_lowercase",
-          "value": "\"agents\".\"email\" = lower(\"agents\".\"email\")"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.communications": {
@@ -645,6 +640,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "incidents_agent_id_index": {
+          "name": "incidents_agent_id_index",
+          "columns": [
+            {
+              "expression": "agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -939,6 +949,21 @@
           "columns": [
             {
               "expression": "agent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "sessions_expires_at_index": {
+          "name": "sessions_expires_at_index",
+          "columns": [
+            {
+              "expression": "expires_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

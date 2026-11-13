@@ -20,5 +20,6 @@ export const sessions = pgTable(
     check('sessions_one_subject', sql`num_nonnulls(${table.customerId}, ${table.agentId}) = 1`),
     index().on(table.customerId),
     index().on(table.agentId),
+    index().on(table.expiresAt),
   ],
 );
