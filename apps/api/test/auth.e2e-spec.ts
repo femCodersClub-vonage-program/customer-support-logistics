@@ -1,8 +1,10 @@
 import { apiErrorResponseSchema, currentUserSchema } from '@csl/contracts';
-import { eq } from 'drizzle-orm';
+import { ThrottlerStorageService, getStorageToken } from '@nestjs/throttler';
+import { eq, lte, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { AGENT_LOGIN_ATTEMPTS_PER_MINUTE } from '../src/auth/auth.controller.js';
 import { hashPassword } from '../src/auth/password.js';
 import { SESSION_LIFETIME_MS } from '../src/auth/sessions.service.js';
 import { agents, sessions } from '../src/database/schema/index.js';
@@ -13,6 +15,7 @@ import { ids, seed } from './fixtures/seed.js';
 
 import type { TestApp } from './fixtures/app.js';
 import type { ApiErrorResponse } from '@csl/contracts';
+import type { ThrottlerStorage } from '@nestjs/throttler';
 
 const AGENT_EMAIL = 'agent.a@example.com';
 const AGENT_PASSWORD = 'a long and correct password';
@@ -40,11 +43,21 @@ describe('Auth (e2e)', () => {
     expect(apiErrorResponseSchema.parse(body).error.code).toBe(code);
   };
 
+  let throttlerStorage = new ThrottlerStorageService();
+
+  const freshEveryTest: ThrottlerStorage = {
+    increment: (...args) => throttlerStorage.increment(...args),
+  };
+
   beforeAll(async () => {
-    testApp = await createTestApp();
+    testApp = await createTestApp((builder) =>
+      builder.overrideProvider(getStorageToken()).useValue(freshEveryTest),
+    );
   });
 
   beforeEach(async () => {
+    throttlerStorage.onApplicationShutdown();
+    throttlerStorage = new ThrottlerStorageService();
     await resetDatabase(testApp.db);
     await seed(testApp.db);
     await testApp.db
@@ -105,6 +118,38 @@ describe('Auth (e2e)', () => {
       expect(unknownEmail.body).toEqual(wrongPassword.body);
       expect(withoutPassword.body).toEqual(wrongPassword.body);
       expect(wrongPassword.headers['set-cookie']).toBeUndefined();
+    });
+
+    it('answers 429 after too many attempts from the same IP', async () => {
+      for (let attempt = 0; attempt < AGENT_LOGIN_ATTEMPTS_PER_MINUTE; attempt += 1) {
+        await login(AGENT_EMAIL, 'not the password').expect(401);
+      }
+
+      expectError((await login(AGENT_EMAIL, AGENT_PASSWORD).expect(429)).body, 'RATE_LIMITED');
+    });
+
+    it('ends the session the request already carried', async () => {
+      const first = sessionCookieFrom(await login(AGENT_EMAIL, AGENT_PASSWORD).expect(200));
+      const second = sessionCookieFrom(
+        await login(AGENT_EMAIL, AGENT_PASSWORD).set('Cookie', first).expect(200),
+      );
+
+      await http().get('/auth/me').set('Cookie', first).expect(401);
+      await http().get('/auth/me').set('Cookie', second).expect(200);
+    });
+
+    it('deletes expired sessions when someone logs in', async () => {
+      await sessionCookieFor(testApp, { role: 'customer', id: ids.ana });
+      await testApp.db.update(sessions).set({ expiresAt: new Date(Date.now() - 1000) });
+
+      await login(AGENT_EMAIL, AGENT_PASSWORD).expect(200);
+
+      expect(
+        await testApp.db
+          .select()
+          .from(sessions)
+          .where(lte(sessions.expiresAt, sql`now()`)),
+      ).toEqual([]);
     });
 
     it('returns 400 with the offending fields', async () => {

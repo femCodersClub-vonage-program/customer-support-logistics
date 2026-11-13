@@ -2,7 +2,6 @@ import { UNASSIGNED_AGENT } from '@csl/contracts';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 
-import { requireCustomerId } from '../auth/auth-actor.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
   communications,
@@ -85,9 +84,7 @@ function listFilters(query: ListIncidentsQuery): SQL | undefined {
 export class IncidentsService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async create(actor: AuthActor, body: CreateIncidentBody): Promise<Incident> {
-    const customerId = requireCustomerId(actor);
-
+  async create(customerId: string, body: CreateIncidentBody): Promise<Incident> {
     return this.db.transaction(async (tx) => {
       const [order] = await tx
         .select({ id: orders.id })
@@ -192,8 +189,7 @@ export class IncidentsService {
       const [row] = await tx
         .select({ incident: incidents })
         .from(incidents)
-        .innerJoin(orders, eq(orders.id, incidents.orderId))
-        .where(and(eq(incidents.id, id), ownedBy(actor)))
+        .where(eq(incidents.id, id))
         .for('update', { of: incidents });
 
       if (!row) {

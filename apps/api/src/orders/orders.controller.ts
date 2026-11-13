@@ -14,6 +14,6 @@ export class OrdersController {
   @Get()
   @Roles('customer')
   list(@CurrentActor() actor: AuthActor): Promise<ListOrdersResponse> {
-    return this.orders.listForActor(actor);
+    return this.orders.listForCustomer(actor.id);
   }
 }

@@ -249,7 +249,8 @@ Every error has the same shape:
 
 How it works and why is in [ADR 0008](../../docs/adr/0008-authentication-and-sessions.md). In short:
 
-- Every route needs a session unless it is marked `@Public()`: `/health`, `/webhooks/*` and `/auth/*`. A new route is protected from the start.
+- Every route needs a session unless it is marked `@Public()`: `/health`, `/webhooks/*`, `POST /auth/agent/login` and `POST /auth/logout`. `GET /auth/me` needs a session. A new route is protected from the start.
+- `POST /auth/agent/login` allows 10 attempts per minute from the same IP, then answers `429`. A new login also ends the session the browser already had, and expired sessions are deleted on each login.
 - The session is an opaque token in the `csl_session` cookie (`HttpOnly`, `Secure`, `SameSite=Lax`). The `sessions` table keeps only its SHA-256 hash. Agent sessions last 12 hours and customer sessions 30 days.
 - `@Roles('customer')` or `@Roles('agent')` on a route enforces the "who" column above: no session gives `401`, the wrong role `403`. Services still check ownership, so another customer's incident is a `404`.
 - Customers will log in with Verify v2 in the next part of [1.5]. Until then, a customer session can only come from the temporary header below.

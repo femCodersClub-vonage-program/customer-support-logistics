@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, gt, lte, sql } from 'drizzle-orm';
 
 import { DATABASE } from '../database/database.constants.js';
 import { sessions } from '../database/schema/index.js';
@@ -56,6 +56,7 @@ export class SessionsService {
     const token = randomBytes(TOKEN_BYTES).toString('base64url');
     const lifetimeMs = SESSION_LIFETIME_MS[actor.role];
 
+    await this.db.delete(sessions).where(lte(sessions.expiresAt, sql`now()`));
     await this.db.insert(sessions).values({
       tokenHash: hashToken(token),
       expiresAt: new Date(Date.now() + lifetimeMs),

@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { parseArgs } from 'node:util';
 
+import { agentLoginBodySchema } from '@csl/contracts';
 import { DEFAULT_LOCALE, SUPPORTED_LOCALES } from '@csl/shared-types';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
@@ -14,7 +15,7 @@ import { hashPassword } from './password.js';
 const GENERATED_PASSWORD_BYTES = 18;
 
 const createAgentArgsSchema = z.object({
-  email: z.string().trim().toLowerCase().pipe(z.email()),
+  email: agentLoginBodySchema.shape.email,
   name: z.string().trim().min(1),
   locale: z.enum(SUPPORTED_LOCALES).default(DEFAULT_LOCALE),
 });
