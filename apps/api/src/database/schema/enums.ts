@@ -1,5 +1,6 @@
 import {
   ACTORS,
+  AGENT_ROLES,
   COMMUNICATION_CHANNELS,
   COMMUNICATION_DIRECTIONS,
   COMMUNICATION_STATUSES,
@@ -19,6 +20,8 @@ export const incidentStatus = pgEnum('incident_status', INCIDENT_STATUSES);
 export const incidentType = pgEnum('incident_type', INCIDENT_TYPES);
 
 export const actor = pgEnum('actor', ACTORS);
+
+export const agentRole = pgEnum('agent_role', AGENT_ROLES);
 
 export const communicationChannel = pgEnum('communication_channel', COMMUNICATION_CHANNELS);
 
