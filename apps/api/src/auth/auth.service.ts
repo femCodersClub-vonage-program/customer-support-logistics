@@ -13,6 +13,7 @@ import type { AuthActor } from './auth-actor.js';
 import type { CreatedSession } from './sessions.service.js';
 import type { Database } from '../database/database.constants.js';
 import type { AgentLoginBody, CurrentUser } from '@csl/contracts';
+import type { OnModuleInit } from '@nestjs/common';
 
 const INVALID_CREDENTIALS = 'Invalid email or password';
 
@@ -22,30 +23,38 @@ export interface AgentLogin {
 }
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
 
-  private decoyHash: Promise<string> | undefined;
+  private decoyHash = '';
 
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(SessionsService) private readonly sessions: SessionsService,
   ) {}
 
-  async loginAgent({ email, password }: AgentLoginBody): Promise<AgentLogin> {
+  async onModuleInit(): Promise<void> {
+    this.decoyHash = await hashPassword(randomBytes(16).toString('base64url'));
+  }
+
+  async loginAgent(
+    { email, password }: AgentLoginBody,
+    previousToken: string | null,
+  ): Promise<AgentLogin> {
     const [agent] = await this.db
       .select({ id: agents.id, name: agents.name, passwordHash: agents.passwordHash })
       .from(agents)
       .where(eq(agents.email, email))
       .limit(1);
 
-    const matches = await verifyPassword(password, agent?.passwordHash ?? (await this.decoy()));
+    const matches = await verifyPassword(password, agent?.passwordHash ?? this.decoyHash);
 
     if (!agent?.passwordHash || !matches) {
       this.logger.warn('Agent login rejected: invalid credentials');
       throw new UnauthorizedException(INVALID_CREDENTIALS);
     }
 
+    await this.logout(previousToken);
     const session = await this.sessions.create({ role: 'agent', id: agent.id });
     this.logger.log(`Agent ${agent.id} logged in`);
 
@@ -71,11 +80,5 @@ export class AuthService {
     }
 
     return { ...actor, name: row.name };
-  }
-
-  private decoy(): Promise<string> {
-    this.decoyHash ??= hashPassword(randomBytes(16).toString('base64url'));
-
-    return this.decoyHash;
   }
 }

@@ -32,7 +32,7 @@ export class IncidentsController {
     @CurrentActor() actor: AuthActor,
     @Body(new ZodValidationPipe(createIncidentBodySchema)) body: CreateIncidentBody,
   ): Promise<Incident> {
-    return this.incidents.create(actor, body);
+    return this.incidents.create(actor.id, body);
   }
 
   @Get()
