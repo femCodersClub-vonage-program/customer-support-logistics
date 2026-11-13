@@ -1,5 +1,6 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 
+import { Logger } from '@nestjs/common';
 import { z } from 'zod';
 
 interface ScryptCost {
@@ -11,14 +12,20 @@ interface ScryptCost {
 const ALGORITHM = 'scrypt';
 const KEY_LENGTH = 64;
 const SALT_LENGTH = 16;
-const MAX_MEMORY_BYTES = 64 * 1024 * 1024;
+const MAX_MEMORY_BYTES = 256 * 1024 * 1024;
 
-export const DEFAULT_SCRYPT_COST: ScryptCost = { N: 2 ** 14, r: 8, p: 5 };
+export const DEFAULT_SCRYPT_COST: ScryptCost = { N: 2 ** 16, r: 8, p: 1 };
 
-const costParameter = z
-  .string()
-  .regex(/^[1-9]\d*$/)
-  .transform(Number);
+const MAX_COST: ScryptCost = { N: 2 ** 17, r: 16, p: 2 };
+
+const logger = new Logger('Password');
+
+const costParameter = (max: number) =>
+  z
+    .string()
+    .regex(/^[1-9]\d*$/)
+    .transform(Number)
+    .pipe(z.number().max(max));
 
 const storedHashSchema = z
   .string()
@@ -26,9 +33,9 @@ const storedHashSchema = z
   .pipe(
     z.tuple([
       z.literal(ALGORITHM),
-      costParameter,
-      costParameter,
-      costParameter,
+      costParameter(MAX_COST.N),
+      costParameter(MAX_COST.r),
+      costParameter(MAX_COST.p),
       z.base64url().min(1),
       z.base64url().min(1),
     ]),
@@ -72,7 +79,8 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   const result = storedHashSchema.safeParse(storedHash);
 
   if (!result.success) {
-    throw new Error('Stored password hash has an unknown format');
+    logger.error('A stored password hash has an unknown format or an unsafe cost');
+    return false;
   }
 
   const { cost, salt, key } = result.data;

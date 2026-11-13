@@ -37,7 +37,14 @@ describe('password hashing', () => {
     await expect(verifyPassword('contraseña', hash)).resolves.toBe(true);
   });
 
-  it('fails loudly on a stored hash it cannot read', async () => {
-    await expect(verifyPassword('anything', 'bcrypt$whatever')).rejects.toThrow(/unknown format/);
+  it('rejects a stored hash it cannot read, without throwing', async () => {
+    await expect(verifyPassword('anything', 'bcrypt$whatever')).resolves.toBe(false);
+  });
+
+  it('rejects a stored hash whose cost would block the server', async () => {
+    const hash = await hashPassword('same password', FAST_COST);
+    const withHugeP = hash.replace('$1024$8$1$', '$1024$8$1000000$');
+
+    await expect(verifyPassword('same password', withHugeP)).resolves.toBe(false);
   });
 });

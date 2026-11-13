@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
@@ -13,20 +14,29 @@ if (process.env.NODE_ENV === 'production') {
 
 const { DATABASE_URL, SEED_AGENT_PASSWORD } = validateSeedEnv(process.env);
 
-const passwordHash = SEED_AGENT_PASSWORD ? await hashPassword(SEED_AGENT_PASSWORD) : null;
+const seededAgentIds = seedData.agents
+  .map((agent) => agent.id)
+  .filter((id): id is string => id !== undefined);
+
+const agentPasswords = SEED_AGENT_PASSWORD
+  ? await Promise.all(
+      seededAgentIds.map(async (id) => ({
+        id,
+        passwordHash: await hashPassword(SEED_AGENT_PASSWORD),
+      })),
+    )
+  : [];
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 const db = drizzle({ client: pool, schema, casing: 'snake_case' });
 
 try {
   await db.transaction(async (tx) => {
-    const insertAgents = tx
-      .insert(schema.agents)
-      .values(seedData.agents.map((agent) => ({ ...agent, passwordHash })));
+    await tx.insert(schema.agents).values(seedData.agents).onConflictDoNothing();
 
-    await (passwordHash
-      ? insertAgents.onConflictDoUpdate({ target: schema.agents.id, set: { passwordHash } })
-      : insertAgents.onConflictDoNothing());
+    for (const { id, passwordHash } of agentPasswords) {
+      await tx.update(schema.agents).set({ passwordHash }).where(eq(schema.agents.id, id));
+    }
 
     await tx.insert(schema.customers).values(seedData.customers).onConflictDoNothing();
     await tx.insert(schema.drivers).values(seedData.drivers).onConflictDoNothing();

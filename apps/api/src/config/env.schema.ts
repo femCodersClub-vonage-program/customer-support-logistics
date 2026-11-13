@@ -66,7 +66,10 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
 const databaseEnvSchema = baseEnvSchema.pick({ NODE_ENV: true, DATABASE_URL: true });
 
 const seedEnvSchema = databaseEnvSchema.extend({
-  SEED_AGENT_PASSWORD: z.string().min(12).optional(),
+  SEED_AGENT_PASSWORD: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().min(12).optional(),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;
