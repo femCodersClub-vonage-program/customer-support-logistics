@@ -32,7 +32,10 @@ const db = drizzle({ client: pool, schema, casing: 'snake_case' });
 
 try {
   await db.transaction(async (tx) => {
-    await tx.insert(schema.agents).values(seedData.agents).onConflictDoNothing();
+    await tx
+      .insert(schema.agents)
+      .values(seedData.agents)
+      .onConflictDoNothing({ target: schema.agents.id });
 
     for (const { id, passwordHash } of agentPasswords) {
       await tx.update(schema.agents).set({ passwordHash }).where(eq(schema.agents.id, id));

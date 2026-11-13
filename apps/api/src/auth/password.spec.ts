@@ -47,4 +47,11 @@ describe('password hashing', () => {
 
     await expect(verifyPassword('same password', withHugeP)).resolves.toBe(false);
   });
+
+  it('rejects a stored hash with a cost that scrypt refuses, without throwing', async () => {
+    const hash = await hashPassword('same password', FAST_COST);
+    const notAPowerOfTwo = hash.replace('$1024$8$1$', '$3$8$1$');
+
+    await expect(verifyPassword('same password', notAPowerOfTwo)).resolves.toBe(false);
+  });
 });
