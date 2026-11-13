@@ -40,6 +40,12 @@ describe('validateEnv', () => {
     expect(validateEnv({ ...DISABLED, CLIENT_IP_HEADER: '' }).CLIENT_IP_HEADER).toBeUndefined();
   });
 
+  it('throws when CLIENT_IP_HEADER is not a header name', () => {
+    expect(() => validateEnv({ ...DISABLED, CLIENT_IP_HEADER: 'x-real_ip' })).toThrow(
+      /CLIENT_IP_HEADER/,
+    );
+  });
+
   it('coerces PORT to a number', () => {
     expect(validateEnv({ ...DISABLED, NODE_ENV: 'production', PORT: '8080' })).toMatchObject({
       NODE_ENV: 'production',

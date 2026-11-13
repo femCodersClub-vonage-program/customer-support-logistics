@@ -585,7 +585,7 @@ describe('Webhooks (e2e)', () => {
       let direct: TestApp;
 
       beforeAll(async () => {
-        direct = await createTestApp(limitOne);
+        direct = await createTestApp(limitOne, { clientIpHeader: undefined });
       });
 
       afterAll(async () => {

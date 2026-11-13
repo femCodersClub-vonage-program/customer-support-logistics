@@ -23,12 +23,15 @@ const baseEnvSchema = z.object({
   VONAGE_SIGNATURE_SECRET: z.string().min(1).optional(),
   DEV_AUTH_ENABLED: z.stringbool().default(false),
   WEBHOOK_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
-  CLIENT_IP_HEADER: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .optional()
-    .transform((header) => header || undefined),
+  CLIENT_IP_HEADER: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9-]+$/, 'Expected an HTTP header name, such as x-real-ip')
+      .optional(),
+  ),
 });
 
 export const VONAGE_REQUIRED_VARIABLES = [
