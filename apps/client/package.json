@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@csl/api-client": "workspace:*",
+    "@csl/design-tokens": "workspace:*",
     "@csl/i18n": "workspace:*",
     "@csl/shared-types": "workspace:*",
     "react": "19.3.1",
