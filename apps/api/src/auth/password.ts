@@ -16,7 +16,7 @@ const MAX_MEMORY_BYTES = 256 * 1024 * 1024;
 
 export const DEFAULT_SCRYPT_COST: ScryptCost = { N: 2 ** 16, r: 8, p: 1 };
 
-const MAX_COST: ScryptCost = { N: 2 ** 17, r: 16, p: 2 };
+const MAX_COST: ScryptCost = { N: 2 ** 17, r: 8, p: 2 };
 
 const logger = new Logger('Password');
 
@@ -84,7 +84,13 @@ export async function verifyPassword(password: string, storedHash: string): Prom
   }
 
   const { cost, salt, key } = result.data;
-  const candidate = await deriveKey(password, salt, cost);
 
-  return candidate.length === key.length && timingSafeEqual(candidate, key);
+  try {
+    const candidate = await deriveKey(password, salt, cost);
+
+    return candidate.length === key.length && timingSafeEqual(candidate, key);
+  } catch (error) {
+    logger.error(`A stored password hash could not be checked: ${String(error)}`);
+    return false;
+  }
 }
