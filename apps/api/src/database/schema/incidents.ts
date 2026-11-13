@@ -12,6 +12,7 @@ export const incidents = pgTable(
       .notNull()
       .references(() => orders.id),
     type: incidentType().notNull(),
+    description: text(),
     status: incidentStatus().notNull().default('open'),
     agentId: uuid(),
     resolution: text(),
