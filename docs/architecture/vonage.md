@@ -155,9 +155,27 @@ Each call is stored as an outbound voice `Communication` in `queued`, with the V
 
 Starting the mediation requires the incident to be `notified`, so it follows the "Notify driver" action ([#38]). Automatic retries when the driver doesn't answer are a follow-up of [#39].
 
+### Mediation screen
+
+The CRM page `/incidents/:id/mediation` (`apps/crm/src/app/incidents/[id]/mediation`) shows the incident summary (type, status, order, customer, driver and the driver's last reply) next to the call with the driver. Its Server Actions call the endpoints above through `@csl/api-client`:
+
+- **Start mediation** when the incident is `notified`, and **Call driver again** while it is `in_mediation`. The button is disabled while the driver's last call is `in_progress`.
+- The status of the driver's last outbound voice `Communication` is shown as it was when the page loaded. It updates after each action, and without reloading once the live updates of [#40] are in place.
+- A `409` or `502` is shown to the agent as a short message, and they can retry.
+
+The agent's audio, the participants panel and the call controls depend on the Client SDK JWT ([#36]) and are still _planned_.
+
 ### Closing the call
 
-The agent records the resolution, ends the conversation and the incident moves to `resolved`. The API sends a confirmation SMS to the customer and the driver.
+The mediation form records the outcome with `PATCH /incidents/:id/status`, which adds an `IncidentEvent` to the timeline:
+
+| Outcome          | Status      | Reason                              |
+| ---------------- | ----------- | ----------------------------------- |
+| Resolved         | `resolved`  | The note, if any                    |
+| Escalated        | `escalated` | The note, if any                    |
+| Follow-up needed | `escalated` | `follow_up_needed`, plus `: <note>` |
+
+Ending the conversation for everyone and the confirmation SMS to the customer and the driver are still _planned_.
 
 ## Driver calls or texts back
 
@@ -214,3 +232,4 @@ Check as well, since the docs don't say it: that the `GET` answer webhook carrie
 [#36]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/36
 [#38]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/38
 [#39]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/39
+[#40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40

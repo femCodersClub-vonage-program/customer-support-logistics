@@ -84,6 +84,36 @@ describe('listIncidents', () => {
   });
 });
 
+describe('incidents', () => {
+  const incidentId = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
+
+  it('gets an incident by id', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: incidentId }));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await expect(client.getIncident(incidentId)).resolves.toEqual({ id: incidentId });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe(`/api/incidents/${incidentId}`);
+    expect(init?.method).toBe('GET');
+  });
+
+  it('patches the status with a JSON body', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: incidentId }));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await client.changeIncidentStatus(incidentId, { status: 'resolved', reason: 'resolved: ok' });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe(`/api/incidents/${incidentId}/status`);
+    expect(init?.method).toBe('PATCH');
+    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+    expect(init?.body).toBe(JSON.stringify({ status: 'resolved', reason: 'resolved: ok' }));
+  });
+});
+
 describe('mediation', () => {
   const incidentId = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
 
