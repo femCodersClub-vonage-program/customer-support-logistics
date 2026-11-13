@@ -5,7 +5,9 @@
 :{$PORT:8080} {
 	encode zstd gzip
 
-	handle_path /api/* {
+	@api path /api /api/*
+	handle @api {
+		uri strip_prefix /api
 		reverse_proxy {$API_URL}
 	}
 
