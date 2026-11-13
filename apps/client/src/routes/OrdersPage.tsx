@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslations } from 'use-intl';
 
 import { InstallPrompt } from '../pwa/InstallPrompt.tsx';
@@ -34,21 +35,34 @@ const incidentByOrderId: Record<string, string> = {
 
 export function OrdersPage() {
   const t = useTranslations('orders');
+  const isLoading = false;
+  const [hasError, setHasError] = useState(false);
 
   return (
     <main className="orders-page">
       <div className="orders-page__container">
-      <h1 className="orders-page__title">{t('title')}</h1>
-      {orders.length === 0 && <p>{t('empty')}</p>}
-<section className="orders-page__list" aria-label={t('title')}>
-      {orders.map((order) => (
-        <OrderCard
-        key={order.id}
-        order={order}
-        incidentId={incidentByOrderId[order.id]} />
-      ))}
-</section>
-      <InstallPrompt />
+        <h1 className="orders-page__title">{t('title')}</h1>
+
+        {isLoading && <p role="status">{t('loading')}</p>}
+        {!isLoading && hasError && (
+          <div>
+            <p role="alert">{t('error')}</p>
+            <button type="button" className="order-card__button" onClick={() => setHasError(false)}>
+              {t('retry')}
+            </button>
+          </div>
+        )}
+        {!isLoading && !hasError && orders.length === 0 && <p>{t('empty')}</p>}
+
+        {!isLoading && !hasError && orders.length > 0 && (
+          <section className="orders-page__list" aria-label={t('title')}>
+            {orders.map((order) => (
+              <OrderCard key={order.id} order={order} incidentId={incidentByOrderId[order.id]} />
+            ))}
+          </section>
+        )}
+
+        <InstallPrompt />
       </div>
     </main>
   );
