@@ -79,11 +79,11 @@ To show Vonage working with real phones, `db:seed` accepts an optional `SEED_CUS
 
 ### Guards
 
-- `AuthGuard` is global (`APP_GUARD`): every route needs a session unless it is marked `@Public()`. `/health`, `/webhooks/*` (checked by signature, [#30][i30]) and `/auth/*` are public. A new route is protected from the start.
+- `AuthGuard` is global (`APP_GUARD`): every route needs a session unless it is marked `@Public()`. `/health`, `/webhooks/*` (checked by signature, [#30][i30]) and the `/auth/*` routes that log in or out are public; `GET /auth/me` needs a session. A new route is protected from the start.
 - The guard turns the cookie into `{ role: 'customer' | 'agent', id }`, the same shape `DevActor` has today, so the services keep working as they are.
 - `@Roles('customer')` and `@Roles('agent')` on each endpoint. No session gives `401`, and the wrong role gives `403`.
 - Ownership stays in the services: a customer who asks for another customer's incident gets `404`, as today.
-- `DevActorGuard`, the `x-dev-actor` header and `DEV_AUTH_ENABLED` are removed.
+- `DevActorGuard` is removed. Until the CRM and the PWA use the real login ([#31][i31]), `AuthGuard` still accepts the `x-dev-actor` header when there is no session and `DEV_AUTH_ENABLED=true`, so the CRM and customer routes keep working in development; the API refuses to start with that flag in production. The header and `DEV_AUTH_ENABLED` are removed once both logins exist.
 
 ### Rate limiting
 
