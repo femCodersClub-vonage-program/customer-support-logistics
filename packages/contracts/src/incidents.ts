@@ -129,6 +129,15 @@ export const changeIncidentStatusBodySchema = z
 
 export type ChangeIncidentStatusBody = z.infer<typeof changeIncidentStatusBodySchema>;
 
+export const startMediationResponseSchema = z
+  .object({
+    incident: incidentSchema,
+    call: communicationSchema,
+  })
+  .meta({ id: 'StartMediationResponse' });
+
+export type StartMediationResponse = z.infer<typeof startMediationResponseSchema>;
+
 export const UNASSIGNED_AGENT = 'unassigned';
 
 export const INCIDENT_SORT_FIELDS = ['createdAt', 'updatedAt'] as const;

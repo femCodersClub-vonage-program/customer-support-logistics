@@ -17,36 +17,42 @@ export type RecordedVonageCall =
   | { operation: 'startVerification'; phone: string; locale: Locale }
   | { operation: 'checkVerification'; requestId: string; code: string };
 
+type Operation = RecordedVonageCall['operation'];
+
 export class FakeVonageService implements VonageService {
   readonly calls: RecordedVonageCall[] = [];
 
+  private readonly failures = new Map<Operation, Error>();
+
   async sendSms(to: string, text: string): Promise<SentSms> {
-    this.calls.push({ operation: 'sendSms', to, text });
+    this.record({ operation: 'sendSms', to, text });
     return { messageId: `fake-sms-${this.calls.length}` };
   }
 
   async createCall(to: string, ncco: NccoAction[]): Promise<CreatedCall> {
-    this.calls.push({ operation: 'createCall', to, ncco });
+    this.record({ operation: 'createCall', to, ncco });
     return { callId: `fake-call-${this.calls.length}` };
   }
 
   async transferCall(callId: string, ncco: NccoAction[]): Promise<void> {
-    this.calls.push({ operation: 'transferCall', callId, ncco });
+    this.record({ operation: 'transferCall', callId, ncco });
   }
 
   async startVerification(phone: string, locale: Locale): Promise<StartedVerification> {
-    this.calls.push({ operation: 'startVerification', phone, locale });
+    this.record({ operation: 'startVerification', phone, locale });
     return { requestId: `fake-verification-${this.calls.length}` };
   }
 
   async checkVerification(requestId: string, code: string): Promise<VerificationCheck> {
-    this.calls.push({ operation: 'checkVerification', requestId, code });
+    this.record({ operation: 'checkVerification', requestId, code });
     return { verified: code === FAKE_VERIFICATION_CODE };
   }
 
-  callsTo<T extends RecordedVonageCall['operation']>(
-    operation: T,
-  ): Extract<RecordedVonageCall, { operation: T }>[] {
+  failNext(operation: Operation, error: Error): void {
+    this.failures.set(operation, error);
+  }
+
+  callsTo<T extends Operation>(operation: T): Extract<RecordedVonageCall, { operation: T }>[] {
     return this.calls.filter(
       (call): call is Extract<RecordedVonageCall, { operation: T }> => call.operation === operation,
     );
@@ -54,5 +60,17 @@ export class FakeVonageService implements VonageService {
 
   reset(): void {
     this.calls.length = 0;
+    this.failures.clear();
+  }
+
+  private record(call: RecordedVonageCall): void {
+    this.calls.push(call);
+
+    const failure = this.failures.get(call.operation);
+
+    if (failure !== undefined) {
+      this.failures.delete(call.operation);
+      throw failure;
+    }
   }
 }

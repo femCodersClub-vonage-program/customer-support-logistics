@@ -5,6 +5,7 @@ import {
   InvalidTransitionError,
   UnauthorizedTransitionError,
 } from '../../incidents/domain/transition.errors.js';
+import { VonageError } from '../../vonage/vonage.errors.js';
 
 import { RequestValidationError } from './request-validation.error.js';
 
@@ -23,6 +24,7 @@ const CODE_BY_STATUS: Partial<Record<number, ApiErrorCode>> = {
   [HttpStatus.NOT_FOUND]: 'NOT_FOUND',
   [HttpStatus.CONFLICT]: 'CONFLICT',
   [HttpStatus.TOO_MANY_REQUESTS]: 'RATE_LIMITED',
+  [HttpStatus.BAD_GATEWAY]: 'BAD_GATEWAY',
 };
 
 interface ExposedHttpError {
@@ -72,6 +74,14 @@ export function toApiErrorReply(exception: unknown): ApiErrorReply {
 
   if (exception instanceof UnauthorizedTransitionError) {
     return reply(HttpStatus.CONFLICT, 'TRANSITION_NOT_ALLOWED_FOR_ACTOR', exception.message);
+  }
+
+  if (exception instanceof VonageError) {
+    return reply(
+      HttpStatus.BAD_GATEWAY,
+      'BAD_GATEWAY',
+      `Vonage could not complete "${exception.operation}", try again`,
+    );
   }
 
   if (exception instanceof HttpException) {

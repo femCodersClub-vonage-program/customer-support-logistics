@@ -76,7 +76,63 @@
   },
   "mediation": {
     "title": "Mediation",
-    "incident": "Incident {id}"
+    "incident": "Incident {id}",
+    "summary": {
+      "title": "Incident summary",
+      "type": "Type",
+      "status": "Status",
+      "order": "Order",
+      "address": "Delivery address",
+      "customer": "Customer",
+      "driver": "Driver",
+      "noDriver": "No driver assigned",
+      "lastDriverReply": "Last driver reply",
+      "noDriverReply": "No reply yet",
+      "driverReply": {
+        "delivered": "Says it was delivered",
+        "address_not_found": "Can't find the address",
+        "customer_not_home": "Customer not home",
+        "accepted_call": "Accepted the call"
+      }
+    },
+    "driverCall": {
+      "title": "Call with the driver",
+      "status": "Call status",
+      "noCall": "Not called yet",
+      "callStatus": {
+        "queued": "Calling",
+        "in_progress": "In progress",
+        "completed": "Ended",
+        "failed": "Failed"
+      },
+      "start": "Start mediation",
+      "callAgain": "Call driver again",
+      "pending": "Calling…",
+      "notifyFirst": "The driver has to be notified before the mediation can start.",
+      "noDriver": "This incident has no driver to call."
+    },
+    "outcome": {
+      "title": "Close the mediation",
+      "legend": "Outcome",
+      "options": {
+        "resolved": "Resolved",
+        "escalated": "Escalated",
+        "follow_up_needed": "Follow-up needed"
+      },
+      "note": "Note",
+      "noteHint": "Optional, up to {max} characters",
+      "submit": "Close mediation",
+      "pending": "Closing…"
+    },
+    "closed": "The mediation is closed.",
+    "errors": {
+      "INVALID_TRANSITION": "The incident changed in the meantime. Reload the page and try again.",
+      "CONFLICT": "This can't be done right now, for example because a call to the driver is still active.",
+      "BAD_GATEWAY": "Vonage couldn't place the call. Try again in a moment.",
+      "NOT_FOUND": "The incident no longer exists.",
+      "INVALID_OUTCOME": "Choose an outcome and keep the note short.",
+      "UNKNOWN": "Something went wrong. Try again."
+    }
   },
   "notFound": {
     "title": "Page not found",
