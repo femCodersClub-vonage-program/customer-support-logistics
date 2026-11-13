@@ -6,7 +6,7 @@ NestJS API. It is the only part of the platform that talks to the database and t
 
 Copy `.env.example` to `.env` and adjust the values. `DATABASE_URL` is required: the API refuses to start if it is missing or is not a `postgres://` or `postgresql://` URL. The Vonage variables are explained in [Vonage](#vonage).
 
-`CLIENT_IP_HEADER` names the header the API takes the client IP from, for rate limits and logs. Leave it unset locally: anyone could send that header. Behind Railway it is `x-real-ip`; the reason, and every variable of the deployment, are in [Deployment](../../docs/architecture/deployment.md).
+`CLIENT_IP_HEADER` names the header the API takes the client IP from, for the rate limits. Leave it unset locally: anyone could send that header. Behind Railway it is `x-real-ip`; the reason, and every variable of the deployment, are in [Deployment](../../docs/architecture/deployment.md).
 
 Any PostgreSQL 17 works. The easiest way is the one in the root `docker-compose.yml`:
 
@@ -81,6 +81,12 @@ Applied migrations are never edited. To fix one, write a new migration.
   ```sh
   docker run --rm -e DATABASE_URL=... <api-image> node dist/database/migrate.js
   ```
+
+- **Railway:** the same command is the service's pre-deploy command, so migrations run before each new version starts. The previous version keeps serving while they run, so a migration must not break it: add first, remove in a later deploy.
+
+### Deployment
+
+The API runs on Railway from `apps/api/Dockerfile`. Its settings and variables are in [Deployment](../../docs/architecture/deployment.md#api).
 
 ## Vonage
 
