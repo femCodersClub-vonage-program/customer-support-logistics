@@ -12,7 +12,7 @@ type CustomerRow = typeof customers.$inferInsert;
 type DriverRow = typeof drivers.$inferInsert;
 type RouteRow = typeof routes.$inferInsert;
 type OrderRow = typeof orders.$inferInsert;
-type IncidentRow = Required<typeof incidents.$inferInsert>;
+type IncidentRow = Required<Omit<typeof incidents.$inferInsert, 'description'>>;
 type IncidentEventRow = Required<typeof incidentEvents.$inferInsert>;
 type CommunicationRow = typeof communications.$inferInsert;
 
