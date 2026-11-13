@@ -114,8 +114,10 @@ export class IncidentsService {
       }
 
       const incident = singleRow(
-        await tx.insert(incidents).values({ orderId: order.id, type: body.type }).returning(),
-      );
+        await tx
+          .insert(incidents)
+          .values({ orderId: order.id, type: body.type, description: body.description })
+          .returning(),      );
 
       await tx.insert(incidentEvents).values({
         incidentId: incident.id,
