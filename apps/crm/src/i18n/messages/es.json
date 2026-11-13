@@ -76,7 +76,63 @@
   },
   "mediation": {
     "title": "Mediación",
-    "incident": "Incidencia {id}"
+    "incident": "Incidencia {id}",
+    "summary": {
+      "title": "Resumen de la incidencia",
+      "type": "Tipo",
+      "status": "Estado",
+      "order": "Pedido",
+      "address": "Dirección de entrega",
+      "customer": "Cliente",
+      "driver": "Conductor",
+      "noDriver": "Sin conductor asignado",
+      "lastDriverReply": "Última respuesta del conductor",
+      "noDriverReply": "Aún no ha respondido",
+      "driverReply": {
+        "delivered": "Dice que lo entregó",
+        "address_not_found": "No encuentra la dirección",
+        "customer_not_home": "El cliente no está en casa",
+        "accepted_call": "Aceptó la llamada"
+      }
+    },
+    "driverCall": {
+      "title": "Llamada con el conductor",
+      "status": "Estado de la llamada",
+      "noCall": "Aún no se ha llamado",
+      "callStatus": {
+        "queued": "Llamando",
+        "in_progress": "En curso",
+        "completed": "Terminada",
+        "failed": "Fallida"
+      },
+      "start": "Iniciar mediación",
+      "callAgain": "Volver a llamar al conductor",
+      "pending": "Llamando…",
+      "notifyFirst": "Hay que avisar al conductor antes de iniciar la mediación.",
+      "noDriver": "Esta incidencia no tiene conductor al que llamar."
+    },
+    "outcome": {
+      "title": "Cerrar la mediación",
+      "legend": "Resultado",
+      "options": {
+        "resolved": "Resuelta",
+        "escalated": "Escalada",
+        "follow_up_needed": "Necesita seguimiento"
+      },
+      "note": "Nota",
+      "noteHint": "Opcional, hasta {max} caracteres",
+      "submit": "Cerrar mediación",
+      "pending": "Cerrando…"
+    },
+    "closed": "La mediación está cerrada.",
+    "errors": {
+      "INVALID_TRANSITION": "La incidencia ha cambiado mientras tanto. Recarga la página y vuelve a intentarlo.",
+      "CONFLICT": "Ahora no se puede hacer, por ejemplo porque aún hay una llamada activa con el conductor.",
+      "BAD_GATEWAY": "Vonage no ha podido hacer la llamada. Vuelve a intentarlo en un momento.",
+      "NOT_FOUND": "La incidencia ya no existe.",
+      "INVALID_OUTCOME": "Elige un resultado y no te extiendas en la nota.",
+      "UNKNOWN": "Algo ha fallado. Vuelve a intentarlo."
+    }
   },
   "notFound": {
     "title": "Página no encontrada",
