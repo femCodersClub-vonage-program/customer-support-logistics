@@ -39,7 +39,7 @@ pnpm --filter ./apps/api run db:seed
 
 - It refuses to run when `NODE_ENV=production`.
 - It is idempotent: every row has a fixed id and is inserted with `ON CONFLICT DO NOTHING`, all in one transaction. Running it again changes nothing, and it never touches rows it didn't create.
-- Because existing rows are never updated, changes to the demo data in `src/database/seed-data.ts` don't reach a database that is already seeded. Recreate the database to start over.
+- Because existing rows are never updated, changes to the demo data in `src/database/seed-data.ts` don't reach a database that is already seeded. Recreate the database to start over. The only exception is `SEED_AGENT_PASSWORD` (12 characters or more): when it is set, the seeded agents get that password even if they already exist, each with its own salt.
 - The e2e tests empty the tables, so seed again after running them against the same database.
 
 The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that every incident's event history is a valid path through the state machine.
@@ -48,14 +48,14 @@ The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that 
 
 Paste the value into **Authorize** in [Swagger UI](#openapi) or into the `X-Dev-Actor` header.
 
-| `X-Dev-Actor`                                    | Who           | Locale | What they have                                                    |
-| ------------------------------------------------ | ------------- | ------ | ----------------------------------------------------------------- |
-| `customer:5eed0000-0000-4000-8000-0000000000c1`  | Lucía Martín  | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
-| `customer:5eed0000-0000-4000-8000-0000000000c2`  | Carlos Romero | `es`   | Incidents in `notified`, `escalated` and `resolved`               |
-| `customer:5eed0000-0000-4000-8000-0000000000c3`  | Emma Wilson   | `en`   | Two incidents `in_mediation`                                      |
-| `customer:5eed0000-0000-4000-8000-0000000000c4`  | James Taylor  | `en`   | A `resolved` incident and a pending order without incidents       |
-| `agent:5eed0000-0000-4000-8000-0000000000a1`     | Agent A       | —      | Assigned to one `in_mediation` and one `resolved` incident        |
-| `agent:5eed0000-0000-4000-8000-0000000000a2`     | Agent B       | —      | Assigned to one `escalated` and one `resolved` incident           |
+| `X-Dev-Actor`                                   | Who                                       | Locale | What they have                                                              |
+| ----------------------------------------------- | ----------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| `customer:5eed0000-0000-4000-8000-0000000000c1` | Lucía Martín                              | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
+| `customer:5eed0000-0000-4000-8000-0000000000c2` | Carlos Romero                             | `es`   | Incidents in `notified`, `escalated` and `resolved`                         |
+| `customer:5eed0000-0000-4000-8000-0000000000c3` | Emma Wilson                               | `en`   | Two incidents `in_mediation`                                                |
+| `customer:5eed0000-0000-4000-8000-0000000000c4` | James Taylor                              | `en`   | A `resolved` incident and a pending order without incidents                 |
+| `agent:5eed0000-0000-4000-8000-0000000000a1`    | Marta Vidal (`marta.vidal@example.com`)   | `es`   | Assigned to one `in_mediation` and one `resolved` incident                  |
+| `agent:5eed0000-0000-4000-8000-0000000000a2`    | Olivia Brown (`olivia.brown@example.com`) | `en`   | Assigned to one `escalated` and one `resolved` incident                     |
 
 Every agent sees every incident in `GET /incidents`. Four of them are unassigned (`?agentId=unassigned`). The driver is Javier Molina (`+34611000009`), on the route of `2026-11-02`.
 
@@ -195,6 +195,9 @@ The request and response schemas live in [`@csl/contracts`](../../packages/contr
 
 | Method  | Path                    | Who                    | What                                                           |
 | ------- | ----------------------- | ---------------------- | -------------------------------------------------------------- |
+| `POST`  | `/auth/agent/login`     | anyone                 | Log an agent in and set the session cookie                     |
+| `POST`  | `/auth/logout`          | anyone                 | End the session and clear the cookie                           |
+| `GET`   | `/auth/me`              | customer / agent       | The person behind the current session                          |
 | `POST`  | `/incidents`            | customer               | Create an incident for one of their orders                     |
 | `GET`   | `/incidents`            | agent                  | CRM inbox, filtered and paginated                              |
 | `GET`   | `/incidents/:id`        | customer (own) / agent | Detail with order, customer, driver, events and communications |
@@ -235,27 +238,61 @@ Every error has the same shape:
 | ------ | --------------------------------------------------------- | --------------------------------------------------------------------- |
 | 400    | `VALIDATION_FAILED`                                       | Invalid body, query or path; `details` lists each offending field     |
 | 400    | `BAD_REQUEST`                                             | Malformed request, such as invalid JSON                               |
-| 401    | `UNAUTHORIZED`                                            | Bad `X-Dev-Actor` header, dev auth off, or bad Vonage signature       |
-| 403    | `FORBIDDEN`                                               | The actor can't use the route, such as an agent calling `GET /orders` |
+| 401    | `UNAUTHORIZED`                                            | No valid session, wrong email or password, or bad Vonage signature    |
+| 403    | `FORBIDDEN`                                               | The route is for another role, such as an agent calling `GET /orders` |
 | 404    | `NOT_FOUND`                                               | Missing resource, or one that belongs to another customer             |
 | 409    | `INVALID_TRANSITION` / `TRANSITION_NOT_ALLOWED_FOR_ACTOR` | The state machine rejects the status change                           |
 | 429    | `RATE_LIMITED`                                            | Too many requests to `/webhooks/*` (`WEBHOOK_RATE_LIMIT_PER_MINUTE`)  |
 | 500    | `INTERNAL_ERROR`                                          | Unexpected error; the details are only in the logs                    |
 
+### Authentication
+
+How it works and why is in [ADR 0008](../../docs/adr/0008-authentication-and-sessions.md). In short:
+
+- Every route needs a session unless it is marked `@Public()`: `/health`, `/webhooks/*`, `POST /auth/agent/login` and `POST /auth/logout`. `GET /auth/me` needs a session. A new route is protected from the start.
+- `POST /auth/agent/login` allows 10 attempts per minute from the same IP, then answers `429`. A new login also ends the session the browser already had, and expired sessions are deleted on each login.
+- The session is an opaque token in the `csl_session` cookie (`HttpOnly`, `Secure`, `SameSite=Lax`). The `sessions` table keeps only its SHA-256 hash. Agent sessions last 12 hours and customer sessions 30 days.
+- `@Roles('customer')` or `@Roles('agent')` on a route enforces the "who" column above: no session gives `401`, the wrong role `403`. Services still check ownership, so another customer's incident is a `404`.
+- Customers will log in with Verify v2 in the next part of [1.5]. Until then, a customer session can only come from the temporary header below.
+
+#### Logging in locally as an agent
+
+1. Put a password of 12 characters or more in `SEED_AGENT_PASSWORD` in `.env`, and run `db:seed`. Both seeded agents get it, also when they already exist.
+2. Log in, and copy the `csl_session=…` value from the `Set-Cookie` header:
+
+   ```sh
+   curl -i -H 'Content-Type: application/json' \
+     -d '{"email":"marta.vidal@example.com","password":"<SEED_AGENT_PASSWORD>"}' \
+     http://localhost:3000/auth/agent/login
+   ```
+
+3. Send it on the next requests:
+
+   ```sh
+   curl -H 'Cookie: csl_session=<token>' 'http://localhost:3000/incidents?status=open'
+   ```
+
+#### Creating an agent
+
+There is no public sign-up. `agent:create` adds an agent and prints a generated password once. It works in any environment, so it also creates the first agent of a new deployment:
+
+```sh
+pnpm exec turbo run build --filter=@csl/api
+pnpm --filter ./apps/api run agent:create --email lucia@example.com --name "Lucía Pérez" --locale es
+```
+
 ### Temporary dev authentication
 
 > [!WARNING]
-> This is a stopgap until real authentication lands ([1.5]). Don't build on it.
+> This bridge stays until the CRM and the client use the real login ([1.5]). Don't build on it.
 
-With `DEV_AUTH_ENABLED=true`, protected routes take the actor from the `X-Dev-Actor` header: `customer:<uuid>` or `agent:<uuid>`. With the flag off (the default), they return `401`. The API refuses to start if the flag is on and `NODE_ENV=production`.
+With `DEV_AUTH_ENABLED=true`, a request without a valid session can still identify itself with the `X-Dev-Actor` header: `customer:<uuid>` or `agent:<uuid>`. Roles and ownership apply to it as to a session. With the flag off (the default), only sessions work. The API refuses to start if the flag is on and `NODE_ENV=production`.
 
 ```sh
 curl -H 'X-Dev-Actor: agent:5eed0000-0000-4000-8000-0000000000a1' 'http://localhost:3000/incidents?status=open'
 ```
 
 The [seeded actors](#seeded-actors) are ready to use.
-
-The header only identifies the actor. Customers only see their own incidents and orders, but the "who" column above isn't enforced yet.
 
 ### Vonage webhooks
 
