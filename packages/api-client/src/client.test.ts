@@ -59,3 +59,27 @@ describe('createApiClient', () => {
     expect(error).toMatchObject({ status: 503, body: { message: 'Service Unavailable' } });
   });
 });
+
+describe('listIncidents', () => {
+  const emptyPage = { items: [], total: 0, limit: 20, offset: 0 };
+
+  it('repeats array params in the query string', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(emptyPage));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await client.listIncidents({ status: ['open', 'notified'], q: 'ana', order: 'asc' });
+
+    expect(requestFrom(fetchMock).url).toBe(
+      '/api/incidents?status=open&status=notified&q=ana&order=asc',
+    );
+  });
+
+  it('omits undefined values and the "?" when there is no query', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(emptyPage));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await client.listIncidents({ type: undefined });
+
+    expect(requestFrom(fetchMock).url).toBe('/api/incidents');
+  });
+});

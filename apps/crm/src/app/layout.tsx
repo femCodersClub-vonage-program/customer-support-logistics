@@ -3,8 +3,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { SideNav } from '../components/SideNav';
 import { TopBar } from '../components/TopBar';
-import '../styles/tokens.css';
-import '../styles/global.css';
+import '@csl/design-tokens';
 
 import styles from './layout.module.css';
 

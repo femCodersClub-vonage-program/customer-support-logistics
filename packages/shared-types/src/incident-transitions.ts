@@ -12,7 +12,7 @@ export const INCIDENT_TRANSITIONS: Readonly<Record<IncidentStatus, readonly Inci
 export const TRANSITION_ACTORS: Readonly<Record<IncidentStatus, readonly Actor[]>> = {
   open: [],
   notified: ['system'],
-  in_mediation: ['system', 'agent'],
+  in_mediation: ['system', 'agent', 'driver'],
   resolved: ['agent'],
   escalated: ['agent', 'system'],
 };

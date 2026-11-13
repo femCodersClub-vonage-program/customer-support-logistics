@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildDriverPromptNcco } from './ncco.js';
+import {
+  buildDriverPromptNcco,
+  buildInvalidKeyNcco,
+  buildJoinConversationNcco,
+  conversationName,
+} from './ncco.js';
 
 const inputUrl = 'https://example.test/webhooks/voice/input?incident=1234';
 
@@ -29,5 +34,33 @@ describe('buildDriverPromptNcco', () => {
       text: 'Incident on order 1234. Press 1 to connect with support.',
       language: 'en-GB',
     });
+  });
+});
+
+describe('buildJoinConversationNcco', () => {
+  it('joins the conversation named after the incident', () => {
+    expect(conversationName('1234')).toBe('inc-1234');
+    expect(buildJoinConversationNcco('1234')).toEqual([
+      { action: 'conversation', name: 'inc-1234' },
+    ]);
+  });
+});
+
+describe('buildInvalidKeyNcco', () => {
+  it('tells the driver in their language that the option was not valid, without waiting for input', () => {
+    expect(buildInvalidKeyNcco('es')).toEqual([
+      {
+        action: 'talk',
+        text: 'No hemos recibido una opción válida. Le volveremos a llamar.',
+        language: 'es-ES',
+      },
+    ]);
+    expect(buildInvalidKeyNcco('en')).toEqual([
+      {
+        action: 'talk',
+        text: 'We did not get a valid option. We will call you again.',
+        language: 'en-GB',
+      },
+    ]);
   });
 });

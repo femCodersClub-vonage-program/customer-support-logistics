@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@csl/api-client": "workspace:*",
+    "@csl/design-tokens": "workspace:*",
     "@csl/i18n": "workspace:*",
     "@csl/shared-types": "workspace:*",
     "lucide-react": "^1.70.0",

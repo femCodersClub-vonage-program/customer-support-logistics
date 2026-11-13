@@ -12,9 +12,11 @@ export type CommunicationStatus = (typeof COMMUNICATION_STATUSES)[number];
 
 export interface Communication {
   id: string;
-  incidentId: string;
+  incidentId: string | null;
   channel: CommunicationChannel;
   direction: CommunicationDirection;
+  fromNumber: string | null;
+  toNumber: string | null;
   vonageUuid: string;
   status: CommunicationStatus;
   durationSeconds: number | null;

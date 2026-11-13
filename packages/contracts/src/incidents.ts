@@ -50,9 +50,11 @@ export const incidentEventSchema = z
 export const communicationSchema = z
   .object({
     id: uuidSchema,
-    incidentId: uuidSchema,
+    incidentId: uuidSchema.nullable(),
     channel: z.enum(COMMUNICATION_CHANNELS),
     direction: z.enum(COMMUNICATION_DIRECTIONS),
+    fromNumber: z.string().nullable(),
+    toNumber: z.string().nullable(),
     vonageUuid: z.string(),
     status: z.enum(COMMUNICATION_STATUSES),
     durationSeconds: z.number().int().min(0).nullable(),

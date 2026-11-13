@@ -1,0 +1,33 @@
+.badge {
+  --badge-color: var(--color-text-muted);
+
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  color: var(--badge-color);
+  background: color-mix(in srgb, var(--badge-color) 12%, var(--color-surface));
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge[data-status='open'] {
+  --badge-color: var(--status-open);
+}
+
+.badge[data-status='notified'] {
+  --badge-color: var(--status-notified);
+}
+
+.badge[data-status='in_mediation'] {
+  --badge-color: var(--status-in-mediation);
+}
+
+.badge[data-status='resolved'] {
+  --badge-color: var(--status-resolved);
+}
+
+.badge[data-status='escalated'] {
+  --badge-color: var(--status-escalated);
+}

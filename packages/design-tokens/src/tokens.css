@@ -3,6 +3,14 @@
   --color-primary-hover: #6405d1;
   --color-primary-soft: #f5f0fd;
 
+  --color-secondary: #d6219c;
+  --color-accent: #fa7454;
+
+  --color-success: #1c8731;
+  --color-warning: #be5702;
+  --color-error: #cd0d0d;
+  --color-info: #0276d5;
+
   --color-bg: #f2f2f2;
   --color-surface: #ffffff;
   --color-text: #0d0d0d;

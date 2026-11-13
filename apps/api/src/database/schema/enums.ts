@@ -25,3 +25,14 @@ export const communicationChannel = pgEnum('communication_channel', COMMUNICATIO
 export const communicationDirection = pgEnum('communication_direction', COMMUNICATION_DIRECTIONS);
 
 export const communicationStatus = pgEnum('communication_status', COMMUNICATION_STATUSES);
+
+export const WEBHOOK_EVENT_SOURCES = [
+  'messages_inbound',
+  'messages_status',
+  'voice_event',
+  'voice_input',
+] as const;
+
+export type WebhookEventSource = (typeof WEBHOOK_EVENT_SOURCES)[number];
+
+export const webhookEventSource = pgEnum('webhook_event_source', WEBHOOK_EVENT_SOURCES);

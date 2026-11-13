@@ -1,6 +1,7 @@
 export * from './communication.js';
 export * from './customer.js';
 export * from './driver.js';
+export * from './driver-reply.js';
 export * from './evidence.js';
 export * from './health.js';
 export * from './incident.js';

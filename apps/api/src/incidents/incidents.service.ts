@@ -16,8 +16,8 @@ import {
 import { singleRow } from '../database/single-row.js';
 import { toOrder } from '../orders/orders.mapper.js';
 
-import { transition } from './domain/incident-state-machine.js';
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
+import { persistTransition } from './persist-transition.js';
 
 import type { DevActor } from '../common/dev-auth/dev-actor.js';
 import type { Database } from '../database/database.constants.js';
@@ -200,34 +200,11 @@ export class IncidentsService {
         throw new NotFoundException(INCIDENT_NOT_FOUND);
       }
 
-      const { incident, event } = transition(toIncident(row.incident), {
+      const updated = await persistTransition(tx, row.incident, {
         to: body.status,
         actor: actor.role,
         actorId: actor.id,
         reason: body.reason,
-      });
-
-      const updated = singleRow(
-        await tx
-          .update(incidents)
-          .set({
-            status: incident.status,
-            resolution: incident.resolution,
-            closedAt: incident.closedAt === null ? null : new Date(incident.closedAt),
-          })
-          .where(eq(incidents.id, id))
-          .returning(),
-      );
-
-      await tx.insert(incidentEvents).values({
-        id: event.id,
-        incidentId: event.incidentId,
-        fromStatus: event.fromStatus,
-        toStatus: event.toStatus,
-        actor: event.actor,
-        actorId: event.actorId,
-        reason: event.reason,
-        occurredAt: new Date(event.occurredAt),
       });
 
       return toIncident(updated);

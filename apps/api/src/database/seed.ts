@@ -1,7 +1,7 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
-import { validateEnv } from '../config/env.schema.js';
+import { validateDatabaseEnv } from '../config/env.schema.js';
 
 import * as schema from './schema/index.js';
 import { seedData } from './seed-data.js';
@@ -10,7 +10,7 @@ if (process.env.NODE_ENV === 'production') {
   throw new Error('Refusing to seed demo data with NODE_ENV=production');
 }
 
-const { DATABASE_URL } = validateEnv(process.env);
+const { DATABASE_URL } = validateDatabaseEnv(process.env);
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 const db = drizzle({ client: pool, schema, casing: 'snake_case' });
