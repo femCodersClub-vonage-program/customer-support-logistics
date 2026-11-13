@@ -57,7 +57,7 @@ We host the three apps and PostgreSQL in one **Railway** project, deployed from 
 
 - A merge to `develop` deploys. `main` stays as it is until the team decides how releases work.
 - The deployed API runs with `NODE_ENV=production`, so `DEV_AUTH_ENABLED` can't be on. Until the CRM has its login page ([#31][i31]), the deployed CRM can't load data. The client is in the same situation until its login ([#33][i33]).
-- Vonage stays disabled in the deployment until the team agrees on which Vonage Application it uses and points its webhook URLs at the deployed API.
+- The deployment uses the team's existing Vonage Application, the same one as development, which is enough for a pilot. Once its webhooks point at the deployed API, they no longer reach a local ngrok tunnel. Turning Vonage on is still pending in [#57][i57].
 - `CLIENT_IP_HEADER` must only be set where a proxy that overwrites the header sits in front of the API. Without one, a client could send any IP in it and dodge the rate limits.
 - The CRM image carries the whole pruned workspace. Next.js `output: 'standalone'` would make it smaller; it isn't needed yet.
 - A setting changed in Railway without updating `deployment.md` leaves the two out of step. If that becomes a problem, `.railway/railway.ts` is the way to keep the settings in code.

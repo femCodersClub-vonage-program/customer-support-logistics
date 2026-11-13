@@ -140,7 +140,7 @@ Dashed arrows are dev dependencies. `apps/api` needs `@csl/shared-types` at runt
 
 **Logging.** TBD. The API currently uses NestJS's default logger.
 
-**Deployment.** Decided in [ADR 0009](../adr/0009-hosting-on-railway.md) ([#57]). The API, the client, the CRM and PostgreSQL run on Railway, deployed from `develop`, each app from its own Dockerfile. The client is served by Caddy and the CRM by `next start`; both forward `/api/*` to the API over the private network. Migrations run as Railway's pre-deploy step. Every service setting is listed in [Deployment](deployment.md). Vonage must reach the webhooks over public HTTPS (`PUBLIC_URL`); in development we use a tunnel such as ngrok. CI runs lint, tests and build for each app on pull requests to `develop` and `main`.
+**Deployment.** Decided in [ADR 0009](../adr/0009-hosting-on-railway.md) ([#57]). The API, the client, the CRM and PostgreSQL run on Railway, deployed from `develop`, each app from its own Dockerfile. The client is served by Caddy and the CRM by `next start`; both forward `/api/*` to the API over the private network. Migrations run as Railway's pre-deploy step. Every service setting is listed in [Deployment](deployment.md). Vonage must reach the webhooks over public HTTPS (`PUBLIC_URL`): in development we use a tunnel such as ngrok, and the deployment isn't connected to Vonage yet ([#57]). CI runs lint, tests and build for each app on pull requests to `develop` and `main`.
 
 [#26]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/26
 [#27]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/27

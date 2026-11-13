@@ -6,14 +6,19 @@ Service settings live in Railway, not in the repository. This page lists every o
 
 ## Environment
 
-One environment, `production`, deployed from the `develop` branch.
+One environment, `production`. Until the pull request of [#57] is merged, the services are deployed with `railway up` from that branch. After the merge, each app service is connected to the GitHub repository, branch `develop`, with **Wait for CI** on, so a merge deploys only when CI is green. That step is still pending in [#57].
 
 ## Services
 
 ### `Postgres`
 
-- Railway's PostgreSQL template. No public TCP proxy: only the other services reach it, over the private network.
-- The other services read its connection string through the reference variable `${{Postgres.DATABASE_URL}}`.
+| Setting | Value                                                                                                           |
+| ------- | --------------------------------------------------------------------------------------------------------------- |
+| Image   | `ghcr.io/railwayapp-templates/postgres-ssl:17`. Railway's template starts on 18; the project uses 17 everywhere |
+| Volume  | mounted at `/var/lib/postgresql/data`                                                                           |
+| Access  | private network only, no public TCP proxy                                                                       |
+
+The other services read its connection string through the reference variable `${{Postgres.DATABASE_URL}}`.
 
 ### `api`
 
@@ -22,54 +27,69 @@ One environment, `production`, deployed from the `develop` branch.
 | Builder            | Dockerfile, `apps/api/Dockerfile` (variable `RAILWAY_DOCKERFILE_PATH`) |
 | Pre-deploy command | `node dist/database/migrate.js`                                        |
 | Healthcheck path   | `/health`                                                              |
-| Public domain      | port `3000`                                                            |
+| Public domain      | `https://api-production-f91265aa.up.railway.app`, port `3000`          |
 
-| Variable                  | Value                                                                        |
-| ------------------------- | ---------------------------------------------------------------------------- |
-| `NODE_ENV`                | `production`                                                                 |
-| `PORT`                    | `3000`                                                                       |
-| `DATABASE_URL`            | `${{Postgres.DATABASE_URL}}`                                                 |
-| `DEV_AUTH_ENABLED`        | `false` (the API refuses to start with `true` in production)                 |
-| `VONAGE_ENABLED`          | `false`, until the team decides which Vonage Application the deployment uses |
-| `CLIENT_IP_HEADER`        | `x-real-ip`: Railway's edge puts the client IP there (see below)             |
-| `RAILWAY_DOCKERFILE_PATH` | `apps/api/Dockerfile`                                                        |
+| Variable                  | Value                                                              |
+| ------------------------- | ------------------------------------------------------------------ |
+| `NODE_ENV`                | `production`                                                       |
+| `PORT`                    | `3000`                                                             |
+| `DATABASE_URL`            | `${{Postgres.DATABASE_URL}}`                                       |
+| `DEV_AUTH_ENABLED`        | `false` (the API refuses to start with `true` in production)       |
+| `CLIENT_IP_HEADER`        | `x-real-ip` (see [Client IP](#client-ip))                          |
+| `PUBLIC_URL`              | `https://api-production-f91265aa.up.railway.app`                   |
+| `VONAGE_ENABLED`          | `false` until the Vonage variables are set (see [Vonage](#vonage)) |
+| `RAILWAY_DOCKERFILE_PATH` | `apps/api/Dockerfile`                                              |
 
 Migrations run before each new version starts. If they fail, the deploy stops and the previous version keeps running.
 
 #### Client IP
 
-Railway's edge sends the client's IP in `X-Real-IP` and not in `X-Forwarded-For`, and the address the API sees on the socket changes from one request to the next. Without `CLIENT_IP_HEADER`, per-IP rate limits never trigger. To check it after a change, send a burst of unsigned requests to a webhook and expect `429` once the limit is reached:
+Railway's edge sends the client's IP in `X-Real-IP` and not in `X-Forwarded-For`, and the address the API sees on the socket changes from one request to the next. Without `CLIENT_IP_HEADER`, per-IP rate limits never trigger.
+
+Checked on 2026-11-13 against the deployed API: 140 unsigned requests to a webhook in 15 seconds give 120 × `401` and 20 × `429`, also when every request sends a different made-up `X-Real-IP` (the edge overwrites it), and also through the client's `/api`. To check it again after a change:
 
 ```sh
 seq 1 140 | xargs -P 20 -I@@ curl -s -o /dev/null -w '%{http_code}\n' \
   -X POST -H 'Content-Type: application/json' -d '{}' \
-  https://<api-domain>/webhooks/voice/event | sort | uniq -c
+  https://api-production-f91265aa.up.railway.app/webhooks/voice/event | sort | uniq -c
 ```
+
+#### Vonage
+
+The deployment uses the team's existing Vonage Application, the same one as development. To turn it on ([#57]):
+
+1. Set `VONAGE_API_KEY`, `VONAGE_API_SECRET`, `VONAGE_APPLICATION_ID`, `VONAGE_PRIVATE_KEY`, `VONAGE_VIRTUAL_NUMBER` and `VONAGE_SIGNATURE_SECRET` in the `api` service, and `VONAGE_ENABLED=true`.
+2. In the Vonage dashboard, point the application's webhooks at the deployed API: Voice answer `/webhooks/voice/answer`, Voice event `/webhooks/voice/event`, Messages inbound `/webhooks/sms/inbound`, Messages status `/webhooks/sms/status`.
+
+From then on, that application's webhooks reach the deployment and no longer a local ngrok tunnel.
 
 #### Demo data
 
-The deployed database is meant to hold the demo data, so the team can show the app with realistic cases. It isn't loaded yet, on purpose:
+The deployed database is meant to hold the demo data. It isn't loaded yet: nothing could show it until the CRM has its login page, and the seed that creates the agents comes with [#31].
 
-- Nothing could show it yet: the deployed client and CRM have no login page, and the API doesn't accept `X-Dev-Actor` in production.
-- The seed that creates the agents comes with the authentication work ([#31]). Loading the current seed first would mean emptying the tables and loading them again later.
+When the CRM login is merged, load it once from inside the `api` container (the database has no public address). `db:seed` refuses to run with `NODE_ENV=production`, so this one run overrides it on purpose:
 
-When the CRM login is merged, the demo data is loaded once with the seed of that version, from inside the `api` container, since the database has no public address: `railway ssh --service api` (on Windows, with standard input closed: `< /dev/null`). `db:seed` refuses to run with `NODE_ENV=production`, so that single run sets `NODE_ENV=development` on the command line. It is a deliberate exception for this database, recorded here, not a change to the guard.
+```sh
+railway ssh --service api -- sh -c 'NODE_ENV=development SEED_AGENT_PASSWORD=<password> node dist/database/seed.js'
+```
 
 ### `client`
 
-| Setting          | Value                                |
-| ---------------- | ------------------------------------ |
-| Builder          | Dockerfile, `apps/client/Dockerfile` |
-| Healthcheck path | `/`                                  |
+| Setting          | Value                                                            |
+| ---------------- | ---------------------------------------------------------------- |
+| Builder          | Dockerfile, `apps/client/Dockerfile`                             |
+| Healthcheck path | `/`                                                              |
+| Public domain    | `https://client-production-8cd55b5b.up.railway.app`, port `8080` |
 
 | Variable                  | Value                              |
 | ------------------------- | ---------------------------------- |
 | `API_URL`                 | `http://api.railway.internal:3000` |
+| `PORT`                    | `8080`                             |
 | `RAILWAY_DOCKERFILE_PATH` | `apps/client/Dockerfile`           |
 
 Caddy (`apps/client/Caddyfile`):
 
-- forwards `/api/*` to the API without the `/api` prefix, together with the client's `X-Real-IP`;
+- forwards `/api` and `/api/*` to the API without the `/api` prefix, together with the client's `X-Real-IP`;
 - serves `/assets/*`, whose names carry a content hash, with a one-year immutable cache, and answers `404` for a missing asset;
 - answers every other path with the file or with `index.html`, always with `Cache-Control: no-cache`, so a new deploy is picked up on the next visit.
 
@@ -81,17 +101,19 @@ The container refuses to start if `API_URL` is missing.
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | Builder          | Dockerfile, `apps/crm/Dockerfile`                                                          |
 | Healthcheck path | none: every page calls the API, so a health check would tie the CRM's deploys to the API's |
+| Public domain    | `https://crm-production-cd0f5ed8.up.railway.app`, port `3001`                              |
 
-| Variable                  | Value                                                                                                                                                        |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `API_URL`                 | `http://api.railway.internal:3000`, used at build time (rewrites) and at runtime (server components). The build and the container both stop if it is missing |
-| `RAILWAY_DOCKERFILE_PATH` | `apps/crm/Dockerfile`                                                                                                                                        |
+| Variable                  | Value                                                                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `API_URL`                 | `http://api.railway.internal:3000`, used at build time (rewrites) and at runtime. The build and the container stop without it |
+| `PORT`                    | `3001`                                                                                                                        |
+| `RAILWAY_DOCKERFILE_PATH` | `apps/crm/Dockerfile`                                                                                                         |
 
 ## Things to know
 
 - Variables are set in Railway, never committed. `railway variable list --service <name>` shows them.
 - While `DEV_AUTH_ENABLED` is off, the deployed CRM and client can't load data until their login pages exist ([#31], [#33]).
-- Vonage stays disabled until its webhook URLs point at the deployed API.
 
 [#31]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31
 [#33]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/33
+[#57]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/57
