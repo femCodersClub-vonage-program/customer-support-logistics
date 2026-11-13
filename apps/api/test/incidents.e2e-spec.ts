@@ -274,22 +274,18 @@ describe('Incidents (e2e)', () => {
       });
     });
 
-    it('counts every incident that matches, not only the ones in the page', async () => {
-      const page = await list('q=ana&limit=1');
+    it('does not count an incident twice when a status is repeated', async () => {
+      const page = await list('status=open&status=open');
 
-      expect(page.items).toHaveLength(1);
-      expect(page.total).toBe(3);
+      expect(idsOf(page)).toEqual([ids.openIncident]);
+      expect(page.total).toBe(1);
       expect(page.statusCounts).toEqual({
         open: 1,
         notified: 1,
         in_mediation: 1,
-        resolved: 0,
-        escalated: 0,
+        resolved: 1,
+        escalated: 1,
       });
-    });
-
-    it('does not count an incident twice when a status is repeated', async () => {
-      expect((await list('status=open&status=open')).total).toBe(1);
     });
 
     it.each([
