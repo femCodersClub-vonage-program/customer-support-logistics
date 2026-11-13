@@ -1,4 +1,5 @@
 import { UNASSIGNED_AGENT } from '@csl/contracts';
+import { INCIDENT_STATUSES } from '@csl/shared-types';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 
@@ -25,10 +26,11 @@ import type {
   ChangeIncidentStatusBody,
   CreateIncidentBody,
   IncidentDetail,
+  IncidentStatusCounts,
   ListIncidentsQuery,
   ListIncidentsResponse,
 } from '@csl/contracts';
-import type { Incident } from '@csl/shared-types';
+import type { Incident, IncidentStatus } from '@csl/shared-types';
 import type { SQL } from 'drizzle-orm';
 
 const INCIDENT_NOT_FOUND = 'Incident not found';
@@ -41,12 +43,13 @@ function ownedBy(actor: DevActor): SQL | undefined {
   return actor.role === 'customer' ? eq(orders.customerId, actor.id) : undefined;
 }
 
-function listFilters(query: ListIncidentsQuery): SQL | undefined {
-  const conditions: (SQL | undefined)[] = [];
+function statusFilter(query: ListIncidentsQuery): SQL | undefined {
+  return query.status === undefined ? undefined : inArray(incidents.status, query.status);
+}
 
-  if (query.status !== undefined) {
-    conditions.push(inArray(incidents.status, query.status));
-  }
+// Every filter except the status one: the counts per status are computed with these.
+function otherFilters(query: ListIncidentsQuery): SQL | undefined {
+  const conditions: (SQL | undefined)[] = [];
 
   if (query.type !== undefined) {
     conditions.push(eq(incidents.type, query.type));
@@ -79,6 +82,18 @@ function listFilters(query: ListIncidentsQuery): SQL | undefined {
   }
 
   return and(...conditions);
+}
+
+function toStatusCounts(rows: { status: IncidentStatus; total: number }[]): IncidentStatusCounts {
+  const counts = Object.fromEntries(
+    INCIDENT_STATUSES.map((status) => [status, 0]),
+  ) as IncidentStatusCounts;
+
+  for (const { status, total } of rows) {
+    counts[status] = total;
+  }
+
+  return counts;
 }
 
 @Injectable()
@@ -116,33 +131,39 @@ export class IncidentsService {
   }
 
   async list(query: ListIncidentsQuery): Promise<ListIncidentsResponse> {
-    const where = listFilters(query);
+    const filters = otherFilters(query);
     const direction = query.order === 'asc' ? asc : desc;
     const sortColumn = query.sort === 'updatedAt' ? incidents.updatedAt : incidents.createdAt;
 
-    const [rows, totals] = await Promise.all([
+    const [rows, countRows] = await Promise.all([
       this.db
         .select({ incident: incidents, customer: { id: customers.id, name: customers.name } })
         .from(incidents)
         .innerJoin(orders, eq(orders.id, incidents.orderId))
         .innerJoin(customers, eq(customers.id, orders.customerId))
-        .where(where)
+        .where(and(statusFilter(query), filters))
         .orderBy(direction(sortColumn), direction(incidents.id))
         .limit(query.limit)
         .offset(query.offset),
       this.db
-        .select({ total: count() })
+        .select({ status: incidents.status, total: count() })
         .from(incidents)
         .innerJoin(orders, eq(orders.id, incidents.orderId))
         .innerJoin(customers, eq(customers.id, orders.customerId))
-        .where(where),
+        .where(filters)
+        .groupBy(incidents.status),
     ]);
+
+    const statusCounts = toStatusCounts(countRows);
+    const selected = query.status ?? INCIDENT_STATUSES;
+    const total = [...new Set(selected)].reduce((sum, status) => sum + statusCounts[status], 0);
 
     return {
       items: rows.map(({ incident, customer }) => toIncidentListItem(incident, customer)),
-      total: singleRow(totals).total,
+      total,
       limit: query.limit,
       offset: query.offset,
+      statusCounts,
     };
   }
 
