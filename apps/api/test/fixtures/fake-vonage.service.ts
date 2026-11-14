@@ -24,6 +24,10 @@ export class FakeVonageService implements VonageService {
 
   private readonly failures = new Map<Operation, Error>();
 
+  private blockNextVerification = false;
+
+  private nextCheckOutcome: VerificationCheck['status'] | undefined;
+
   async sendSms(to: string, text: string): Promise<SentSms> {
     this.record({ operation: 'sendSms', to, text });
     return { messageId: `fake-sms-${this.calls.length}` };
@@ -40,16 +44,34 @@ export class FakeVonageService implements VonageService {
 
   async startVerification(phone: string, locale: Locale): Promise<StartedVerification> {
     this.record({ operation: 'startVerification', phone, locale });
-    return { requestId: `fake-verification-${this.calls.length}` };
+
+    if (this.blockNextVerification) {
+      this.blockNextVerification = false;
+      return { status: 'blocked' };
+    }
+
+    return { status: 'started', requestId: `fake-verification-${this.calls.length}` };
   }
 
   async checkVerification(requestId: string, code: string): Promise<VerificationCheck> {
     this.record({ operation: 'checkVerification', requestId, code });
-    return { verified: code === FAKE_VERIFICATION_CODE };
+
+    const outcome = this.nextCheckOutcome;
+    this.nextCheckOutcome = undefined;
+
+    return { status: outcome ?? (code === FAKE_VERIFICATION_CODE ? 'verified' : 'wrong_code') };
   }
 
   failNext(operation: Operation, error: Error): void {
     this.failures.set(operation, error);
+  }
+
+  blockNextStart(): void {
+    this.blockNextVerification = true;
+  }
+
+  answerNextCheck(outcome: VerificationCheck['status']): void {
+    this.nextCheckOutcome = outcome;
   }
 
   callsTo<T extends Operation>(operation: T): Extract<RecordedVonageCall, { operation: T }>[] {
@@ -61,6 +83,8 @@ export class FakeVonageService implements VonageService {
   reset(): void {
     this.calls.length = 0;
     this.failures.clear();
+    this.blockNextVerification = false;
+    this.nextCheckOutcome = undefined;
   }
 
   private record(call: RecordedVonageCall): void {

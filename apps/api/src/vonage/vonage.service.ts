@@ -11,12 +11,10 @@ export interface CreatedCall {
   callId: string;
 }
 
-export interface StartedVerification {
-  requestId: string;
-}
+export type StartedVerification = { status: 'started'; requestId: string } | { status: 'blocked' };
 
 export interface VerificationCheck {
-  verified: boolean;
+  status: 'verified' | 'wrong_code' | 'expired' | 'too_many_attempts' | 'blocked';
 }
 
 export interface VonageService {
