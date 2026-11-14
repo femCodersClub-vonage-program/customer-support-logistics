@@ -1,8 +1,9 @@
 import { screen } from '@testing-library/react';
+import { HttpResponse, http } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { CUSTOMER, renderApp, sessionOf } from './test/app.tsx';
+import { CUSTOMER, apiUrl, renderApp, sessionOf } from './test/app.tsx';
 
 const server = setupServer(sessionOf(CUSTOMER));
 
@@ -44,5 +45,16 @@ describe('App', () => {
     renderApp('/report/123');
 
     expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+  });
+
+  it('checks the session again when the connection comes back', async () => {
+    server.use(http.get(apiUrl('/auth/me'), () => HttpResponse.error(), { once: true }));
+    renderApp('/orders');
+
+    expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+
+    window.dispatchEvent(new Event('online'));
+
+    expect(await screen.findByRole('heading', { name: 'My orders' })).toBeInTheDocument();
   });
 });

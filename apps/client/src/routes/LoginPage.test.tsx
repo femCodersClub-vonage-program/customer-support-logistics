@@ -117,24 +117,60 @@ describe('LoginPage', () => {
   });
 
   it('lets the customer ask for a new code only after the countdown', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers({
+      shouldAdvanceTime: true,
+      toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'],
+    });
     renderApp('/login');
     await sendPhone('600 000 001');
 
     const resend = await screen.findByRole('button', { name: 'Send a new code' });
     expect(resend).toBeDisabled();
 
-    for (let second = 0; second < RESEND_AFTER_SECONDS; second += 1) {
-      act(() => {
-        vi.advanceTimersByTime(1000);
-      });
-    }
+    act(() => {
+      vi.advanceTimersByTime(RESEND_AFTER_SECONDS * 1000);
+    });
 
     expect(resend).toBeEnabled();
     fireEvent.click(resend);
 
     await waitFor(() => expect(startBodies).toHaveLength(2));
+    expect(await screen.findByText('You can ask for a new code in 3:00.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send a new code' })).toBeDisabled();
+  });
+
+  it.each([
+    ['VERIFICATION_EXPIRED', 'The code has expired'],
+    ['TOO_MANY_ATTEMPTS', 'Too many wrong codes'],
+  ])('lets the customer ask for a new code at once after %s', async (code, message) => {
+    server.use(checkAnswers(() => apiError(410, code)));
+    renderApp('/login');
+    await sendPhone('600 000 001');
+    await sendCode('000000');
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(message));
+    expect(screen.getByRole('button', { name: 'Send a new code' })).toBeEnabled();
+  });
+
+  it('calls a code the API rejects as malformed a wrong code, not a wrong phone', async () => {
+    server.use(checkAnswers(() => apiError(400, 'VALIDATION_FAILED')));
+    renderApp('/login');
+    await sendPhone('600 000 001');
+    await sendCode('12 34');
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent("That code isn't right"),
+    );
+  });
+
+  it('comes back to the protected page the customer asked for', async () => {
+    renderApp('/report/42?from=sms');
+
+    await sendPhone('600 000 001');
+    await sendCode('123456');
+
+    expect(await screen.findByRole('heading', { name: 'Report an incident' })).toBeInTheDocument();
+    expect(screen.getByText('Order 42')).toBeInTheDocument();
   });
 
   it('goes back to the phone to change the number', async () => {

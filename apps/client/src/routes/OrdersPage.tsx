@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router';
 import { useTranslations } from 'use-intl';
 
 import { useSession } from '../auth/session-context.ts';
+import '../auth/login.css';
 import { InstallPrompt } from '../pwa/InstallPrompt.tsx';
 
 import type { Order } from '@csl/shared-types';
@@ -22,7 +23,7 @@ export function OrdersPage() {
     <main>
       <h1>{t('title')}</h1>
       {orders.length === 0 && <p>{t('empty')}</p>}
-      <button type="button" onClick={logOutAndLeave}>
+      <button type="button" className="log-out" onClick={logOutAndLeave}>
         {t('logOut')}
       </button>
       <InstallPrompt />

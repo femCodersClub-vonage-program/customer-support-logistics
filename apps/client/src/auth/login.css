@@ -42,7 +42,8 @@
   flex: 2 1 13rem;
 }
 
-.login button {
+.login button,
+.log-out {
   min-height: 2.75rem;
   padding: 0.5rem 1rem;
   border-radius: 0.5rem;
@@ -57,7 +58,8 @@
   color: var(--color-surface);
 }
 
-.login-secondary {
+.login-secondary,
+.log-out {
   border: 2px solid var(--color-primary-hover);
   background-color: var(--color-surface);
   color: var(--color-primary-hover);
@@ -74,7 +76,12 @@
   cursor: not-allowed;
 }
 
-.login :focus-visible {
+.log-out:hover {
+  text-decoration: underline;
+}
+
+.login :focus-visible,
+.log-out:focus-visible {
   outline: 3px solid var(--color-primary-hover);
   outline-offset: 2px;
 }

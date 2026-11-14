@@ -1,3 +1,4 @@
+import { ApiError } from '@csl/api-client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api } from '../api.ts';
@@ -14,14 +15,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const controller = new AbortController();
 
-    api.getCurrentUser({ signal: controller.signal }).then(
-      (user) => setState({ status: 'ready', user }),
-      () => {
-        if (!controller.signal.aborted) {
+    const load = () => {
+      api.getCurrentUser({ signal: controller.signal }).then(
+        (user) => setState({ status: 'ready', user }),
+        (error: unknown) => {
+          if (controller.signal.aborted) {
+            return;
+          }
+
           setState({ status: 'ready', user: null });
-        }
-      },
-    );
+
+          if (!(error instanceof ApiError && error.status === 401)) {
+            window.addEventListener('online', load, { once: true, signal: controller.signal });
+          }
+        },
+      );
+    };
+
+    load();
 
     return () => controller.abort();
   }, []);

@@ -30,21 +30,24 @@ export function CodeStep({ phone, onLoggedIn, onChangeNumber }: CodeStepProps) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<LoginError | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(RESEND_AFTER_SECONDS);
+  const [resendAt, setResendAt] = useState(() => Date.now() + RESEND_AFTER_SECONDS * 1000);
+  const [now, setNow] = useState(() => Date.now());
+  const secondsLeft = Math.max(0, Math.ceil((resendAt - now) / 1000));
+  const waiting = secondsLeft > 0;
 
   useEffect(() => {
     codeInputRef.current?.focus();
   }, []);
 
   useEffect(() => {
-    if (secondsLeft === 0) {
+    if (!waiting) {
       return undefined;
     }
 
-    const timer = setTimeout(() => setSecondsLeft((seconds) => seconds - 1), 1000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
 
-    return () => clearTimeout(timer);
-  }, [secondsLeft]);
+    return () => clearInterval(timer);
+  }, [waiting]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -54,8 +57,14 @@ export function CodeStep({ phone, onLoggedIn, onChangeNumber }: CodeStepProps) {
     try {
       onLoggedIn(await api.checkCustomerLogin({ code: code.trim() }));
     } catch (reason) {
-      setError(toLoginError(reason));
+      const loginError = toLoginError(reason, 'wrongCode');
+      setError(loginError);
       setBusy(false);
+
+      if (loginError === 'expired' || loginError === 'tooManyAttempts') {
+        setResendAt(Date.now());
+        setNow(Date.now());
+      }
     }
   };
 
@@ -66,7 +75,8 @@ export function CodeStep({ phone, onLoggedIn, onChangeNumber }: CodeStepProps) {
     try {
       await sendCode(phone);
       setCode('');
-      setSecondsLeft(RESEND_AFTER_SECONDS);
+      setResendAt(Date.now() + RESEND_AFTER_SECONDS * 1000);
+      setNow(Date.now());
       codeInputRef.current?.focus();
     } catch (reason) {
       setError(toLoginError(reason));
@@ -103,7 +113,7 @@ export function CodeStep({ phone, onLoggedIn, onChangeNumber }: CodeStepProps) {
           type="button"
           className="login-secondary"
           onClick={resend}
-          disabled={busy || secondsLeft > 0}
+          disabled={busy || waiting}
         >
           {t('resend')}
         </button>
@@ -111,7 +121,7 @@ export function CodeStep({ phone, onLoggedIn, onChangeNumber }: CodeStepProps) {
           {t('changeNumber')}
         </button>
       </div>
-      {secondsLeft > 0 && <p>{t('resendIn', { time: formatTime(secondsLeft) })}</p>}
+      {waiting && <p>{t('resendIn', { time: formatTime(secondsLeft) })}</p>}
     </form>
   );
 }
