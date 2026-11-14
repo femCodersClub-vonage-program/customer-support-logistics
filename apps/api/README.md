@@ -193,16 +193,18 @@ expect(vonage.callsTo('sendSms')).toEqual([
 
 The request and response schemas live in [`@csl/contracts`](../../packages/contracts) ([ADR 0007](../../docs/adr/0007-zod-schemas-as-runtime-contract.md)), so the API and its clients share one contract.
 
-| Method  | Path                    | Who                    | What                                                           |
-| ------- | ----------------------- | ---------------------- | -------------------------------------------------------------- |
-| `POST`  | `/auth/agent/login`     | anyone                 | Log an agent in and set the session cookie                     |
-| `POST`  | `/auth/logout`          | anyone                 | End the session and clear the cookie                           |
-| `GET`   | `/auth/me`              | customer / agent       | The person behind the current session                          |
-| `POST`  | `/incidents`            | customer               | Create an incident for one of their orders                     |
-| `GET`   | `/incidents`            | agent                  | CRM inbox, filtered and paginated                              |
-| `GET`   | `/incidents/:id`        | customer (own) / agent | Detail with order, customer, driver, events and communications |
-| `PATCH` | `/incidents/:id/status` | agent                  | Change the status through the state machine                    |
-| `GET`   | `/orders`               | customer               | The customer's orders                                          |
+| Method  | Path                                   | Who                    | What                                                                                   |
+| ------- | -------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
+| `POST`  | `/auth/agent/login`                    | anyone                 | Log an agent in and set the session cookie                                             |
+| `POST`  | `/auth/logout`                         | anyone                 | End the session and clear the cookie                                                   |
+| `GET`   | `/auth/me`                             | customer / agent       | The person behind the current session                                                  |
+| `POST`  | `/incidents`                           | customer               | Create an incident for one of their orders                                             |
+| `GET`   | `/incidents`                           | agent                  | CRM inbox, filtered and paginated                                                      |
+| `GET`   | `/incidents/:id`                       | customer (own) / agent | Detail with order, customer, driver, events and communications                         |
+| `PATCH` | `/incidents/:id/status`                | agent                  | Change the status through the state machine                                            |
+| `POST`  | `/incidents/:id/mediation`             | agent                  | Start the mediation and call the driver ([details](../../docs/architecture/vonage.md)) |
+| `POST`  | `/incidents/:id/mediation/driver-call` | agent                  | Call the driver again during the mediation                                             |
+| `GET`   | `/orders`                              | customer               | The customer's orders                                                                  |
 
 ### Listing incidents
 
@@ -234,16 +236,16 @@ Every error has the same shape:
 }
 ```
 
-| Status | `code`                                                    | When                                                                  |
-| ------ | --------------------------------------------------------- | --------------------------------------------------------------------- |
-| 400    | `VALIDATION_FAILED`                                       | Invalid body, query or path; `details` lists each offending field     |
-| 400    | `BAD_REQUEST`                                             | Malformed request, such as invalid JSON                               |
-| 401    | `UNAUTHORIZED`                                            | No valid session, wrong email or password, or bad Vonage signature    |
-| 403    | `FORBIDDEN`                                               | The route is for another role, such as an agent calling `GET /orders` |
-| 404    | `NOT_FOUND`                                               | Missing resource, or one that belongs to another customer             |
-| 409    | `INVALID_TRANSITION` / `TRANSITION_NOT_ALLOWED_FOR_ACTOR` | The state machine rejects the status change                           |
-| 429    | `RATE_LIMITED`                                            | Too many requests to `/webhooks/*` (`WEBHOOK_RATE_LIMIT_PER_MINUTE`)  |
-| 500    | `INTERNAL_ERROR`                                          | Unexpected error; the details are only in the logs                    |
+| Status | `code`                                                    | When                                                                                                                       |
+| ------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 400    | `VALIDATION_FAILED`                                       | Invalid body, query or path; `details` lists each offending field                                                          |
+| 400    | `BAD_REQUEST`                                             | Malformed request, such as invalid JSON                                                                                    |
+| 401    | `UNAUTHORIZED`                                            | No valid session, wrong email or password, or bad Vonage signature                                                         |
+| 403    | `FORBIDDEN`                                               | The route is for another role, such as an agent calling `GET /orders`                                                      |
+| 404    | `NOT_FOUND`                                               | Missing resource, or one that belongs to another customer                                                                  |
+| 409    | `INVALID_TRANSITION` / `TRANSITION_NOT_ALLOWED_FOR_ACTOR` | The state machine rejects the status change                                                                                |
+| 429    | `RATE_LIMITED`                                            | Too many requests to `/webhooks/*` (`WEBHOOK_RATE_LIMIT_PER_MINUTE`) or to `POST /auth/agent/login` (10 per minute per IP) |
+| 500    | `INTERNAL_ERROR`                                          | Unexpected error; the details are only in the logs                                                                         |
 
 ### Authentication
 

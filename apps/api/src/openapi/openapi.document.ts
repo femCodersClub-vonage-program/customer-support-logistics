@@ -15,6 +15,7 @@ import {
 } from '@csl/contracts';
 import { createDocument } from 'zod-openapi';
 
+import { AGENT_LOGIN_ATTEMPTS_PER_MINUTE } from '../auth/auth.controller.js';
 import { DEV_ACTOR_HEADER } from '../auth/dev-actor.js';
 import { SESSION_COOKIE } from '../auth/session-cookie.js';
 import { APP_VERSION } from '../version.js';
@@ -45,7 +46,8 @@ const incidentErrors: ZodOpenApiResponsesObject = {
 
 const driverCallErrors: ZodOpenApiResponsesObject = {
   ...incidentErrors,
-  '403': error('Only agents can call the driver'),
+  '403': forbiddenFor('customers'),
+  '404': error('The incident does not exist'),
   '502': error('Vonage could not create the call; the agent can try again'),
 };
 
@@ -57,7 +59,7 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
       version: APP_VERSION,
       description: [
         `Protected routes need the \`${SESSION_COOKIE}\` session cookie, set by the login endpoints.`,
-        'While the CRM moves to the real login, development also accepts the temporary',
+        'While the CRM and the PWA move to the real login, development also accepts the temporary',
         `\`${DEV_ACTOR_HEADER}\` header (\`customer:<uuid>\` or \`agent:<uuid>\`) with`,
         '`DEV_AUTH_ENABLED=true`.',
         '',
@@ -93,6 +95,9 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             '200': json('The agent who logged in', currentUserSchema),
             '400': error('Invalid input, with one entry per offending field in `details`'),
             '401': error('Wrong email or password'),
+            '429': error(
+              `More than ${AGENT_LOGIN_ATTEMPTS_PER_MINUTE} attempts in a minute from the same IP`,
+            ),
           },
         },
       },
