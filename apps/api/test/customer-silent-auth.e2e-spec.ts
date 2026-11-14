@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { SILENT_AUTH_REDIRECT_URL } from '../src/auth/customer-login.service.js';
 import { VERIFICATION_COOKIE } from '../src/auth/session-cookie.js';
+import { VonageRequestError } from '../src/vonage/vonage.errors.js';
 
 import { createTestApp, resetDatabase } from './fixtures/app.js';
 import { FAKE_CHECK_URL, FAKE_VERIFICATION_CODE } from './fixtures/fake-vonage.service.js';
@@ -116,6 +117,37 @@ describe('Customer login with silent authentication (e2e)', () => {
         .set('Cookie', cookie)
         .send({ code: FAKE_VERIFICATION_CODE })
         .expect(200);
+    });
+
+    it('asks Vonage only once, however many times the PWA calls it', async () => {
+      const cookie = verificationCookieOf(await start(ANA_PHONE).expect(200));
+
+      await http().post('/auth/customer/sms').set('Cookie', cookie).expect(204);
+      await http().post('/auth/customer/sms').set('Cookie', cookie).expect(204);
+
+      expect(testApp.vonage.callsTo('moveVerificationToSms')).toHaveLength(1);
+    });
+
+    it('does not ask Vonage when the login already went by SMS', async () => {
+      testApp.vonage.startWithoutSilentAuthNext();
+      const cookie = verificationCookieOf(await start(ANA_PHONE).expect(200));
+
+      await http().post('/auth/customer/sms').set('Cookie', cookie).expect(204);
+
+      expect(testApp.vonage.callsTo('moveVerificationToSms')).toEqual([]);
+    });
+
+    it('returns 502 when Vonage fails', async () => {
+      const cookie = verificationCookieOf(await start(ANA_PHONE).expect(200));
+      testApp.vonage.failNext(
+        'moveVerificationToSms',
+        new VonageRequestError('moveVerificationToSms'),
+      );
+
+      expectError(
+        (await http().post('/auth/customer/sms').set('Cookie', cookie).expect(502)).body,
+        'BAD_GATEWAY',
+      );
     });
 
     it('returns 410 when Verify no longer has the request', async () => {

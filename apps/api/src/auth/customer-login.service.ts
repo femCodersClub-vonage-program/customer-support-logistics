@@ -73,7 +73,7 @@ export class CustomerLoginService {
       throw new CustomerLoginError('blocked');
     }
 
-    this.pending.add(started.requestId, customer.id);
+    this.pending.add(started.requestId, customer.id, started.checkUrl === undefined);
     this.logger.log(
       `Customer login started for customer ${customer.id} by ${started.checkUrl ? 'silent auth' : 'SMS'}`,
     );
@@ -84,9 +84,9 @@ export class CustomerLoginService {
   }
 
   async moveToSms(cookieRequestId: string | null): Promise<void> {
-    const { requestId, customerId } = this.pendingFor(cookieRequestId);
+    const { requestId, customerId, bySms } = this.pendingFor(cookieRequestId);
 
-    if (customerId === null) {
+    if (customerId === null || bySms) {
       return;
     }
 
@@ -96,6 +96,7 @@ export class CustomerLoginService {
       throw new CustomerLoginError('expired');
     }
 
+    this.pending.markBySms(requestId);
     this.logger.log(`Customer login for customer ${customerId} moved to SMS`);
   }
 

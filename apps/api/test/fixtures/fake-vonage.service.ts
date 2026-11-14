@@ -39,6 +39,8 @@ export class FakeVonageService implements VonageService {
 
   private nextMoveOutcome: NextVerificationChannel | undefined;
 
+  private skipSilentAuthNext = false;
+
   async sendSms(to: string, text: string): Promise<SentSms> {
     this.record({ operation: 'sendSms', to, text });
     return { messageId: `fake-sms-${this.calls.length}` };
@@ -70,8 +72,10 @@ export class FakeVonageService implements VonageService {
     }
 
     const requestId = `fake-verification-${this.calls.length}`;
+    const withoutSilentAuth = this.skipSilentAuthNext;
+    this.skipSilentAuthNext = false;
 
-    return silentAuthRedirectUrl === undefined
+    return silentAuthRedirectUrl === undefined || withoutSilentAuth
       ? { status: 'started', requestId }
       : { status: 'started', requestId, checkUrl: `${FAKE_CHECK_URL}/${requestId}` };
   }
@@ -110,6 +114,10 @@ export class FakeVonageService implements VonageService {
     this.nextMoveOutcome = outcome;
   }
 
+  startWithoutSilentAuthNext(): void {
+    this.skipSilentAuthNext = true;
+  }
+
   callsTo<T extends Operation>(operation: T): Extract<RecordedVonageCall, { operation: T }>[] {
     return this.calls.filter(
       (call): call is Extract<RecordedVonageCall, { operation: T }> => call.operation === operation,
@@ -122,6 +130,7 @@ export class FakeVonageService implements VonageService {
     this.blockNextVerification = false;
     this.nextCheckOutcome = undefined;
     this.nextMoveOutcome = undefined;
+    this.skipSilentAuthNext = false;
   }
 
   private record(call: RecordedVonageCall): void {

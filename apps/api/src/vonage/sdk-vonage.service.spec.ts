@@ -170,7 +170,34 @@ describe('SdkVonageService', () => {
     });
   });
 
+  describe('startVerification with silent authentication, blocked', () => {
+    it.each([409, 429])('stays blocked on %i instead of falling back to SMS', async (status) => {
+      const { client, service } = createService();
+      client.verify2.newRequest.mockRejectedValue(httpError(status, { title: 'Blocked' }));
+
+      await expect(service.startVerification(DRIVER_PHONE, 'es', REDIRECT_URL)).resolves.toEqual({
+        status: 'blocked',
+      });
+      expect(client.verify2.newRequest).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('moveVerificationToSms', () => {
+    it('does not try again after an error other than 409', async () => {
+      const { client, service } = createService();
+      client.verify2.nextWorkflow.mockRejectedValue(httpError(500, { title: 'Internal Error' }));
+
+      await expect(service.moveVerificationToSms('req-1')).rejects.toMatchObject({ status: 500 });
+      expect(client.verify2.nextWorkflow).toHaveBeenCalledTimes(1);
+    });
+
+    it('is expired after too many wrong codes (410)', async () => {
+      const { client, service } = createService();
+      client.verify2.nextWorkflow.mockRejectedValue(httpError(410, { title: 'Gone' }));
+
+      await expect(service.moveVerificationToSms('req-1')).resolves.toBe('expired');
+    });
+
     it('moves the request on to the SMS', async () => {
       const { client, service } = createService();
 
