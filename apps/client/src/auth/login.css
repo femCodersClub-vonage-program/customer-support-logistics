@@ -1,0 +1,87 @@
+.login {
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+  line-height: 1.5;
+}
+
+.login form {
+  display: grid;
+  gap: 1rem;
+}
+
+.login label {
+  display: grid;
+  gap: 0.375rem;
+  font-weight: 600;
+}
+
+.login input,
+.login select {
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.5rem;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.login-phone,
+.login-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.login-phone > label:first-child {
+  flex: 1 1 11rem;
+}
+
+.login-phone > label:last-child {
+  flex: 2 1 13rem;
+}
+
+.login button {
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-primary {
+  border: 2px solid var(--color-primary-hover);
+  background-color: var(--color-primary-hover);
+  color: var(--color-surface);
+}
+
+.login-secondary {
+  border: 2px solid var(--color-primary-hover);
+  background-color: var(--color-surface);
+  color: var(--color-primary-hover);
+}
+
+.login button:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.login button:disabled {
+  border-color: var(--color-border-input);
+  background-color: var(--color-border-card);
+  color: var(--color-text);
+  cursor: not-allowed;
+}
+
+.login :focus-visible {
+  outline: 3px solid var(--color-primary-hover);
+  outline-offset: 2px;
+}
+
+.login-error:not(:empty) {
+  padding: 0.75rem 1rem;
+  border-inline-start: 4px solid var(--color-error);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}

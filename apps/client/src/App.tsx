@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router';
 
+import { RequireCustomer } from './auth/RequireCustomer.tsx';
 import { CallPage } from './routes/CallPage.tsx';
 import { DevPage } from './routes/DevPage.tsx';
 import { IncidentPage } from './routes/IncidentPage.tsx';
@@ -13,10 +14,12 @@ export function App() {
     <Routes>
       <Route index element={<Navigate to="/orders" replace />} />
       <Route path="login" element={<LoginPage />} />
-      <Route path="orders" element={<OrdersPage />} />
-      <Route path="report/:orderId" element={<ReportPage />} />
-      <Route path="incidents/:id" element={<IncidentPage />} />
-      <Route path="call/:id" element={<CallPage />} />
+      <Route element={<RequireCustomer />}>
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="report/:orderId" element={<ReportPage />} />
+        <Route path="incidents/:id" element={<IncidentPage />} />
+        <Route path="call/:id" element={<CallPage />} />
+      </Route>
       {import.meta.env.DEV && <Route path="dev" element={<DevPage />} />}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
