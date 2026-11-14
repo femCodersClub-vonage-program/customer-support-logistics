@@ -20,9 +20,16 @@ if (SEED_CUSTOMER_PHONES.length > seedData.customers.length) {
   );
 }
 
+const demoPhones = new Set(seedData.customers.map((customer) => customer.phone));
+
+if (SEED_CUSTOMER_PHONES.some((phone) => demoPhones.has(phone))) {
+  throw new Error('SEED_CUSTOMER_PHONES must not repeat the demo phone of a seeded customer');
+}
+
 const customerPhones = seedData.customers.map((customer, index) => ({
   id: customer.id,
-  phone: SEED_CUSTOMER_PHONES[index] ?? customer.phone,
+  demoPhone: customer.phone,
+  phone: SEED_CUSTOMER_PHONES[index],
 }));
 
 const seededAgentIds = seedData.agents
@@ -54,8 +61,17 @@ try {
 
     await tx.insert(schema.customers).values(seedData.customers).onConflictDoNothing();
 
-    for (const { id, phone } of customerPhones) {
+    for (const { id, demoPhone } of customerPhones) {
       if (id !== undefined) {
+        await tx
+          .update(schema.customers)
+          .set({ phone: demoPhone })
+          .where(eq(schema.customers.id, id));
+      }
+    }
+
+    for (const { id, phone } of customerPhones) {
+      if (id !== undefined && phone !== undefined) {
         await tx.update(schema.customers).set({ phone }).where(eq(schema.customers.id, id));
       }
     }

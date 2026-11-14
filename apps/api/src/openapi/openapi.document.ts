@@ -116,7 +116,7 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           summary: 'Send a login code by SMS to a customer',
           description: [
             `Starts a Verify request in the customer's language and keeps its id in the \`${VERIFICATION_COOKIE}\` cookie (\`HttpOnly\`, ${VERIFICATION_TTL_MS / 60_000} minutes).`,
-            'An unknown phone gets the same answer, without any SMS, and its codes are always wrong.',
+            'An unknown phone also gets a `200`, without any SMS, and its codes are always wrong.',
           ].join(' '),
           security: [],
           requestBody: {

@@ -12,4 +12,10 @@ export class PhoneThrottlerGuard extends ThrottlerGuard {
 
     return `phone:${phone}`;
   }
+
+  protected override setResponseHeader(
+    _response: Record<string, unknown>,
+    _name: string,
+    _value: string | number,
+  ): void {}
 }

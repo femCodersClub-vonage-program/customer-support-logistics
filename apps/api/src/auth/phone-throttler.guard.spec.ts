@@ -1,6 +1,6 @@
 import { Reflector } from '@nestjs/core';
 import { ThrottlerStorageService } from '@nestjs/throttler';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PhoneThrottlerGuard } from './phone-throttler.guard.js';
 
@@ -9,6 +9,10 @@ import type { ThrottlerModuleOptions } from '@nestjs/throttler';
 class ExposedPhoneThrottlerGuard extends PhoneThrottlerGuard {
   trackerOf(request: Record<string, unknown>): Promise<string> {
     return this.getTracker(request);
+  }
+
+  writeHeader(response: Record<string, unknown>): void {
+    this.setResponseHeader(response, 'X-RateLimit-Remaining', 7);
   }
 }
 
@@ -26,6 +30,14 @@ describe('PhoneThrottlerGuard', () => {
     await expect(guard.trackerOf({ ip: '2.2.2.2', body: { phone: '+34600000001' } })).resolves.toBe(
       'phone:+34600000001',
     );
+  });
+
+  it('writes no rate limit headers, which would tell anyone how often a phone was used', () => {
+    const header = vi.fn();
+
+    guard.writeHeader({ header });
+
+    expect(header).not.toHaveBeenCalled();
   });
 
   it('counts requests without a phone together', async () => {

@@ -246,10 +246,10 @@ Every error has the same shape:
 | 400    | `BAD_REQUEST`                                             | Malformed request, such as invalid JSON                                                                                         |
 | 401    | `UNAUTHORIZED`                                            | No valid session, wrong email or password, or bad Vonage signature                                                              |
 | 401    | `INVALID_CODE`                                            | Wrong login code; the customer can try again                                                                                    |
-| 410    | `VERIFICATION_EXPIRED` / `TOO_MANY_ATTEMPTS`              | The login code expired or was wrong too many times; the customer asks for a new one                                             |
 | 403    | `FORBIDDEN`                                               | The route is for another role, such as an agent calling `GET /orders`                                                           |
 | 404    | `NOT_FOUND`                                               | Missing resource, or one that belongs to another customer                                                                       |
 | 409    | `INVALID_TRANSITION` / `TRANSITION_NOT_ALLOWED_FOR_ACTOR` | The state machine rejects the status change                                                                                     |
+| 410    | `VERIFICATION_EXPIRED` / `TOO_MANY_ATTEMPTS`              | The login code expired or was wrong too many times; the customer asks for a new one                                             |
 | 429    | `RATE_LIMITED`                                            | Too many requests to `/webhooks/*` (`WEBHOOK_RATE_LIMIT_PER_MINUTE`) or to the login routes (see below), or Verify asks to wait |
 | 500    | `INTERNAL_ERROR`                                          | Unexpected error; the details are only in the logs                                                                              |
 
@@ -265,7 +265,7 @@ How it works and why is in [ADR 0008](../../docs/adr/0008-authentication-and-ses
 - A new login also ends the session the browser already had, and expired sessions are deleted on each login.
 - The session is an opaque token in the `csl_session` cookie (`HttpOnly`, `Secure`, `SameSite=Lax`). The `sessions` table keeps only its SHA-256 hash. Agent sessions last 12 hours and customer sessions 30 days.
 - `@Roles('customer')` or `@Roles('agent')` on a route enforces the "who" column above: no session gives `401`, the wrong role `403`. Services still check ownership, so another customer's incident is a `404`.
-- Customers log in with Verify v2 by SMS. `POST /auth/customer/start` keeps the Verify request id in the `csl_verification` cookie (`HttpOnly`, 10 minutes), and `POST /auth/customer/check` only accepts a code for that request. Which customer each request belongs to is kept in the API's memory, so a restart in the middle of a login means asking for a new code. An unknown phone gets the same answer as a known one, without any SMS, and every code for it is wrong.
+- Customers log in with Verify v2 by SMS. `POST /auth/customer/start` keeps the Verify request id in the `csl_verification` cookie (`HttpOnly`, 10 minutes), and `POST /auth/customer/check` only accepts a code for that request. Which customer each request belongs to is kept in the API's memory, so a restart in the middle of a login means asking for a new code. An unknown phone gets a `200` without any SMS, and every code for it is wrong. Someone trying numbers can still tell known ones apart (by response time, or because a known number answers `410` after 3 wrong codes); ADR 0008 accepts that, and the rate limits slow it down.
 
 #### Logging in locally as a customer
 

@@ -213,6 +213,12 @@ describe('validateSeedEnv', () => {
     ).toEqual([]);
   });
 
+  it('throws when SEED_CUSTOMER_PHONES repeats a phone', () => {
+    expect(() =>
+      validateSeedEnv({ DATABASE_URL, SEED_CUSTOMER_PHONES: '+34600000001,+34600000001' }),
+    ).toThrow(/Each phone must appear once/);
+  });
+
   it('throws when a phone in SEED_CUSTOMER_PHONES is not E.164', () => {
     expect(() =>
       validateSeedEnv({ DATABASE_URL, SEED_CUSTOMER_PHONES: '+34600000001,600000002' }),

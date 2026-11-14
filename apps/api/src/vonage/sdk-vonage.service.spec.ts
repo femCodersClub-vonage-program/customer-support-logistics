@@ -113,6 +113,7 @@ describe('SdkVonageService', () => {
       expect(client.verify2.newRequest).toHaveBeenCalledWith({
         brand: VERIFY_BRAND,
         locale: 'es-es',
+        codeLength: 6,
         workflow: [{ channel: 'sms', to: '34611000009' }],
       });
     });

@@ -26,6 +26,8 @@ import type { Locale } from '@csl/shared-types';
 
 export const VERIFY_BRAND = 'CSL Support';
 
+export const VERIFY_CODE_LENGTH = 6;
+
 const VERIFICATION_COMPLETED = 'completed';
 
 const INVALID_CODE_TYPE = '#invalid-code';
@@ -106,6 +108,7 @@ export class SdkVonageService implements VonageService {
         const { requestId } = await this.client.verify2.newRequest({
           brand: VERIFY_BRAND,
           locale: toVerifyLocale(locale),
+          codeLength: VERIFY_CODE_LENGTH,
           workflow: [{ channel: Channels.SMS, to: toVonageNumber(phone) }],
         });
 

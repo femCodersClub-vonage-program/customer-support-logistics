@@ -99,7 +99,10 @@ const seedEnvSchema = databaseEnvSchema.extend({
             .map((phone) => phone.trim())
             .filter((phone) => phone !== '')
         : value,
-    z.array(z.e164()).default([]),
+    z
+      .array(z.e164())
+      .refine((phones) => new Set(phones).size === phones.length, 'Each phone must appear once')
+      .default([]),
   ),
 });
 
