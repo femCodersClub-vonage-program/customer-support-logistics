@@ -24,11 +24,11 @@ flowchart LR
   vonage <-->|"SMS and phone calls"| driver
 ```
 
-| Role          | Interface                  | Main actions                                                                    |
-| ------------- | -------------------------- | ------------------------------------------------------------------------------- |
+| Role          | Interface                  | Main actions                                                                         |
+| ------------- | -------------------------- | ------------------------------------------------------------------------------------ |
 | Customer      | `apps/client` (mobile PWA) | Log in with their phone, see orders, report an incident with evidence, join the call |
 | Support agent | `apps/crm` (desktop web)   | Triage incidents, see evidence, send SMS, start and run the call, close the incident |
-| Driver        | Their phone (SMS and PSTN) | Receive SMS, answer the call, press 1 to join, reply by SMS                     |
+| Driver        | Their phone (SMS and PSTN) | Receive SMS, answer the call, press 1 to join, reply by SMS                          |
 
 ## Containers
 
@@ -74,15 +74,15 @@ flowchart LR
   verify -->|"SMS code or silent auth"| customer
 ```
 
-| Container                 | Responsibility                                                                                                     | Status                                        |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| `apps/client`             | Customer PWA: login, orders, incident report with evidence, mediation call (`/call/:id`)                         | Shell and routes exist; features planned      |
-| `apps/crm`                | Agent CRM: inbox, incident detail, mediation console (`/incidents/:id/mediation`)                                  | Shell and routes exist; features planned      |
-| `apps/api`                | REST API, incident state machine, Vonage calls and webhooks, Client SDK tokens. The only part with Vonage credentials | `/health` exists; modules planned ([#27]–[#30]) |
-| PostgreSQL                | Orders, routes, incidents, evidence metadata, communications and incident events                                  | Schema and migrations with Drizzle ([ADR 0005](../adr/0005-orm-and-migrations.md)) |
-| Redis                     | Queues for call retries and scheduled SMS, idempotent webhook processing                                          | In Docker Compose; not used yet               |
-| Evidence storage          | Photos and videos from customers, in a private bucket                                                             | Planned ([#32])                               |
-| Vonage                    | Verification, SMS, voice calls and browser calls                                                                  | Planned ([#29], [#30])                        |
+| Container        | Responsibility                                                                                                        | Status                                                                             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `apps/client`    | Customer PWA: login, orders, incident report with evidence, mediation call (`/call/:id`)                              | Shell and routes exist; features planned                                           |
+| `apps/crm`       | Agent CRM: inbox, incident detail, mediation console (`/incidents/:id/mediation`)                                     | Shell and routes exist; features planned                                           |
+| `apps/api`       | REST API, incident state machine, Vonage calls and webhooks, Client SDK tokens. The only part with Vonage credentials | `/health` exists; modules planned ([#27]–[#30])                                    |
+| PostgreSQL       | Orders, routes, incidents, evidence metadata, communications and incident events                                      | Schema and migrations with Drizzle ([ADR 0005](../adr/0005-orm-and-migrations.md)) |
+| Redis            | Queues for call retries and scheduled SMS, idempotent webhook processing                                              | In Docker Compose; not used yet                                                    |
+| Evidence storage | Photos and videos from customers, in a private bucket                                                                 | Planned ([#32])                                                                    |
+| Vonage           | Verification, SMS, voice calls and browser calls                                                                      | Planned ([#29], [#30])                                                             |
 
 The API never carries audio. It creates the conversation, issues Client SDK tokens and reacts to webhooks; the audio goes directly between the browsers, the phone network and Vonage.
 
@@ -124,7 +124,7 @@ Dashed arrows are dev dependencies. `apps/api` needs `@csl/shared-types` at runt
 
 **Authentication.** _Planned_ in [#31], with its own ADR. Customers log in with their phone number through Verify v2 (silent auth, then SMS code). Agents use a CRM login. The API protects routes with NestJS guards by role (`customer`, `agent`); drivers never log in. `@csl/api-client` already accepts a `getToken` function.
 
-**Webhook security.** Implemented in [#30] (`apps/api/src/webhooks`). Webhooks live under `/webhooks/*`, are public and don't use the auth guards. Instead, they check Vonage's signature with `VONAGE_SIGNATURE_SECRET`, reject anything unsigned with `401`, and are idempotent: each event is stored once using Vonage's own id, because Vonage retries on failure. They are also rate-limited per client IP (`WEBHOOK_RATE_LIMIT_PER_MINUTE`, in memory). Behind a tunnel or a reverse proxy every request arrives from the proxy's IP, so the limit becomes global; when the hosting is decided, Express `trust proxy` must be set to that proxy so the limit uses the real client IP from `X-Forwarded-For`, and the storage moved to Redis if the API runs more than one instance.
+**Webhook security.** Implemented in [#30] (`apps/api/src/webhooks`). Webhooks live under `/webhooks/*`, are public and don't use the auth guards. Instead, they check Vonage's signature with `VONAGE_SIGNATURE_SECRET`, reject anything unsigned with `401`, and are idempotent: each event is stored once using Vonage's own id, because Vonage retries on failure. They are also rate-limited per client IP (`WEBHOOK_RATE_LIMIT_PER_MINUTE`, in memory). Behind a reverse proxy the socket address isn't the client's. On Railway the client IP comes from the `X-Real-IP` header (`CLIENT_IP_HEADER`, see [Deployment](deployment.md#client-ip)). The storage moves to Redis if the API runs more than one instance.
 
 **Persistence.** PostgreSQL 17, already in `docker-compose.yml` and in CI, with `DATABASE_URL` required by the API. The API uses Drizzle ORM with SQL migrations generated by `drizzle-kit` ([ADR 0005](../adr/0005-orm-and-migrations.md)). Migrations run as a separate step, never on app boot (see [`apps/api/README.md`](../../apps/api/README.md)). `GET /health/ready` reports whether the database is reachable. Every incident status change is validated in the API and recorded as an `IncidentEvent` ([#27]).
 
@@ -140,7 +140,7 @@ Dashed arrows are dev dependencies. `apps/api` needs `@csl/shared-types` at runt
 
 **Logging.** TBD. The API currently uses NestJS's default logger.
 
-**Deployment.** TBD; hosting and preview deployments still need an ADR. The API has a Dockerfile built from a pruned workspace (`apps/api/Dockerfile`). The client builds to static files and the CRM is a Next.js app. Vonage must reach the webhooks over public HTTPS (`PUBLIC_URL`); in development we use a tunnel such as ngrok. CI runs lint, tests and build for each app on pull requests to `develop` and `main`.
+**Deployment.** Decided in [ADR 0009](../adr/0009-hosting-on-railway.md) ([#57]). The API, the client, the CRM and PostgreSQL run on Railway, deployed from `develop`, each app from its own Dockerfile. The client is served by Caddy and the CRM by `next start`; both forward `/api/*` to the API over the private network. Migrations run as Railway's pre-deploy step. Every service setting is listed in [Deployment](deployment.md). Vonage must reach the webhooks over public HTTPS (`PUBLIC_URL`): in development we use a tunnel such as ngrok, and the deployment isn't connected to Vonage yet ([#57]). CI runs lint, tests and build for each app on pull requests to `develop` and `main`.
 
 [#26]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/26
 [#27]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/27
@@ -149,3 +149,4 @@ Dashed arrows are dev dependencies. `apps/api` needs `@csl/shared-types` at runt
 [#31]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31
 [#32]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/32
 [#40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40
+[#57]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/57

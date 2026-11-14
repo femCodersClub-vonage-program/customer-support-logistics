@@ -48,26 +48,26 @@ Accepted ADRs are not edited, except to change their status. To change a decisio
 
 ## Index
 
-| ADR                                                      | Title                                                     | Status   | Date       |
-| -------------------------------------------------------- | --------------------------------------------------------- | -------- | ---------- |
-| [0001](0001-monorepo-pnpm-turborepo.md)                  | Monorepo with pnpm workspaces and Turborepo               | accepted | 2026-11-08 |
-| [0002](0002-application-stack.md)                        | Application stack: NestJS, React + Vite PWA and Next.js   | accepted | 2026-11-08 |
-| [0003](0003-vonage-as-communications-provider.md)        | Vonage as the communications provider                     | accepted | 2026-11-08 |
-| [0004](0004-shared-types-as-api-contract.md)             | `@csl/shared-types` is the API contract                   | accepted | 2026-11-08 |
-| [0005](0005-orm-and-migrations.md)                       | Drizzle ORM and SQL migrations for PostgreSQL             | proposed | 2026-11-08 |
-| [0006](0006-internationalisation.md)                     | Internationalisation with next-intl and use-intl          | proposed | 2026-11-08 |
-| [0007](0007-zod-schemas-as-runtime-contract.md)          | Zod schemas in `@csl/contracts` as the runtime API contract | proposed | 2026-11-09 |
-| [0008](0008-authentication-and-sessions.md)              | Authentication and sessions                               | proposed | 2026-11-11 |
+| ADR                                               | Title                                                       | Status   | Date       |
+| ------------------------------------------------- | ----------------------------------------------------------- | -------- | ---------- |
+| [0001](0001-monorepo-pnpm-turborepo.md)           | Monorepo with pnpm workspaces and Turborepo                 | accepted | 2026-11-08 |
+| [0002](0002-application-stack.md)                 | Application stack: NestJS, React + Vite PWA and Next.js     | accepted | 2026-11-08 |
+| [0003](0003-vonage-as-communications-provider.md) | Vonage as the communications provider                       | accepted | 2026-11-08 |
+| [0004](0004-shared-types-as-api-contract.md)      | `@csl/shared-types` is the API contract                     | accepted | 2026-11-08 |
+| [0005](0005-orm-and-migrations.md)                | Drizzle ORM and SQL migrations for PostgreSQL               | proposed | 2026-11-08 |
+| [0006](0006-internationalisation.md)              | Internationalisation with next-intl and use-intl            | proposed | 2026-11-08 |
+| [0007](0007-zod-schemas-as-runtime-contract.md)   | Zod schemas in `@csl/contracts` as the runtime API contract | proposed | 2026-11-09 |
+| [0008](0008-authentication-and-sessions.md)       | Authentication and sessions                                 | proposed | 2026-11-11 |
+| [0009](0009-hosting-on-railway.md)                | Hosting on Railway                                          | proposed | 2026-11-12 |
 
 ### Pending decisions
 
 These decisions still need an ADR. Each one is written as part of its issue and takes the next free number when it is opened.
 
-| Decision                                                | Issue      | Status |
-| ------------------------------------------------------- | ---------- | ------ |
-| Evidence storage                                        | [#32][i32] | to do  |
-| Real-time updates for the CRM (SSE vs WebSocket)        | [#40][i40] | to do  |
-| Hosting and preview deployments                         | -          | to do  |
+| Decision                                         | Issue      | Status |
+| ------------------------------------------------ | ---------- | ------ |
+| Evidence storage                                 | [#32][i32] | to do  |
+| Real-time updates for the CRM (SSE vs WebSocket) | [#40][i40] | to do  |
 
 [i32]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/32
 [i40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40
