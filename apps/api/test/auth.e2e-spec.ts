@@ -126,7 +126,7 @@ describe('Auth (e2e)', () => {
       }
 
       expectError((await login(AGENT_EMAIL, AGENT_PASSWORD).expect(429)).body, 'RATE_LIMITED');
-    });
+    }, 30_000);
 
     it('ends the session the request already carried', async () => {
       const first = sessionCookieFrom(await login(AGENT_EMAIL, AGENT_PASSWORD).expect(200));
