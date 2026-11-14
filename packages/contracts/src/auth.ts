@@ -25,9 +25,10 @@ export const customerLoginStartBodySchema = z
 export type CustomerLoginStartBody = z.infer<typeof customerLoginStartBodySchema>;
 
 export const customerLoginStartResponseSchema = z
-  .object({
-    channel: z.literal('sms'),
-  })
+  .discriminatedUnion('channel', [
+    z.object({ channel: z.literal('sms') }),
+    z.object({ channel: z.literal('silent_auth'), checkUrl: z.url() }),
+  ])
   .meta({ id: 'CustomerLoginStartResponse' });
 
 export type CustomerLoginStartResponse = z.infer<typeof customerLoginStartResponseSchema>;
@@ -38,6 +39,7 @@ export const customerLoginCheckBodySchema = z
       .string()
       .trim()
       .regex(/^[A-Za-z0-9]{4,10}$/),
+    requestId: z.string().trim().min(1).max(100).optional(),
   })
   .meta({ id: 'CustomerLoginCheckBody' });
 
