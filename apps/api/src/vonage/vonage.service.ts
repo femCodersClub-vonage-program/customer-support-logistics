@@ -11,7 +11,10 @@ export interface CreatedCall {
   callId: string;
 }
 
-export type StartedVerification = { status: 'started'; requestId: string } | { status: 'blocked' };
+export type StartedVerification =
+  { status: 'started'; requestId: string; checkUrl?: string } | { status: 'blocked' };
+
+export type NextVerificationChannel = 'moved' | 'expired';
 
 export interface VerificationCheck {
   status: 'verified' | 'wrong_code' | 'expired' | 'too_many_attempts' | 'blocked';
@@ -21,6 +24,11 @@ export interface VonageService {
   sendSms(to: string, text: string): Promise<SentSms>;
   createCall(to: string, ncco: NccoAction[]): Promise<CreatedCall>;
   transferCall(callId: string, ncco: NccoAction[]): Promise<void>;
-  startVerification(phone: string, locale: Locale): Promise<StartedVerification>;
+  startVerification(
+    phone: string,
+    locale: Locale,
+    silentAuthRedirectUrl?: string,
+  ): Promise<StartedVerification>;
   checkVerification(requestId: string, code: string): Promise<VerificationCheck>;
+  moveVerificationToSms(requestId: string): Promise<NextVerificationChannel>;
 }
