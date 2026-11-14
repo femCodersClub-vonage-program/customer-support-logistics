@@ -1,0 +1,12 @@
+{
+  "from": "34900000000",
+  "to": "34600000009",
+  "uuid": "bbbbbbbb-cccc-4ddd-8eee-000000000001",
+  "conversation_uuid": "CON-bbbbbbbb-cccc-4ddd-8eee-000000000001",
+  "status": "answered",
+  "direction": "outbound",
+  "timestamp": "2026-11-09T10:01:00.000Z",
+  "start_time": "2026-11-09T10:01:00.000Z",
+  "network": "21407",
+  "rate": "0.01500000"
+}

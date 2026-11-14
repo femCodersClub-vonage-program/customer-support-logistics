@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/femCodersClub-vonage-program/customer-support-logistics/blob/main/CONTRIBUTING.md
+    about: How we write issues, branches, commits and pull requests.

@@ -26,5 +26,6 @@ export interface Incident {
   agentId: string | null;
   resolution: string | null;
   createdAt: string;
+  updatedAt: string;
   closedAt: string | null;
 }

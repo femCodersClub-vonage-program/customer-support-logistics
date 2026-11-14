@@ -1,0 +1,56 @@
+{
+  "localeSwitcher": {
+    "label": "Idioma"
+  },
+  "orders": {
+    "title": "Mis pedidos",
+    "empty": "Todavía no tienes pedidos."
+  },
+  "login": {
+    "title": "Iniciar sesión"
+  },
+  "report": {
+    "title": "Reportar una incidencia",
+    "order": "Pedido {orderId}"
+  },
+  "incident": {
+    "title": "Incidencia",
+    "reference": "Incidencia {id}"
+  },
+  "call": {
+    "title": "Llamada de mediación",
+    "incident": "Incidencia {id}"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "backToOrders": "Ir a mis pedidos"
+  },
+  "dev": {
+    "title": "Herramientas de desarrollo"
+  },
+  "apiStatus": {
+    "title": "Estado de la API",
+    "checking": "Comprobando…",
+    "online": "En línea (versión {version})",
+    "unreachable": "No disponible: {reason}",
+    "httpError": "HTTP {status}",
+    "unknownError": "Error desconocido"
+  },
+  "offline": {
+    "message": "Estás sin conexión. Parte de la información puede no estar actualizada hasta que vuelva la conexión."
+  },
+  "update": {
+    "title": "Nueva versión disponible",
+    "description": "Recarga para tener la última versión de la app.",
+    "reload": "Recargar",
+    "later": "Más tarde"
+  },
+  "install": {
+    "title": "Instala la app",
+    "native": "Añade CSL a tu pantalla de inicio para seguir tus pedidos e incidencias con un toque.",
+    "iosShare": "Toca el botón Compartir <icon></icon> en la barra de Safari.",
+    "iosAdd": "Elige “Añadir a pantalla de inicio”.",
+    "install": "Instalar",
+    "dismiss": "Ahora no"
+  }
+}

@@ -13,6 +13,21 @@ env:
   NODE_VERSION: '22'
 
 jobs:
+  packages:
+    name: Shared packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run lint --filter=./packages/*
+      - run: pnpm exec turbo run typecheck --filter=./packages/*
+      - run: pnpm exec turbo run test --filter=./packages/*
+
   api:
     name: API (NestJS)
     runs-on: ubuntu-latest
@@ -41,10 +56,21 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./apps/api run lint
-      - run: pnpm --filter ./apps/api run test
+      - run: pnpm exec turbo run lint --filter=./apps/api
+      - name: Check that migrations match the schema
+        run: |
+          pnpm --filter ./apps/api run db:check
+          pnpm --filter ./apps/api run db:generate
+          if [ -n "$(git status --porcelain apps/api/drizzle)" ]; then
+            echo "::error::The schema has changes without a migration. Run 'pnpm --filter ./apps/api run db:generate' and commit the result."
+            git status --porcelain apps/api/drizzle
+            exit 1
+          fi
+      - name: Run migrations
+        run: pnpm --filter ./apps/api run db:migrate
+      - run: pnpm exec turbo run test --filter=./apps/api
       - name: Build
-        run: pnpm --filter ./apps/api run build
+        run: pnpm exec turbo run build --filter=./apps/api
 
   client:
     name: Client (React + Vite PWA)
@@ -57,9 +83,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./apps/client run lint
+      - run: pnpm exec turbo run lint --filter=./apps/client
       - run: pnpm --filter ./apps/client run format:check
-      - run: pnpm --filter ./apps/client run test
+      - run: pnpm exec turbo run test --filter=./apps/client
       - name: Type-check and build
         run: pnpm exec turbo run build --filter=./apps/client
 
@@ -74,8 +100,8 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter ./apps/crm run lint
+      - run: pnpm exec turbo run lint --filter=./apps/crm
       - run: pnpm --filter ./apps/crm run format:check
-      - run: pnpm --filter ./apps/crm run test
+      - run: pnpm exec turbo run test --filter=./apps/crm
       - name: Build
         run: pnpm exec turbo run build --filter=./apps/crm

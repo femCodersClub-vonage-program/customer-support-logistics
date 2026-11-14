@@ -1,0 +1,152 @@
+{
+  "metadata": {
+    "title": "CSL Support CRM",
+    "description": "Bandeja de entrada, fichas de incidencia y consola de mediación para agentes de soporte."
+  },
+  "topBar": {
+    "brand": "CSL <accent>Support</accent>"
+  },
+  "nav": {
+    "label": "Principal",
+    "inbox": "Bandeja de entrada"
+  },
+  "localeSwitcher": {
+    "label": "Idioma"
+  },
+  "inbox": {
+    "title": "Bandeja de entrada",
+    "empty": "No hay incidencias que mostrar.",
+    "unassigned": "Sin asignar",
+    "loading": "Cargando incidencias…",
+    "error": {
+      "message": "No se pudieron cargar las incidencias.",
+      "retry": "Reintentar"
+    },
+    "columns": {
+      "reference": "Referencia",
+      "type": "Tipo",
+      "order": "Pedido",
+      "customer": "Cliente",
+      "status": "Estado",
+      "agent": "Agente",
+      "created": "Creada",
+      "updated": "Última actualización"
+    },
+    "filters": {
+      "status": "Estado",
+      "statusWithCount": "{status} ({count})",
+      "type": "Tipo",
+      "any": "Cualquiera",
+      "assignee": "Asignada a",
+      "assigneeMe": "Yo",
+      "from": "Creada desde",
+      "to": "Creada hasta",
+      "search": "Buscar",
+      "searchHint": "Pedido, cliente o teléfono",
+      "apply": "Filtrar"
+    },
+    "pagination": {
+      "label": "Paginación",
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "status": "Página {page} de {pages} · {total, plural, one {# incidencia} other {# incidencias}}"
+    }
+  },
+  "incident": {
+    "title": "Incidencia",
+    "reference": "Incidencia {id}",
+    "status": {
+      "open": "Abierta",
+      "notified": "Notificada",
+      "in_mediation": "En mediación",
+      "resolved": "Resuelta",
+      "escalated": "Escalada"
+    },
+    "type": {
+      "not_delivered": "No entregado",
+      "delayed": "Retrasado",
+      "damaged": "Dañado",
+      "wrong_item": "Artículo incorrecto",
+      "other": "Otro"
+    }
+  },
+  "contactLanguage": {
+    "customer": "Idioma del cliente: {language}",
+    "driver": "Idioma del repartidor: {language}"
+  },
+  "mediation": {
+    "title": "Mediación",
+    "incident": "Incidencia {id}",
+    "summary": {
+      "title": "Resumen de la incidencia",
+      "type": "Tipo",
+      "status": "Estado",
+      "order": "Pedido",
+      "address": "Dirección de entrega",
+      "customer": "Cliente",
+      "driver": "Conductor",
+      "noDriver": "Sin conductor asignado",
+      "lastDriverReply": "Última respuesta del conductor",
+      "noDriverReply": "Aún no ha respondido",
+      "driverReply": {
+        "delivered": "Dice que lo entregó",
+        "address_not_found": "No encuentra la dirección",
+        "customer_not_home": "El cliente no está en casa",
+        "accepted_call": "Aceptó la llamada"
+      }
+    },
+    "driverCall": {
+      "title": "Llamada con el conductor",
+      "status": "Estado de la llamada",
+      "noCall": "Aún no se ha llamado",
+      "callStatus": {
+        "queued": "Llamando",
+        "in_progress": "En curso",
+        "completed": "Terminada",
+        "failed": "Fallida"
+      },
+      "start": "Iniciar mediación",
+      "callAgain": "Volver a llamar al conductor",
+      "pending": "Llamando…",
+      "notifyFirst": "Hay que avisar al conductor antes de iniciar la mediación.",
+      "noDriver": "Esta incidencia no tiene conductor al que llamar."
+    },
+    "outcome": {
+      "title": "Cerrar la mediación",
+      "legend": "Resultado",
+      "options": {
+        "resolved": "Resuelta",
+        "escalated": "Escalada",
+        "follow_up_needed": "Necesita seguimiento"
+      },
+      "note": "Nota",
+      "noteHint": "Opcional, hasta {max} caracteres",
+      "submit": "Cerrar mediación",
+      "pending": "Cerrando…"
+    },
+    "closed": "La mediación está cerrada.",
+    "errors": {
+      "INVALID_TRANSITION": "La incidencia ha cambiado mientras tanto. Recarga la página y vuelve a intentarlo.",
+      "CONFLICT": "Ahora no se puede hacer, por ejemplo porque aún hay una llamada activa con el conductor.",
+      "BAD_GATEWAY": "Vonage no ha podido hacer la llamada. Vuelve a intentarlo en un momento.",
+      "NOT_FOUND": "La incidencia ya no existe.",
+      "INVALID_OUTCOME": "Elige un resultado y no te extiendas en la nota.",
+      "UNKNOWN": "Algo ha fallado. Vuelve a intentarlo."
+    }
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "backToInbox": "Volver a la bandeja de entrada"
+  },
+  "dev": {
+    "title": "Herramientas de desarrollo"
+  },
+  "apiStatus": {
+    "title": "Estado de la API",
+    "checking": "Comprobando…",
+    "online": "En línea (versión {version})",
+    "unreachable": "No disponible: {reason}",
+    "httpError": "HTTP {status}",
+    "unknownError": "Error desconocido"
+  }
+}

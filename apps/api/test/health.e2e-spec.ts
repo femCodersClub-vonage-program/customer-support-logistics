@@ -7,7 +7,7 @@ import { APP_VERSION } from '../src/version.js';
 
 import type { INestApplication } from '@nestjs/common';
 
-describe('GET /health (e2e)', () => {
+describe('Health (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -23,10 +23,17 @@ describe('GET /health (e2e)', () => {
     await app.close();
   });
 
-  it('returns 200 with status and version', () => {
+  it('GET /health returns 200 with status and version', () => {
     return request(app.getHttpServer())
       .get('/health')
       .expect(200)
       .expect({ status: 'ok', version: APP_VERSION });
+  });
+
+  it('GET /health/ready returns 200 with the database up', () => {
+    return request(app.getHttpServer())
+      .get('/health/ready')
+      .expect(200)
+      .expect({ status: 'ok', database: 'up' });
   });
 });

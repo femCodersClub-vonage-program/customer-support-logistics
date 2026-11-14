@@ -1,0 +1,31 @@
+{
+  "name": "@csl/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@csl/shared-types": "workspace:*",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@csl/config": "workspace:*",
+    "eslint": "10.14.0",
+    "typescript": "6.0.3"
+  }
+}
