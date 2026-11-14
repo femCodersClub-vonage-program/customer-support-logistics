@@ -26,6 +26,7 @@
     "resend": "Enviar otro código",
     "resendIn": "Podrás pedir otro código en {time}.",
     "changeNumber": "Cambiar de número",
+    "verifying": "Comprobando tu número…",
     "errors": {
       "invalidPhone": "Revisa el número: tiene que ser un móvil del país que has elegido.",
       "wrongCode": "Ese código no es correcto. Revisa el SMS y vuelve a probar.",

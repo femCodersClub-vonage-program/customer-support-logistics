@@ -9,7 +9,6 @@ import { CUSTOMER, apiError, apiUrl, renderApp, sessionOf } from '../test/app.ts
 const server = setupServer();
 
 let startBodies: unknown[] = [];
-let smsCalls = 0;
 
 const startAnswers = (body: object) =>
   http.post(apiUrl('/auth/customer/start'), async ({ request }) => {
@@ -23,14 +22,9 @@ const checkAnswers = (response: () => Response) =>
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 beforeEach(() => {
   startBodies = [];
-  smsCalls = 0;
   server.use(
     sessionOf(null),
     startAnswers({ channel: 'sms' }),
-    http.post(apiUrl('/auth/customer/sms'), () => {
-      smsCalls += 1;
-      return new HttpResponse(null, { status: 204 });
-    }),
     checkAnswers(() => HttpResponse.json(CUSTOMER)),
   );
 });
@@ -67,16 +61,6 @@ describe('LoginPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Report an incident' })).toBeInTheDocument();
     expect(screen.getByText('Order 42')).toBeInTheDocument();
-  });
-
-  it('asks for the SMS at once when the API offers silent authentication', async () => {
-    server.use(startAnswers({ channel: 'silent_auth', checkUrl: 'https://verify.test/check' }));
-    renderApp('/login');
-
-    await sendPhone('600 000 001');
-
-    expect(await screen.findByRole('heading', { name: 'Enter the code' })).toBeInTheDocument();
-    expect(smsCalls).toBe(1);
   });
 
   it('checks the phone before calling the API', async () => {

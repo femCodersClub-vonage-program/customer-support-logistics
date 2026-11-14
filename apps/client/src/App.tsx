@@ -4,6 +4,7 @@ import { RequireCustomer } from './auth/RequireCustomer.tsx';
 import { CallPage } from './routes/CallPage.tsx';
 import { DevPage } from './routes/DevPage.tsx';
 import { IncidentPage } from './routes/IncidentPage.tsx';
+import { LoginCallbackPage } from './routes/LoginCallbackPage.tsx';
 import { LoginPage } from './routes/LoginPage.tsx';
 import { NotFoundPage } from './routes/NotFoundPage.tsx';
 import { OrdersPage } from './routes/OrdersPage.tsx';
@@ -14,6 +15,7 @@ export function App() {
     <Routes>
       <Route index element={<Navigate to="/orders" replace />} />
       <Route path="login" element={<LoginPage />} />
+      <Route path="login/callback" element={<LoginCallbackPage />} />
       <Route element={<RequireCustomer />}>
         <Route path="orders" element={<OrdersPage />} />
         <Route path="report/:orderId" element={<ReportPage />} />

@@ -10,7 +10,12 @@ import type { LoginError } from './login-error.ts';
 import type { CountryId } from './phone.ts';
 import type { FormEvent } from 'react';
 
-export function PhoneStep({ onSent }: { onSent: (phone: string) => void }) {
+interface PhoneStepProps {
+  next: string;
+  onSent: (phone: string) => void;
+}
+
+export function PhoneStep({ next, onSent }: PhoneStepProps) {
   const t = useTranslations('login');
   const errorId = useId();
   const [country, setCountry] = useState<CountryId>('ES');
@@ -31,8 +36,9 @@ export function PhoneStep({ onSent }: { onSent: (phone: string) => void }) {
     setError(null);
 
     try {
-      await sendCode(phone);
-      onSent(phone);
+      if ((await sendCode(phone, { trySilentAuthThenGoTo: next })) === 'by-sms') {
+        onSent(phone);
+      }
     } catch (reason) {
       setError(toLoginError(reason));
       setSending(false);
