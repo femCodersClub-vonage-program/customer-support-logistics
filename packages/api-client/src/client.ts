@@ -17,10 +17,13 @@ type MaybePromise<T> = T | Promise<T>;
 
 export type TokenProvider = () => MaybePromise<string | null | undefined>;
 
+export const DEFAULT_TIMEOUT_MS = 15_000;
+
 export interface ApiClientOptions {
   baseUrl: string;
   getToken?: TokenProvider;
   fetch?: typeof globalThis.fetch;
+  timeoutMs?: number;
 }
 
 export interface RequestOptions {
@@ -88,7 +91,12 @@ function toQueryString(query: object): string {
   return queryString === '' ? '' : `?${queryString}`;
 }
 
-export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions): ApiClient {
+export function createApiClient({
+  baseUrl,
+  getToken,
+  fetch,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+}: ApiClientOptions): ApiClient {
   const base = baseUrl.replace(/\/+$/, '');
   const fetchFn: typeof globalThis.fetch =
     fetch ?? ((input, init) => globalThis.fetch(input, init));
@@ -103,7 +111,9 @@ export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions):
       headers.set('Authorization', `Bearer ${token}`);
     }
 
-    const response = await fetchFn(`${base}${path}`, { ...init, headers });
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+    const response = await fetchFn(`${base}${path}`, { ...init, headers, signal });
     const body = await parseBody(response);
 
     if (!response.ok) {

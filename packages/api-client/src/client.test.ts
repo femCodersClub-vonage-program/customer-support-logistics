@@ -133,6 +133,40 @@ describe('mediation', () => {
   });
 });
 
+describe('timeout', () => {
+  const neverAnswers = () =>
+    vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise((_resolve, reject) => {
+          const signal = init?.signal;
+
+          if (signal?.aborted) {
+            reject(signal.reason);
+          }
+
+          signal?.addEventListener('abort', () => reject(signal.reason));
+        }),
+    );
+
+  it('aborts a request that takes longer than the timeout', async () => {
+    const fetchMock = neverAnswers();
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock, timeoutMs: 10 });
+
+    await expect(client.getHealth()).rejects.toMatchObject({ name: 'TimeoutError' });
+  });
+
+  it('still honours the caller signal', async () => {
+    const fetchMock = neverAnswers();
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+    const controller = new AbortController();
+
+    const request = client.getHealth({ signal: controller.signal });
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});
+
 describe('ApiError', () => {
   it('exposes the error code of the API error body', () => {
     expect(new ApiError('x', 401, { error: { code: 'INVALID_CODE', message: 'No' } }).code).toBe(

@@ -22,5 +22,8 @@ export function toLoginError(
     return (error.code && ERROR_BY_CODE[error.code]) ?? 'generic';
   }
 
-  return error instanceof TypeError ? 'offline' : 'generic';
+  const lostConnection =
+    error instanceof TypeError || (error instanceof DOMException && error.name === 'TimeoutError');
+
+  return lostConnection ? 'offline' : 'generic';
 }
