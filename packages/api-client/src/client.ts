@@ -2,6 +2,10 @@ import { ApiError } from './errors.js';
 
 import type {
   ChangeIncidentStatusBody,
+  CurrentUser,
+  CustomerLoginCheckBody,
+  CustomerLoginStartBody,
+  CustomerLoginStartResponse,
   IncidentDetail,
   ListIncidentsQueryInput,
   ListIncidentsResponse,
@@ -37,6 +41,14 @@ export interface ApiClient {
   ): Promise<Incident>;
   startMediation(incidentId: string, options?: RequestOptions): Promise<StartMediationResponse>;
   callDriver(incidentId: string, options?: RequestOptions): Promise<Communication>;
+  getCurrentUser(options?: RequestOptions): Promise<CurrentUser>;
+  startCustomerLogin(
+    body: CustomerLoginStartBody,
+    options?: RequestOptions,
+  ): Promise<CustomerLoginStartResponse>;
+  moveCustomerLoginToSms(options?: RequestOptions): Promise<void>;
+  checkCustomerLogin(body: CustomerLoginCheckBody, options?: RequestOptions): Promise<CurrentUser>;
+  logout(options?: RequestOptions): Promise<void>;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -49,6 +61,15 @@ async function parseBody(response: Response): Promise<unknown> {
   const text = await response.text();
 
   return text === '' ? undefined : text;
+}
+
+function postJson(body: unknown, signal: AbortSignal | undefined): RequestInit {
+  return {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  };
 }
 
 function toQueryString(query: object): string {
@@ -125,5 +146,14 @@ export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions):
         method: 'POST',
         signal,
       }),
+    getCurrentUser: ({ signal } = {}) =>
+      request<CurrentUser>('/auth/me', { method: 'GET', signal }),
+    startCustomerLogin: (body, { signal } = {}) =>
+      request<CustomerLoginStartResponse>('/auth/customer/start', postJson(body, signal)),
+    moveCustomerLoginToSms: ({ signal } = {}) =>
+      request<void>('/auth/customer/sms', { method: 'POST', signal }),
+    checkCustomerLogin: (body, { signal } = {}) =>
+      request<CurrentUser>('/auth/customer/check', postJson(body, signal)),
+    logout: ({ signal } = {}) => request<void>('/auth/logout', { method: 'POST', signal }),
   };
 }
