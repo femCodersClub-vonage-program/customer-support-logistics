@@ -35,6 +35,7 @@ describe('OpenAPI (e2e)', () => {
     expect(Object.keys(document.paths)).toEqual([
       '/auth/agent/login',
       '/auth/customer/start',
+      '/auth/customer/sms',
       '/auth/customer/check',
       '/auth/logout',
       '/auth/me',

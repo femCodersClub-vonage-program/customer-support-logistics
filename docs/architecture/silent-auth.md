@@ -1,6 +1,6 @@
 # Silent authentication from the PWA
 
-> **Status:** planned. Customer login by SMS code is in place (`POST /auth/customer/start` and `/check`); silent authentication is the next part of [#31] (API) and [#33] (client). This page records what the web flow needs, so both sides build the same thing.
+> **Status:** the API side is in place ([#31]): `POST /auth/customer/start` returns the `check_url` when `SILENT_AUTH_REDIRECT_URL` is set, `POST /auth/customer/sms` calls `nextWorkflow()`, and `/check` compares the returned `request_id` with the cookie. The client side is [#33], and the real-phone check is still to do. This page records what the web flow needs, so both sides build the same thing.
 
 [ADR 0008](../adr/0008-authentication-and-sessions.md) decides how customers log in: Verify v2 with `silent_auth` first and `sms` as fallback. This page goes one level deeper. A PWA runs in a browser, not in a native app, and that changes how silent authentication has to be wired.
 

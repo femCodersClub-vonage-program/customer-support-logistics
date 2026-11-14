@@ -113,10 +113,11 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
       '/auth/customer/start': {
         post: {
           tags: ['auth'],
-          summary: 'Send a login code by SMS to a customer',
+          summary: 'Start a customer login with Verify',
           description: [
             `Starts a Verify request in the customer's language and keeps its id in the \`${VERIFICATION_COOKIE}\` cookie (\`HttpOnly\`, ${VERIFICATION_TTL_MS / 60_000} minutes).`,
-            'An unknown phone also gets a `200`, without any SMS, and its codes are always wrong.',
+            'With `SILENT_AUTH_REDIRECT_URL` set, it tries silent authentication first: the answer has `channel: silent_auth` and a `checkUrl` the PWA navigates to over mobile data. Otherwise, or when the carrier is not supported, the code goes by SMS.',
+            'An unknown phone gets `channel: sms`, without any SMS, and its codes are always wrong.',
           ].join(' '),
           security: [],
           requestBody: {
@@ -132,11 +133,27 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           },
         },
       },
+      '/auth/customer/sms': {
+        post: {
+          tags: ['auth'],
+          summary: 'Send the SMS now, when silent authentication failed',
+          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie. Without this call, Verify waits 60 seconds before moving on to the SMS.`,
+          security: [],
+          responses: {
+            '204': { description: 'The SMS is on its way' },
+            '410': error('`VERIFICATION_EXPIRED`: the customer has to start again'),
+            '429': error(
+              `More than ${CUSTOMER_LOGIN_CHECKS_PER_MINUTE} attempts in a minute from the same IP`,
+            ),
+            '502': error('Vonage could not move on to the SMS'),
+          },
+        },
+      },
       '/auth/customer/check': {
         post: {
           tags: ['auth'],
-          summary: 'Log a customer in with the code from the SMS',
-          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie from \`/auth/customer/start\`. Sets the \`${SESSION_COOKIE}\` cookie and marks the phone as verified.`,
+          summary: 'Log a customer in with the code from silent authentication or the SMS',
+          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie from \`/auth/customer/start\`. After silent authentication, send the \`request_id\` from the redirect as \`requestId\`: it must match the cookie. Sets the \`${SESSION_COOKIE}\` cookie and marks the phone as verified.`,
           security: [],
           requestBody: {
             content: { 'application/json': { schema: customerLoginCheckBodySchema } },

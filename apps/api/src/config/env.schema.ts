@@ -30,6 +30,7 @@ const baseEnvSchema = z.object({
       .optional(),
   ),
   WEBHOOK_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+  SILENT_AUTH_REDIRECT_URL: z.url({ protocol: /^https$/ }).optional(),
 });
 
 export const VONAGE_REQUIRED_VARIABLES = [

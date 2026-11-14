@@ -12,14 +12,27 @@ import { CustomerLoginError } from './customer-login.errors.js';
 import { PendingVerifications } from './pending-verifications.js';
 import { SessionsService } from './sessions.service.js';
 
+import type { PendingVerification } from './pending-verifications.js';
 import type { CreatedSession } from './sessions.service.js';
 import type { Database } from '../database/database.constants.js';
 import type { VonageService } from '../vonage/vonage.service.js';
 import type { CurrentUser } from '@csl/contracts';
 
+export const SILENT_AUTH_REDIRECT_URL = Symbol('SILENT_AUTH_REDIRECT_URL');
+
 export interface CustomerLogin {
   session: CreatedSession;
   user: CurrentUser;
+}
+
+export interface StartedCustomerLogin {
+  requestId: string;
+  checkUrl?: string;
+}
+
+export interface CustomerLoginCode {
+  code: string;
+  requestId?: string;
 }
 
 @Injectable()
@@ -31,9 +44,10 @@ export class CustomerLoginService {
     @Inject(VONAGE_SERVICE) private readonly vonage: VonageService,
     @Inject(SessionsService) private readonly sessions: SessionsService,
     @Inject(PendingVerifications) private readonly pending: PendingVerifications,
+    @Inject(SILENT_AUTH_REDIRECT_URL) private readonly silentAuthRedirectUrl: string | undefined,
   ) {}
 
-  async start(phone: string): Promise<string> {
+  async start(phone: string): Promise<StartedCustomerLogin> {
     const [customer] = await this.db
       .select({ id: customers.id, locale: customers.locale })
       .from(customers)
@@ -45,10 +59,14 @@ export class CustomerLoginService {
       this.pending.add(requestId, null);
       this.logger.log(`Customer login started for an unknown phone ${maskPhone(phone)}`);
 
-      return requestId;
+      return { requestId };
     }
 
-    const started = await this.vonage.startVerification(phone, customer.locale);
+    const started = await this.vonage.startVerification(
+      phone,
+      customer.locale,
+      this.silentAuthRedirectUrl,
+    );
 
     if (started.status === 'blocked') {
       this.logger.warn(`Customer login for customer ${customer.id} blocked by Verify`);
@@ -56,24 +74,42 @@ export class CustomerLoginService {
     }
 
     this.pending.add(started.requestId, customer.id);
-    this.logger.log(`Customer login started for customer ${customer.id}`);
+    this.logger.log(
+      `Customer login started for customer ${customer.id} by ${started.checkUrl ? 'silent auth' : 'SMS'}`,
+    );
 
-    return started.requestId;
+    return started.checkUrl === undefined
+      ? { requestId: started.requestId }
+      : { requestId: started.requestId, checkUrl: started.checkUrl };
   }
 
-  async check(
-    requestId: string | null,
-    code: string,
-    previousToken: string | null,
-  ): Promise<CustomerLogin> {
-    const verification = requestId === null ? undefined : this.pending.find(requestId);
+  async moveToSms(cookieRequestId: string | null): Promise<void> {
+    const { requestId, customerId } = this.pendingFor(cookieRequestId);
 
-    if (requestId === null || verification === undefined) {
-      this.logger.warn('Customer login check without a pending verification');
+    if (customerId === null) {
+      return;
+    }
+
+    if ((await this.vonage.moveVerificationToSms(requestId)) === 'expired') {
+      this.pending.remove(requestId);
+      this.logger.warn(`Customer login for customer ${customerId} expired before the SMS`);
       throw new CustomerLoginError('expired');
     }
 
-    const { customerId } = verification;
+    this.logger.log(`Customer login for customer ${customerId} moved to SMS`);
+  }
+
+  async check(
+    cookieRequestId: string | null,
+    { code, requestId: returnedRequestId }: CustomerLoginCode,
+    previousToken: string | null,
+  ): Promise<CustomerLogin> {
+    const { requestId, customerId } = this.pendingFor(cookieRequestId);
+
+    if (returnedRequestId !== undefined && returnedRequestId !== requestId) {
+      this.logger.warn('Customer login check rejected: the returned request id does not match');
+      throw new CustomerLoginError('wrong_code');
+    }
 
     if (customerId === null) {
       this.logger.warn('Customer login check rejected for an unknown phone');
@@ -94,6 +130,17 @@ export class CustomerLoginService {
     this.pending.remove(requestId);
 
     return this.logIn(customerId, previousToken);
+  }
+
+  private pendingFor(requestId: string | null): PendingVerification & { requestId: string } {
+    const verification = requestId === null ? undefined : this.pending.find(requestId);
+
+    if (requestId === null || verification === undefined) {
+      this.logger.warn('Customer login step without a pending verification');
+      throw new CustomerLoginError('expired');
+    }
+
+    return { ...verification, requestId };
   }
 
   private async logIn(customerId: string, previousToken: string | null): Promise<CustomerLogin> {
