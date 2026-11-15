@@ -6,7 +6,7 @@ import { eq, sql } from 'drizzle-orm';
 import { maskPhone } from '../common/logging/mask-phone.js';
 import { DATABASE } from '../database/database.constants.js';
 import { customers } from '../database/schema/index.js';
-import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
+import { VERIFICATION_MAX_WRONG_CODES, VONAGE_SERVICE } from '../vonage/vonage.service.js';
 
 import { CustomerLoginError } from './customer-login.errors.js';
 import { PendingVerifications } from './pending-verifications.js';
@@ -113,8 +113,7 @@ export class CustomerLoginService {
     }
 
     if (customerId === null) {
-      this.logger.warn('Customer login check rejected for an unknown phone');
-      throw new CustomerLoginError('wrong_code');
+      throw this.rejectUnknownPhone(requestId);
     }
 
     const { status } = await this.vonage.checkVerification(requestId, code);
@@ -142,6 +141,19 @@ export class CustomerLoginService {
     }
 
     return { ...verification, requestId };
+  }
+
+  private rejectUnknownPhone(requestId: string): CustomerLoginError {
+    if (this.pending.countCheck(requestId) >= VERIFICATION_MAX_WRONG_CODES) {
+      this.pending.remove(requestId);
+      this.logger.warn('Customer login check for an unknown phone failed: too_many_attempts');
+
+      return new CustomerLoginError('too_many_attempts');
+    }
+
+    this.logger.warn('Customer login check rejected for an unknown phone');
+
+    return new CustomerLoginError('wrong_code');
   }
 
   private async logIn(customerId: string, previousToken: string | null): Promise<CustomerLogin> {

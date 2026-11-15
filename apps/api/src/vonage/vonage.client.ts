@@ -31,6 +31,7 @@ export interface VonageClient {
       brand: string;
       locale: string;
       codeLength: 6;
+      channelTimeout: number;
       workflow: (
         | { channel: Channels.SMS; to: string }
         | { channel: SilentAuthChannel.SILENT_AUTH; to: string; redirectUrl: string }

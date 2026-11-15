@@ -28,7 +28,7 @@ if (SEED_CUSTOMER_PHONES.some((phone) => demoPhones.has(phone))) {
 
 const customerPhones = seedData.customers.map((customer, index) => ({
   id: customer.id,
-  demoPhone: customer.phone,
+  demo: { phone: customer.phone, phoneVerifiedAt: customer.phoneVerifiedAt ?? null },
   phone: SEED_CUSTOMER_PHONES[index],
 }));
 
@@ -61,18 +61,16 @@ try {
 
     await tx.insert(schema.customers).values(seedData.customers).onConflictDoNothing();
 
-    for (const { id, demoPhone } of customerPhones) {
-      if (id !== undefined) {
-        await tx
-          .update(schema.customers)
-          .set({ phone: demoPhone })
-          .where(eq(schema.customers.id, id));
-      }
+    for (const { id, demo } of customerPhones) {
+      await tx.update(schema.customers).set(demo).where(eq(schema.customers.id, id));
     }
 
     for (const { id, phone } of customerPhones) {
-      if (id !== undefined && phone !== undefined) {
-        await tx.update(schema.customers).set({ phone }).where(eq(schema.customers.id, id));
+      if (phone !== undefined) {
+        await tx
+          .update(schema.customers)
+          .set({ phone, phoneVerifiedAt: null })
+          .where(eq(schema.customers.id, id));
       }
     }
     await tx.insert(schema.drivers).values(seedData.drivers).onConflictDoNothing();
