@@ -10,7 +10,7 @@ export class PhoneThrottlerGuard extends ThrottlerGuard {
         ? body.phone.trim()
         : '';
 
-    return `phone:${phone}`;
+    return phone === '' ? super.getTracker(request) : `phone:${phone}`;
   }
 
   protected override setResponseHeader(

@@ -261,11 +261,11 @@ How it works and why is in [ADR 0008](../../docs/adr/0008-authentication-and-ses
 - Rate limits, which answer `429`:
   - `POST /auth/agent/login`: 10 attempts per minute from the same IP.
   - `POST /auth/customer/start`: 10 attempts in 15 minutes from the same IP, and 10 for the same phone. Verify also refuses a new code while the previous one for that number is still valid.
-  - `POST /auth/customer/check`: 10 attempts per minute from the same IP. Verify ends a request after 3 wrong codes.
+  - `POST /auth/customer/check`: 10 attempts per minute from the same IP. Verify ends a request on the third wrong code.
 - A new login also ends the session the browser already had, and expired sessions are deleted on each login.
 - The session is an opaque token in the `csl_session` cookie (`HttpOnly`, `Secure`, `SameSite=Lax`). The `sessions` table keeps only its SHA-256 hash. Agent sessions last 12 hours and customer sessions 30 days.
 - `@Roles('customer')` or `@Roles('agent')` on a route enforces the "who" column above: no session gives `401`, the wrong role `403`. Services still check ownership, so another customer's incident is a `404`.
-- Customers log in with Verify v2 by SMS. `POST /auth/customer/start` keeps the Verify request id in the `csl_verification` cookie (`HttpOnly`, 10 minutes), and `POST /auth/customer/check` only accepts a code for that request. Which customer each request belongs to is kept in the API's memory, so a restart in the middle of a login means asking for a new code. An unknown phone gets a `200` without any SMS, and every code for it is wrong. Someone trying numbers can still tell known ones apart (by response time, or because a known number answers `410` after 3 wrong codes); ADR 0008 accepts that, and the rate limits slow it down.
+- Customers log in with Verify v2 by SMS. `POST /auth/customer/start` keeps the Verify request id in the `csl_verification` cookie (`HttpOnly`, 10 minutes, the same `channel_timeout` it asks Verify for), and `POST /auth/customer/check` only accepts a code for that request. Which customer each request belongs to is kept in the API's memory, so a restart in the middle of a login means asking for a new code. That memory has no size limit: unknown phones enter it without any Vonage cost, but the start rate limits bound how fast it grows and each entry goes after 10 minutes. With more than one instance it moves to Redis, like the rate limits. An unknown phone gets a `200` without any SMS, and every code for it is wrong; the third wrong code answers `410 TOO_MANY_ATTEMPTS`, as Verify does for a real one. Someone trying numbers can still tell known ones apart by response time; ADR 0008 accepts that, and the rate limits slow it down.
 
 #### Logging in locally as a customer
 

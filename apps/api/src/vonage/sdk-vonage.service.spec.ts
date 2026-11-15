@@ -114,6 +114,7 @@ describe('SdkVonageService', () => {
         brand: VERIFY_BRAND,
         locale: 'es-es',
         codeLength: 6,
+        channelTimeout: 600,
         workflow: [{ channel: 'sms', to: '34611000009' }],
       });
     });
