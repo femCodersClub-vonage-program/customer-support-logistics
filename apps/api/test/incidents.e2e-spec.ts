@@ -128,7 +128,7 @@ describe('Incidents (e2e)', () => {
       expectError(response.body, 'FORBIDDEN');
     });
 
-    it('returns 401 without the dev actor header', async () => {
+    it('returns 401 without a session', async () => {
       const response = await http()
         .post('/incidents')
         .send({ orderId: ids.anaOrder, type: 'damaged' })

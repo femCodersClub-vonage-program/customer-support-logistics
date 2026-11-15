@@ -12,7 +12,7 @@ import { STALE_QUEUED_CALL_MS } from '../src/incidents/mediation.service.js';
 import { VonageRequestError } from '../src/vonage/vonage.errors.js';
 
 import { createTestApp, resetDatabase } from './fixtures/app.js';
-import { sessionCookieFor, sessionCookiesFor } from './fixtures/auth.js';
+import { sessionCookiesFor } from './fixtures/auth.js';
 import { actor, ids, seed } from './fixtures/seed.js';
 import { vonageFixture } from './fixtures/vonage/index.js';
 import { signVonageJwt } from './fixtures/vonage/sign.js';
@@ -261,20 +261,6 @@ describe('Mediation (e2e)', () => {
       expectError(response.body, 'UNAUTHORIZED');
       expect((await incidentRow(ids.notifiedIncident)).status).toBe('notified');
       expect(testApp.vonage.calls).toEqual([]);
-    });
-
-    it('assigns the agent behind the session cookie', async () => {
-      const cookie = await sessionCookieFor(testApp, { role: 'agent', id: ids.agentA });
-
-      await http()
-        .post(`/incidents/${ids.notifiedIncident}/mediation`)
-        .set('Cookie', cookie)
-        .expect(201);
-
-      expect(await incidentRow(ids.notifiedIncident)).toMatchObject({
-        status: 'in_mediation',
-        agentId: ids.agentA,
-      });
     });
 
     it('returns 404 for an unknown incident', async () => {

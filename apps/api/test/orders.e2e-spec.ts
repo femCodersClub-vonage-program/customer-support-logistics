@@ -62,8 +62,11 @@ describe('Orders (e2e)', () => {
     expect(apiErrorResponseSchema.parse(response.body).error.code).toBe('FORBIDDEN');
   });
 
-  it('returns 401 with an invalid dev actor header', async () => {
-    const response = await http().get('/orders').set('Cookie', 'customer:nope').expect(401);
+  it('ignores the old X-Dev-Actor header', async () => {
+    const response = await http()
+      .get('/orders')
+      .set('X-Dev-Actor', `customer:${ids.ana}`)
+      .expect(401);
 
     expect(apiErrorResponseSchema.parse(response.body).error.code).toBe('UNAUTHORIZED');
   });
