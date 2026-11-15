@@ -16,6 +16,33 @@ export const agentLoginBodySchema = z
 
 export type AgentLoginBody = z.infer<typeof agentLoginBodySchema>;
 
+export const customerLoginStartBodySchema = z
+  .object({
+    phone: z.string().trim().pipe(z.e164()),
+  })
+  .meta({ id: 'CustomerLoginStartBody' });
+
+export type CustomerLoginStartBody = z.infer<typeof customerLoginStartBodySchema>;
+
+export const customerLoginStartResponseSchema = z
+  .object({
+    channel: z.literal('sms'),
+  })
+  .meta({ id: 'CustomerLoginStartResponse' });
+
+export type CustomerLoginStartResponse = z.infer<typeof customerLoginStartResponseSchema>;
+
+export const customerLoginCheckBodySchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9]{4,10}$/),
+  })
+  .meta({ id: 'CustomerLoginCheckBody' });
+
+export type CustomerLoginCheckBody = z.infer<typeof customerLoginCheckBodySchema>;
+
 export const currentUserSchema = z
   .object({
     role: authRoleSchema,

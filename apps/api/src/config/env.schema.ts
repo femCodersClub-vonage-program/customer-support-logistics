@@ -22,6 +22,13 @@ const baseEnvSchema = z.object({
   VONAGE_VIRTUAL_NUMBER: z.e164().optional(),
   VONAGE_SIGNATURE_SECRET: z.string().min(1).optional(),
   DEV_AUTH_ENABLED: z.stringbool().default(false),
+  DEV_VERIFY_CODE: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z
+      .string()
+      .regex(/^[0-9]{4,10}$/, 'Expected 4 to 10 digits')
+      .optional(),
+  ),
   WEBHOOK_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
 });
 
@@ -48,6 +55,20 @@ export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
     });
   }
 
+  if (env.DEV_VERIFY_CODE !== undefined && env.NODE_ENV === 'production') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['DEV_VERIFY_CODE'],
+      message: 'DEV_VERIFY_CODE must not be set in production',
+    });
+  } else if (env.DEV_VERIFY_CODE !== undefined && isVonageEnabled(env)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['DEV_VERIFY_CODE'],
+      message: 'DEV_VERIFY_CODE only works while Vonage is disabled (set VONAGE_ENABLED=false)',
+    });
+  }
+
   if (!isVonageEnabled(env)) {
     return;
   }
@@ -69,6 +90,19 @@ const seedEnvSchema = databaseEnvSchema.extend({
   SEED_AGENT_PASSWORD: z.preprocess(
     (value) => (value === '' ? undefined : value),
     z.string().min(12).optional(),
+  ),
+  SEED_CUSTOMER_PHONES: z.preprocess(
+    (value) =>
+      typeof value === 'string'
+        ? value
+            .split(',')
+            .map((phone) => phone.trim())
+            .filter((phone) => phone !== '')
+        : value,
+    z
+      .array(z.e164())
+      .refine((phones) => new Set(phones).size === phones.length, 'Each phone must appear once')
+      .default([]),
   ),
 });
 

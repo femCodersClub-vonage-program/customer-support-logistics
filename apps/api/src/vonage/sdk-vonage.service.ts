@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { HttpStatus, Logger } from '@nestjs/common';
 import { Channels } from '@vonage/verify2';
 
 import { maskPhone } from '../common/logging/mask-phone.js';
@@ -11,6 +11,7 @@ import {
   isAbortError,
   readVonageErrorDetails,
 } from './vonage.errors.js';
+import { VERIFICATION_TTL_SECONDS } from './vonage.service.js';
 
 import type { NccoAction } from './ncco.js';
 import type { VonageClient } from './vonage.client.js';
@@ -26,9 +27,17 @@ import type { Locale } from '@csl/shared-types';
 
 export const VERIFY_BRAND = 'CSL Support';
 
+export const VERIFY_CODE_LENGTH = 6;
+
 const VERIFICATION_COMPLETED = 'completed';
 
 const INVALID_CODE_TYPE = '#invalid-code';
+
+const CHECK_OUTCOME_BY_STATUS: Partial<Record<number, VerificationCheck['status']>> = {
+  [HttpStatus.NOT_FOUND]: 'expired',
+  [HttpStatus.GONE]: 'too_many_attempts',
+  [HttpStatus.TOO_MANY_REQUESTS]: 'blocked',
+};
 
 function toVonageNumber(phone: string): string {
   return phone.replace(/^\+/, '');
@@ -93,30 +102,44 @@ export class SdkVonageService implements VonageService {
   }
 
   async startVerification(phone: string, locale: Locale): Promise<StartedVerification> {
-    return this.attempt({
+    return this.attempt<StartedVerification>({
       operation: 'startVerification',
       target: maskPhone(phone),
       request: async () => {
         const { requestId } = await this.client.verify2.newRequest({
           brand: VERIFY_BRAND,
           locale: toVerifyLocale(locale),
+          codeLength: VERIFY_CODE_LENGTH,
+          channelTimeout: VERIFICATION_TTL_SECONDS,
           workflow: [{ channel: Channels.SMS, to: toVonageNumber(phone) }],
         });
 
-        return { requestId };
+        return { status: 'started', requestId };
       },
+      recover: ({ status }) =>
+        status === HttpStatus.CONFLICT || status === HttpStatus.TOO_MANY_REQUESTS
+          ? { status: 'blocked' }
+          : undefined,
     });
   }
 
   async checkVerification(requestId: string, code: string): Promise<VerificationCheck> {
-    return this.attempt({
+    return this.attempt<VerificationCheck>({
       operation: 'checkVerification',
       target: `request ${requestId}`,
       request: async () => {
         const status = await this.client.verify2.checkCode(requestId, code);
-        return { verified: status === VERIFICATION_COMPLETED };
+        return { status: status === VERIFICATION_COMPLETED ? 'verified' : 'wrong_code' };
       },
-      recover: ({ type }) => (type?.endsWith(INVALID_CODE_TYPE) ? { verified: false } : undefined),
+      recover: ({ status, type }) => {
+        if (type?.endsWith(INVALID_CODE_TYPE)) {
+          return { status: 'wrong_code' };
+        }
+
+        const outcome = status === undefined ? undefined : CHECK_OUTCOME_BY_STATUS[status];
+
+        return outcome ? { status: outcome } : undefined;
+      },
     });
   }
 

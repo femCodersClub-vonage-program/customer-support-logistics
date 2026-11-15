@@ -17,6 +17,8 @@ export function clearedSessionCookieOptions(): CookieOptions {
   return BASE_COOKIE_OPTIONS;
 }
 
+export const VERIFICATION_COOKIE = 'csl_verification';
+
 export function readCookie(header: string | undefined, name: string): string | null {
   for (const pair of header?.split(';') ?? []) {
     const separator = pair.indexOf('=');

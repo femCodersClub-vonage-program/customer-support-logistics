@@ -34,6 +34,8 @@ describe('OpenAPI (e2e)', () => {
     expect(document.openapi).toBe('3.1.0');
     expect(Object.keys(document.paths)).toEqual([
       '/auth/agent/login',
+      '/auth/customer/start',
+      '/auth/customer/check',
       '/auth/logout',
       '/auth/me',
       '/incidents',

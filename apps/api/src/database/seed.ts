@@ -12,7 +12,25 @@ if (process.env.NODE_ENV === 'production') {
   throw new Error('Refusing to seed demo data with NODE_ENV=production');
 }
 
-const { DATABASE_URL, SEED_AGENT_PASSWORD } = validateSeedEnv(process.env);
+const { DATABASE_URL, SEED_AGENT_PASSWORD, SEED_CUSTOMER_PHONES } = validateSeedEnv(process.env);
+
+if (SEED_CUSTOMER_PHONES.length > seedData.customers.length) {
+  throw new Error(
+    `SEED_CUSTOMER_PHONES has ${SEED_CUSTOMER_PHONES.length} phones, but there are only ${seedData.customers.length} seeded customers`,
+  );
+}
+
+const demoPhones = new Set(seedData.customers.map((customer) => customer.phone));
+
+if (SEED_CUSTOMER_PHONES.some((phone) => demoPhones.has(phone))) {
+  throw new Error('SEED_CUSTOMER_PHONES must not repeat the demo phone of a seeded customer');
+}
+
+const customerPhones = seedData.customers.map((customer, index) => ({
+  id: customer.id,
+  demo: { phone: customer.phone, phoneVerifiedAt: customer.phoneVerifiedAt ?? null },
+  phone: SEED_CUSTOMER_PHONES[index],
+}));
 
 const seededAgentIds = seedData.agents
   .map((agent) => agent.id)
@@ -42,6 +60,19 @@ try {
     }
 
     await tx.insert(schema.customers).values(seedData.customers).onConflictDoNothing();
+
+    for (const { id, demo } of customerPhones) {
+      await tx.update(schema.customers).set(demo).where(eq(schema.customers.id, id));
+    }
+
+    for (const { id, phone } of customerPhones) {
+      if (phone !== undefined) {
+        await tx
+          .update(schema.customers)
+          .set({ phone, phoneVerifiedAt: null })
+          .where(eq(schema.customers.id, id));
+      }
+    }
     await tx.insert(schema.drivers).values(seedData.drivers).onConflictDoNothing();
     await tx.insert(schema.routes).values(seedData.routes).onConflictDoNothing();
     await tx.insert(schema.orders).values(seedData.orders).onConflictDoNothing();

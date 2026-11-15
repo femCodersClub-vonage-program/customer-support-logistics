@@ -39,7 +39,9 @@ pnpm --filter ./apps/api run db:seed
 
 - It refuses to run when `NODE_ENV=production`.
 - It is idempotent: every row has a fixed id and is inserted with `ON CONFLICT DO NOTHING`, all in one transaction. Running it again changes nothing, and it never touches rows it didn't create.
-- Because existing rows are never updated, changes to the demo data in `src/database/seed-data.ts` don't reach a database that is already seeded. Recreate the database to start over. The only exception is `SEED_AGENT_PASSWORD` (12 characters or more): when it is set, the seeded agents get that password even if they already exist, each with its own salt.
+- Because existing rows are never updated, changes to the demo data in `src/database/seed-data.ts` don't reach a database that is already seeded. Recreate the database to start over. There are two exceptions:
+  - `SEED_AGENT_PASSWORD` (12 characters or more): when it is set, the seeded agents get that password even if they already exist, each with its own salt.
+  - `SEED_CUSTOMER_PHONES`: a comma-separated list of E.164 phones that replace, in order, the phones of the seeded customers, so you can log in with Verify on a real phone. Put only your own number, and only in your local `.env`. Seeding again without it gives the customers back their demo phones.
 - The e2e tests empty the tables, so seed again after running them against the same database.
 
 The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that every incident's event history is a valid path through the state machine.
@@ -57,7 +59,7 @@ Paste the value into **Authorize** in [Swagger UI](#openapi) or into the `X-Dev-
 | `agent:5eed0000-0000-4000-8000-0000000000a1`    | Marta Vidal (`marta.vidal@example.com`)   | `es`   | Assigned to one `in_mediation` and one `resolved` incident                  |
 | `agent:5eed0000-0000-4000-8000-0000000000a2`    | Olivia Brown (`olivia.brown@example.com`) | `en`   | Assigned to one `escalated` and one `resolved` incident                     |
 
-Every agent sees every incident in `GET /incidents`. Four of them are unassigned (`?agentId=unassigned`). The driver is Javier Molina (`+34611000009`), on the route of `2026-11-02`.
+The customers' demo phones are `+34611000001` (Lucía), `+34611000002` (Carlos), `+447700900001` (Emma) and `+447700900002` (James); see [logging in locally as a customer](#logging-in-locally-as-a-customer). Every agent sees every incident in `GET /incidents`. Four of them are unassigned (`?agentId=unassigned`). The driver is Javier Molina (`+34611000009`), on the route of `2026-11-02`.
 
 ### Changing the schema
 
@@ -161,7 +163,7 @@ It prints the message id, and the SMS arrives within a few seconds. It refuses t
 | `VonageTimeoutError`  | Vonage didn't answer within 10 seconds                                                       |
 | `VonageDisabledError` | Vonage is disabled                                                                           |
 
-All of them extend `VonageError` and carry the `operation`. A wrong Verify code isn't an error: `checkVerification` returns `{ verified: false }`.
+All of them extend `VonageError` and carry the `operation`. The expected Verify answers aren't errors: `startVerification` returns `{ status: 'blocked' }` when Verify answers `409` (a verification for that number is still running) or `429`, and `checkVerification` returns `wrong_code` (`400`), `expired` (`404`), `too_many_attempts` (`410`) or `blocked` (`429`).
 
 - **Timeouts:** every request to Vonage is aborted after 10 seconds (`VONAGE_TIMEOUT_MS`).
 - **No retries:** sending an SMS, starting a call or a verification isn't idempotent, so retrying after a timeout could send it twice. Retries that the flows need, such as calling the driver again, are decided by those flows.
@@ -172,7 +174,7 @@ All of them extend `VonageError` and carry the `operation`. A wrong Verify code 
 
 ### Vonage in tests
 
-Unit tests build `SdkVonageService` with a stub client (see `sdk-vonage.service.spec.ts`). End-to-end tests run with `NODE_ENV=test`, and `createTestApp()` replaces `VONAGE_SERVICE` with a `FakeVonageService` (`test/fixtures/fake-vonage.service.ts`) that records every call. The fake accepts the verification code `1234`.
+Unit tests build `SdkVonageService` with a stub client (see `sdk-vonage.service.spec.ts`). End-to-end tests run with `NODE_ENV=test`, and `createTestApp()` replaces `VONAGE_SERVICE` with a `FakeVonageService` (`test/fixtures/fake-vonage.service.ts`) that records every call. The fake accepts the verification code `1234`; `blockNextStart()` and `answerNextCheck(outcome)` simulate the other Verify answers.
 
 ```ts
 const { app, vonage } = await createTestApp();
@@ -196,6 +198,8 @@ The request and response schemas live in [`@csl/contracts`](../../packages/contr
 | Method  | Path                                   | Who                    | What                                                                                   |
 | ------- | -------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
 | `POST`  | `/auth/agent/login`                    | anyone                 | Log an agent in and set the session cookie                                             |
+| `POST`  | `/auth/customer/start`                 | anyone                 | Send a login code by SMS to a customer's phone                                         |
+| `POST`  | `/auth/customer/check`                 | anyone                 | Log a customer in with that code and set the session cookie                            |
 | `POST`  | `/auth/logout`                         | anyone                 | End the session and clear the cookie                                                   |
 | `GET`   | `/auth/me`                             | customer / agent       | The person behind the current session                                                  |
 | `POST`  | `/incidents`                           | customer               | Create an incident for one of their orders                                             |
@@ -236,26 +240,46 @@ Every error has the same shape:
 }
 ```
 
-| Status | `code`                                                    | When                                                                                                                       |
-| ------ | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 400    | `VALIDATION_FAILED`                                       | Invalid body, query or path; `details` lists each offending field                                                          |
-| 400    | `BAD_REQUEST`                                             | Malformed request, such as invalid JSON                                                                                    |
-| 401    | `UNAUTHORIZED`                                            | No valid session, wrong email or password, or bad Vonage signature                                                         |
-| 403    | `FORBIDDEN`                                               | The route is for another role, such as an agent calling `GET /orders`                                                      |
-| 404    | `NOT_FOUND`                                               | Missing resource, or one that belongs to another customer                                                                  |
-| 409    | `INVALID_TRANSITION` / `TRANSITION_NOT_ALLOWED_FOR_ACTOR` | The state machine rejects the status change                                                                                |
-| 429    | `RATE_LIMITED`                                            | Too many requests to `/webhooks/*` (`WEBHOOK_RATE_LIMIT_PER_MINUTE`) or to `POST /auth/agent/login` (10 per minute per IP) |
-| 500    | `INTERNAL_ERROR`                                          | Unexpected error; the details are only in the logs                                                                         |
+| Status | `code`                                                    | When                                                                                                                            |
+| ------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 400    | `VALIDATION_FAILED`                                       | Invalid body, query or path; `details` lists each offending field                                                               |
+| 400    | `BAD_REQUEST`                                             | Malformed request, such as invalid JSON                                                                                         |
+| 401    | `UNAUTHORIZED`                                            | No valid session, wrong email or password, or bad Vonage signature                                                              |
+| 401    | `INVALID_CODE`                                            | Wrong login code; the customer can try again                                                                                    |
+| 403    | `FORBIDDEN`                                               | The route is for another role, such as an agent calling `GET /orders`                                                           |
+| 404    | `NOT_FOUND`                                               | Missing resource, or one that belongs to another customer                                                                       |
+| 409    | `INVALID_TRANSITION` / `TRANSITION_NOT_ALLOWED_FOR_ACTOR` | The state machine rejects the status change                                                                                     |
+| 410    | `VERIFICATION_EXPIRED` / `TOO_MANY_ATTEMPTS`              | The login code expired or was wrong too many times; the customer asks for a new one                                             |
+| 429    | `RATE_LIMITED`                                            | Too many requests to `/webhooks/*` (`WEBHOOK_RATE_LIMIT_PER_MINUTE`) or to the login routes (see below), or Verify asks to wait |
+| 500    | `INTERNAL_ERROR`                                          | Unexpected error; the details are only in the logs                                                                              |
 
 ### Authentication
 
 How it works and why is in [ADR 0008](../../docs/adr/0008-authentication-and-sessions.md). In short:
 
-- Every route needs a session unless it is marked `@Public()`: `/health`, `/webhooks/*`, `POST /auth/agent/login` and `POST /auth/logout`. `GET /auth/me` needs a session. A new route is protected from the start.
-- `POST /auth/agent/login` allows 10 attempts per minute from the same IP, then answers `429`. A new login also ends the session the browser already had, and expired sessions are deleted on each login.
+- Every route needs a session unless it is marked `@Public()`: `/health`, `/webhooks/*`, and the login and logout routes under `/auth`. `GET /auth/me` needs a session. A new route is protected from the start.
+- Rate limits, which answer `429`:
+  - `POST /auth/agent/login`: 10 attempts per minute from the same IP.
+  - `POST /auth/customer/start`: 10 attempts in 15 minutes from the same IP, and 10 for the same phone. Verify also refuses a new code while the previous one for that number is still valid.
+  - `POST /auth/customer/check`: 10 attempts per minute from the same IP. Verify ends a request on the third wrong code.
+- A new login also ends the session the browser already had, and expired sessions are deleted on each login.
 - The session is an opaque token in the `csl_session` cookie (`HttpOnly`, `Secure`, `SameSite=Lax`). The `sessions` table keeps only its SHA-256 hash. Agent sessions last 12 hours and customer sessions 30 days.
 - `@Roles('customer')` or `@Roles('agent')` on a route enforces the "who" column above: no session gives `401`, the wrong role `403`. Services still check ownership, so another customer's incident is a `404`.
-- Customers will log in with Verify v2 in the next part of [1.5]. Until then, a customer session can only come from the temporary header below.
+- Customers log in with Verify v2 by SMS. `POST /auth/customer/start` keeps the Verify request id in the `csl_verification` cookie (`HttpOnly`, 10 minutes, the same `channel_timeout` it asks Verify for), and `POST /auth/customer/check` only accepts a code for that request. Which customer each request belongs to is kept in the API's memory, so a restart in the middle of a login means asking for a new code. That memory has no size limit: unknown phones enter it without any Vonage cost, but the start rate limits bound how fast it grows and each entry goes after 10 minutes. With more than one instance it moves to Redis, like the rate limits. An unknown phone gets a `200` without any SMS, and every code for it is wrong; the third wrong code answers `410 TOO_MANY_ATTEMPTS`, as Verify does for a real one. Someone trying numbers can still tell known ones apart by response time; ADR 0008 accepts that, and the rate limits slow it down.
+
+#### Logging in locally as a customer
+
+Without a Vonage account, set `DEV_VERIFY_CODE` (4 to 10 digits) in `.env`. With Vonage disabled, the API then accepts that code for any customer and sends no SMS. It refuses to start with `DEV_VERIFY_CODE` in production or with Vonage enabled.
+
+```sh
+curl -i -c cookies.txt -H 'Content-Type: application/json' \
+  -d '{"phone":"+34611000001"}' http://localhost:3000/auth/customer/start
+curl -i -b cookies.txt -c cookies.txt -H 'Content-Type: application/json' \
+  -d '{"code":"<DEV_VERIFY_CODE>"}' http://localhost:3000/auth/customer/check
+curl -b cookies.txt http://localhost:3000/orders
+```
+
+With Vonage enabled, put your own phone in `SEED_CUSTOMER_PHONES`, seed again, and use the code from the SMS.
 
 #### Logging in locally as an agent
 

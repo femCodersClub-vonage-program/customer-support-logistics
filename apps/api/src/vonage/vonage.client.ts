@@ -30,6 +30,8 @@ export interface VonageClient {
     newRequest(params: {
       brand: string;
       locale: string;
+      codeLength: 6;
+      channelTimeout: number;
       workflow: { channel: Channels.SMS; to: string }[];
     }): Promise<{ requestId: string }>;
     checkCode(requestId: string, code: string): Promise<string>;
