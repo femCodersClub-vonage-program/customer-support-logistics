@@ -105,10 +105,16 @@ export class CustomerLoginService {
     { code, requestId: returnedRequestId }: CustomerLoginCode,
     previousToken: string | null,
   ): Promise<CustomerLogin> {
-    const { requestId, customerId } = this.pendingFor(cookieRequestId);
+    const { requestId, customerId, bySms } = this.pendingFor(cookieRequestId);
+    const mustReturnRequestId = !bySms;
 
-    if (returnedRequestId !== undefined && returnedRequestId !== requestId) {
-      this.logger.warn('Customer login check rejected: the returned request id does not match');
+    if (
+      (mustReturnRequestId || returnedRequestId !== undefined) &&
+      returnedRequestId !== requestId
+    ) {
+      this.logger.warn(
+        'Customer login check rejected: the returned request id is missing or wrong',
+      );
       throw new CustomerLoginError('wrong_code');
     }
 
