@@ -1,34 +1,32 @@
 import { incidentIdParamsSchema } from '@csl/contracts';
-import { Controller, Inject, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Inject, Param, Post } from '@nestjs/common';
 
-import { CurrentActor } from '../common/dev-auth/current-actor.decorator.js';
-import { DevActorGuard } from '../common/dev-auth/dev-actor.guard.js';
+import { CurrentActor, Roles } from '../auth/auth.decorators.js';
 import { ZodValidationPipe } from '../common/validation/zod-validation.pipe.js';
 
 import { MediationService } from './mediation.service.js';
 
-import type { DevActor } from '../common/dev-auth/dev-actor.js';
+import type { AuthActor } from '../auth/auth-actor.js';
 import type { IncidentIdParams, StartMediationResponse } from '@csl/contracts';
 import type { Communication } from '@csl/shared-types';
 
 @Controller('incidents/:id/mediation')
-@UseGuards(DevActorGuard)
+@Roles('agent')
 export class MediationController {
   constructor(@Inject(MediationService) private readonly mediation: MediationService) {}
 
   @Post()
   start(
-    @CurrentActor() actor: DevActor,
+    @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
   ): Promise<StartMediationResponse> {
-    return this.mediation.start(actor, params.id);
+    return this.mediation.start(actor.id, params.id);
   }
 
   @Post('driver-call')
   callDriver(
-    @CurrentActor() actor: DevActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
   ): Promise<Communication> {
-    return this.mediation.callDriver(actor, params.id);
+    return this.mediation.callDriver(params.id);
   }
 }

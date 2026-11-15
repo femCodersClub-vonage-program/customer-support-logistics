@@ -54,6 +54,6 @@ export async function waitForLockWait(db: Database, timeoutMs = 5000): Promise<v
 
 export async function resetDatabase(db: Database): Promise<void> {
   await db.execute(
-    sql`TRUNCATE incident_events, webhook_events, communications, evidence, incidents, orders, routes, drivers, customers CASCADE`,
+    sql`TRUNCATE sessions, incident_events, webhook_events, communications, evidence, incidents, orders, routes, drivers, customers, agents CASCADE`,
   );
 }
