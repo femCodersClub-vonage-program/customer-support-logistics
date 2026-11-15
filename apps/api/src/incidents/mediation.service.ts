@@ -2,7 +2,6 @@ import { ConflictException, Inject, Injectable, NotFoundException } from '@nestj
 import { ConfigService } from '@nestjs/config';
 import { and, eq, gt, or } from 'drizzle-orm';
 
-import { requireAgentId } from '../common/dev-auth/dev-actor.js';
 import { DATABASE } from '../database/database.constants.js';
 import { communications, drivers, incidents, orders, routes } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
@@ -15,7 +14,6 @@ import { toCommunication, toIncident } from './incidents.mapper.js';
 import { persistTransition } from './persist-transition.js';
 
 import type { CommunicationRow, DriverRow, IncidentRow } from './incidents.mapper.js';
-import type { DevActor } from '../common/dev-auth/dev-actor.js';
 import type { Env } from '../config/env.schema.js';
 import type { Database, DatabaseTransaction } from '../database/database.constants.js';
 import type { NccoAction } from '../vonage/ncco.js';
@@ -53,9 +51,7 @@ export class MediationService {
     @Inject(ConfigService) private readonly config: ConfigService<Env, true>,
   ) {}
 
-  async start(actor: DevActor, id: string): Promise<StartMediationResponse> {
-    const agentId = requireAgentId(actor);
-
+  async start(agentId: string, id: string): Promise<StartMediationResponse> {
     const { incident, attempt } = await this.db.transaction(async (tx) => {
       const locked = await this.lockIncident(tx, id);
       let current = locked.incident;
@@ -86,9 +82,7 @@ export class MediationService {
     return { incident: toIncident(incident), call: toCommunication(unwrap(attempt)) };
   }
 
-  async callDriver(actor: DevActor, id: string): Promise<Communication> {
-    requireAgentId(actor);
-
+  async callDriver(id: string): Promise<Communication> {
     const attempt = await this.db.transaction(async (tx) => {
       const locked = await this.lockIncident(tx, id);
 
