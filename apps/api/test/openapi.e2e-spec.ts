@@ -36,10 +36,13 @@ describe('OpenAPI (e2e)', () => {
       '/incidents',
       '/incidents/{id}',
       '/incidents/{id}/status',
+      '/incidents/{id}/mediation',
+      '/incidents/{id}/mediation/driver-call',
       '/orders',
     ]);
     expect(Object.keys(document.paths['/incidents'] ?? {})).toEqual(['post', 'get']);
     expect(document.components.schemas).toHaveProperty('ApiErrorResponse');
     expect(document.components.schemas).toHaveProperty('IncidentStatus');
+    expect(document.components.schemas).toHaveProperty('StartMediationResponse');
   });
 });

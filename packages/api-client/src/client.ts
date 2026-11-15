@@ -1,7 +1,13 @@
 import { ApiError } from './errors.js';
 
-import type { ListIncidentsQueryInput, ListIncidentsResponse } from '@csl/contracts';
-import type { HealthResponse } from '@csl/shared-types';
+import type {
+  ChangeIncidentStatusBody,
+  IncidentDetail,
+  ListIncidentsQueryInput,
+  ListIncidentsResponse,
+  StartMediationResponse,
+} from '@csl/contracts';
+import type { Communication, HealthResponse, Incident } from '@csl/shared-types';
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -23,6 +29,14 @@ export interface ApiClient {
     query?: ListIncidentsQueryInput,
     options?: RequestOptions,
   ): Promise<ListIncidentsResponse>;
+  getIncident(incidentId: string, options?: RequestOptions): Promise<IncidentDetail>;
+  changeIncidentStatus(
+    incidentId: string,
+    body: ChangeIncidentStatusBody,
+    options?: RequestOptions,
+  ): Promise<Incident>;
+  startMediation(incidentId: string, options?: RequestOptions): Promise<StartMediationResponse>;
+  callDriver(incidentId: string, options?: RequestOptions): Promise<Communication>;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -87,6 +101,28 @@ export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions):
     listIncidents: (query = {}, { signal } = {}) =>
       request<ListIncidentsResponse>(`/incidents${toQueryString(query)}`, {
         method: 'GET',
+        signal,
+      }),
+    getIncident: (incidentId, { signal } = {}) =>
+      request<IncidentDetail>(`/incidents/${encodeURIComponent(incidentId)}`, {
+        method: 'GET',
+        signal,
+      }),
+    changeIncidentStatus: (incidentId, body, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(incidentId)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+      }),
+    startMediation: (incidentId, { signal } = {}) =>
+      request<StartMediationResponse>(`/incidents/${encodeURIComponent(incidentId)}/mediation`, {
+        method: 'POST',
+        signal,
+      }),
+    callDriver: (incidentId, { signal } = {}) =>
+      request<Communication>(`/incidents/${encodeURIComponent(incidentId)}/mediation/driver-call`, {
+        method: 'POST',
         signal,
       }),
   };

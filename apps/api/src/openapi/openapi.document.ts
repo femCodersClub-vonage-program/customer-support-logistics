@@ -1,6 +1,7 @@
 import {
   apiErrorResponseSchema,
   changeIncidentStatusBodySchema,
+  communicationSchema,
   createIncidentBodySchema,
   incidentDetailSchema,
   incidentIdParamsSchema,
@@ -8,6 +9,7 @@ import {
   listIncidentsQuerySchema,
   listIncidentsResponseSchema,
   listOrdersResponseSchema,
+  startMediationResponseSchema,
 } from '@csl/contracts';
 import { createDocument } from 'zod-openapi';
 
@@ -34,6 +36,12 @@ const commonErrors: ZodOpenApiResponsesObject = {
 const incidentErrors: ZodOpenApiResponsesObject = {
   ...commonErrors,
   '404': error('The incident does not exist or does not belong to the customer'),
+};
+
+const driverCallErrors: ZodOpenApiResponsesObject = {
+  ...incidentErrors,
+  '403': error('Only agents can call the driver'),
+  '502': error('Vonage could not create the call; the agent can try again'),
 };
 
 export function createOpenApiDocument(): ReturnType<typeof createDocument> {
@@ -109,6 +117,39 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             '200': json('The updated incident', incidentSchema),
             ...incidentErrors,
             '409': error('The transition is not allowed from the current status or for the actor'),
+          },
+        },
+      },
+      '/incidents/{id}/mediation': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Start the mediation and call the driver',
+          description:
+            'Moves a `notified` incident to `in_mediation` (nothing changes if it is already in mediation), assigns it to the agent if it has none, and calls the driver, who joins the conversation `inc-<id>` after pressing 1. If Vonage fails, the status change is kept and the agent can call the driver again.',
+          requestParams: { path: incidentIdParamsSchema },
+          responses: {
+            '201': json(
+              'The incident and the outbound call to the driver',
+              startMediationResponseSchema,
+            ),
+            ...driverCallErrors,
+            '409': error(
+              'The incident cannot move to `in_mediation`, has no driver, or a call to the driver is already in progress',
+            ),
+          },
+        },
+      },
+      '/incidents/{id}/mediation/driver-call': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Call the driver again during the mediation',
+          requestParams: { path: incidentIdParamsSchema },
+          responses: {
+            '201': json('The outbound call to the driver', communicationSchema),
+            ...driverCallErrors,
+            '409': error(
+              'The incident is not in mediation, has no driver, or a call to the driver is already in progress',
+            ),
           },
         },
       },

@@ -1,9 +1,9 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 
 import { currentActorFactory } from './current-actor.decorator.js';
 import { DevActorGuard } from './dev-actor.guard.js';
-import { parseDevActor } from './dev-actor.js';
+import { parseDevActor, requireAgentId } from './dev-actor.js';
 
 import type { DevActorRequest } from './dev-actor.js';
 import type { ExecutionContext } from '@nestjs/common';
@@ -33,6 +33,16 @@ describe('parseDevActor', () => {
     `customer:${CUSTOMER_ID}:extra`,
   ])('rejects %j', (header) => {
     expect(parseDevActor(header)).toBeNull();
+  });
+});
+
+describe('requireAgentId', () => {
+  it('returns the id of an agent', () => {
+    expect(requireAgentId({ role: 'agent', id: CUSTOMER_ID })).toBe(CUSTOMER_ID);
+  });
+
+  it('rejects customers', () => {
+    expect(() => requireAgentId({ role: 'customer', id: CUSTOMER_ID })).toThrow(ForbiddenException);
   });
 });
 

@@ -38,3 +38,11 @@ export function requireCustomerId(actor: DevActor): string {
 
   return actor.id;
 }
+
+export function requireAgentId(actor: DevActor): string {
+  if (actor.role !== 'agent') {
+    throw new ForbiddenException('Only agents can perform this action');
+  }
+
+  return actor.id;
+}
