@@ -4,7 +4,21 @@
     "description": "Inbox, incident files and mediation console for support agents."
   },
   "topBar": {
-    "brand": "CSL <accent>Support</accent>"
+    "brand": "CSL <accent>Support</accent>",
+    "logOut": "Log out"
+  },
+  "login": {
+    "title": "Log in",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Log in",
+    "submitting": "Logging in…",
+    "errors": {
+      "invalidCredentials": "The email or the password isn't right.",
+      "wait": "Too many attempts. Wait a minute and try again.",
+      "offline": "There's no connection. Check it and try again.",
+      "generic": "Something went wrong. Try again in a moment."
+    }
   },
   "nav": {
     "label": "Main",
