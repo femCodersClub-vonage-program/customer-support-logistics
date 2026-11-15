@@ -1,42 +1,18 @@
-import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../api.ts';
 import { useTranslations } from 'use-intl';
 
 import { InstallPrompt } from '../pwa/InstallPrompt.tsx';
 
-import type { Order } from '@csl/shared-types';
 import { OrderCard } from '../components/OrderCard.tsx';
-
-const orders: Order[] = [
-  {
-    id: 'ORD-001',
-    customerId: 'CUSTOMER-001',
-    routeId: null,
-    address: 'Barcelona',
-    status: 'delivered',
-  },
-  {
-    id: 'ORD-002',
-    customerId: 'CUSTOMER-001',
-    routeId: null,
-    address: 'Mataró',
-    status: 'in_transit',
-  },
-  {
-    id: 'ORD-003',
-    customerId: 'CUSTOMER-001',
-    routeId: null,
-    address: 'Girona',
-    status: 'failed',
-  },
-];
-const incidentByOrderId: Record<string, string> = {
-  'ORD-003': 'INC-001',
-};
 
 export function OrdersPage() {
   const t = useTranslations('orders');
-  const isLoading = false;
-  const [hasError, setHasError] = useState(false);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['orders'],
+    queryFn: ({ signal }) => api.listOrders({ signal }),
+  });
+  const orders = data?.items ?? [];
 
   return (
     <main className="orders-page">
@@ -44,20 +20,20 @@ export function OrdersPage() {
         <h1 className="orders-page__title">{t('title')}</h1>
 
         {isLoading && <p role="status">{t('loading')}</p>}
-        {!isLoading && hasError && (
+        {!isLoading && isError && (
           <div>
             <p role="alert">{t('error')}</p>
-            <button type="button" className="order-card__button" onClick={() => setHasError(false)}>
+            <button type="button" className="order-card__button" onClick={() => void refetch()}>
               {t('retry')}
             </button>
           </div>
         )}
-        {!isLoading && !hasError && orders.length === 0 && <p>{t('empty')}</p>}
+        {!isLoading && !isError && orders.length === 0 && <p>{t('empty')}</p>}
 
-        {!isLoading && !hasError && orders.length > 0 && (
+        {!isLoading && !isError && orders.length > 0 && (
           <section className="orders-page__list" aria-label={t('title')}>
             {orders.map((order) => (
-              <OrderCard key={order.id} order={order} incidentId={incidentByOrderId[order.id]} />
+              <OrderCard key={order.id} order={order} />
             ))}
           </section>
         )}
