@@ -30,7 +30,6 @@ describe('validateEnv', () => {
       PORT: 3000,
       DATABASE_URL,
       VONAGE_ENABLED: false,
-      DEV_AUTH_ENABLED: false,
       WEBHOOK_RATE_LIMIT_PER_MINUTE: 120,
     });
   });
@@ -40,18 +39,6 @@ describe('validateEnv', () => {
       NODE_ENV: 'production',
       PORT: 8080,
     });
-  });
-
-  it('parses DEV_AUTH_ENABLED as a boolean', () => {
-    expect(validateEnv({ ...DISABLED, DEV_AUTH_ENABLED: 'true' })).toMatchObject({
-      DEV_AUTH_ENABLED: true,
-    });
-  });
-
-  it('throws when DEV_AUTH_ENABLED is enabled in production', () => {
-    expect(() =>
-      validateEnv({ ...DISABLED, NODE_ENV: 'production', DEV_AUTH_ENABLED: 'true' }),
-    ).toThrow(/DEV_AUTH_ENABLED/);
   });
 
   describe('DEV_VERIFY_CODE', () => {

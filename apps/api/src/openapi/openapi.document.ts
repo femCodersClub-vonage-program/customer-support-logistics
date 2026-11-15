@@ -24,7 +24,6 @@ import {
   CUSTOMER_LOGIN_STARTS_PER_WINDOW,
   CUSTOMER_LOGIN_START_WINDOW_MS,
 } from '../auth/auth.controller.js';
-import { DEV_ACTOR_HEADER } from '../auth/dev-actor.js';
 import { VERIFICATION_TTL_MS } from '../auth/pending-verifications.js';
 import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../auth/session-cookie.js';
 import { APP_VERSION } from '../version.js';
@@ -68,9 +67,6 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
       version: APP_VERSION,
       description: [
         `Protected routes need the \`${SESSION_COOKIE}\` session cookie, set by the login endpoints.`,
-        'While the CRM and the PWA move to the real login, development also accepts the temporary',
-        `\`${DEV_ACTOR_HEADER}\` header (\`customer:<uuid>\` or \`agent:<uuid>\`) with`,
-        '`DEV_AUTH_ENABLED=true`.',
         '',
         'Lists use `limit` / `offset` pagination and return `total`.',
       ].join('\n'),
@@ -83,15 +79,9 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           name: SESSION_COOKIE,
           description: 'Opaque session id, `HttpOnly`, set by the login endpoints',
         },
-        devActor: {
-          type: 'apiKey',
-          in: 'header',
-          name: DEV_ACTOR_HEADER,
-          description: 'Temporary, development-only actor: `customer:<uuid>` or `agent:<uuid>`',
-        },
       },
     },
-    security: [{ session: [] }, { devActor: [] }],
+    security: [{ session: [] }],
     paths: {
       '/auth/agent/login': {
         post: {

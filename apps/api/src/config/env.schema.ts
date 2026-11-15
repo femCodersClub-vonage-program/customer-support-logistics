@@ -21,7 +21,6 @@ const baseEnvSchema = z.object({
     .optional(),
   VONAGE_VIRTUAL_NUMBER: z.e164().optional(),
   VONAGE_SIGNATURE_SECRET: z.string().min(1).optional(),
-  DEV_AUTH_ENABLED: z.stringbool().default(false),
   DEV_VERIFY_CODE: z.preprocess(
     (value) => (value === '' ? undefined : value),
     z
@@ -51,14 +50,6 @@ export function isVonageEnabled(env: Pick<Env, 'NODE_ENV' | 'VONAGE_ENABLED'>): 
 }
 
 export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
-  if (env.NODE_ENV === 'production' && env.DEV_AUTH_ENABLED) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['DEV_AUTH_ENABLED'],
-      message: 'DEV_AUTH_ENABLED must not be enabled in production',
-    });
-  }
-
   if (env.DEV_VERIFY_CODE !== undefined && env.NODE_ENV === 'production') {
     ctx.addIssue({
       code: 'custom',
