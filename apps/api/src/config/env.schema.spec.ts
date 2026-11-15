@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { VONAGE_REQUIRED_VARIABLES, validateDatabaseEnv, validateEnv } from './env.schema.js';
+import {
+  VONAGE_REQUIRED_VARIABLES,
+  validateDatabaseEnv,
+  validateEnv,
+  validateSeedEnv,
+} from './env.schema.js';
 
 const DATABASE_URL = 'postgresql://app:password@localhost:5432/customer_support_logistics';
 
@@ -148,6 +153,21 @@ describe('validateEnv', () => {
         validateEnv({ DATABASE_URL, ...VONAGE_ENV, VONAGE_VIRTUAL_NUMBER: '34600000000' }),
       ).toThrow(/VONAGE_VIRTUAL_NUMBER/);
     });
+  });
+});
+
+describe('validateSeedEnv', () => {
+  it('treats an empty SEED_AGENT_PASSWORD as unset', () => {
+    expect(validateSeedEnv({ DATABASE_URL, SEED_AGENT_PASSWORD: '' })).not.toHaveProperty(
+      'SEED_AGENT_PASSWORD',
+      expect.anything(),
+    );
+  });
+
+  it('throws when SEED_AGENT_PASSWORD is shorter than 12 characters', () => {
+    expect(() => validateSeedEnv({ DATABASE_URL, SEED_AGENT_PASSWORD: 'short' })).toThrow(
+      /SEED_AGENT_PASSWORD/,
+    );
   });
 });
 

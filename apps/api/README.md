@@ -39,7 +39,7 @@ pnpm --filter ./apps/api run db:seed
 
 - It refuses to run when `NODE_ENV=production`.
 - It is idempotent: every row has a fixed id and is inserted with `ON CONFLICT DO NOTHING`, all in one transaction. Running it again changes nothing, and it never touches rows it didn't create.
-- Because existing rows are never updated, changes to the demo data in `src/database/seed-data.ts` don't reach a database that is already seeded. Recreate the database to start over.
+- Because existing rows are never updated, changes to the demo data in `src/database/seed-data.ts` don't reach a database that is already seeded. Recreate the database to start over. The only exception is `SEED_AGENT_PASSWORD` (12 characters or more): when it is set, the seeded agents get that password even if they already exist, each with its own salt.
 - The e2e tests empty the tables, so seed again after running them against the same database.
 
 The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that every incident's event history is a valid path through the state machine.
@@ -48,14 +48,14 @@ The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that 
 
 Paste the value into **Authorize** in [Swagger UI](#openapi) or into the `X-Dev-Actor` header.
 
-| `X-Dev-Actor`                                    | Who           | Locale | What they have                                                    |
-| ------------------------------------------------ | ------------- | ------ | ----------------------------------------------------------------- |
-| `customer:5eed0000-0000-4000-8000-0000000000c1`  | Lucía Martín  | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
-| `customer:5eed0000-0000-4000-8000-0000000000c2`  | Carlos Romero | `es`   | Incidents in `notified`, `escalated` and `resolved`               |
-| `customer:5eed0000-0000-4000-8000-0000000000c3`  | Emma Wilson   | `en`   | Two incidents `in_mediation`                                      |
-| `customer:5eed0000-0000-4000-8000-0000000000c4`  | James Taylor  | `en`   | A `resolved` incident and a pending order without incidents       |
-| `agent:5eed0000-0000-4000-8000-0000000000a1`     | Agent A       | —      | Assigned to one `in_mediation` and one `resolved` incident        |
-| `agent:5eed0000-0000-4000-8000-0000000000a2`     | Agent B       | —      | Assigned to one `escalated` and one `resolved` incident           |
+| `X-Dev-Actor`                                   | Who                                       | Locale | What they have                                                              |
+| ----------------------------------------------- | ----------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| `customer:5eed0000-0000-4000-8000-0000000000c1` | Lucía Martín                              | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
+| `customer:5eed0000-0000-4000-8000-0000000000c2` | Carlos Romero                             | `es`   | Incidents in `notified`, `escalated` and `resolved`                         |
+| `customer:5eed0000-0000-4000-8000-0000000000c3` | Emma Wilson                               | `en`   | Two incidents `in_mediation`                                                |
+| `customer:5eed0000-0000-4000-8000-0000000000c4` | James Taylor                              | `en`   | A `resolved` incident and a pending order without incidents                 |
+| `agent:5eed0000-0000-4000-8000-0000000000a1`    | Marta Vidal (`marta.vidal@example.com`)   | `es`   | Assigned to one `in_mediation` and one `resolved` incident                  |
+| `agent:5eed0000-0000-4000-8000-0000000000a2`    | Olivia Brown (`olivia.brown@example.com`) | `en`   | Assigned to one `escalated` and one `resolved` incident                     |
 
 Every agent sees every incident in `GET /incidents`. Four of them are unassigned (`?agentId=unassigned`). The driver is Javier Molina (`+34611000009`), on the route of `2026-11-02`.
 
