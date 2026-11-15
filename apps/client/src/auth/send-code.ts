@@ -15,7 +15,11 @@ export async function sendCode(
     return 'by-sms';
   }
 
-  if (trySilentAuthThenGoTo === undefined || isOnWifi()) {
+  if (
+    trySilentAuthThenGoTo === undefined ||
+    isOnWifi() ||
+    new URL(started.checkUrl).protocol !== 'https:'
+  ) {
     await api.moveCustomerLoginToSms();
     return 'by-sms';
   }

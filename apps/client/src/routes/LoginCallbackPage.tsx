@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router';
 import { useTranslations } from 'use-intl';
 
 import { api } from '../api.ts';
+import { toLoginError } from '../auth/login-error.ts';
 import { DEFAULT_PATH, safeNextPath } from '../auth/next-path.ts';
-import { takePendingLogin } from '../auth/pending-login.ts';
+import { clearPendingLogin, readPendingLogin } from '../auth/pending-login.ts';
 import { useSession } from '../auth/session-context.ts';
 import '../auth/login.css';
 
@@ -30,23 +31,28 @@ export function LoginCallbackPage() {
     }
 
     startedRef.current = true;
-    const pending = takePendingLogin();
+    const pending = readPendingLogin();
     const next = safeNextPath(pending?.next ?? DEFAULT_PATH);
     const result = silentAuthResult(window.location.hash);
     const loginPath = `/login?next=${encodeURIComponent(next)}`;
 
+    const backToLogin = async (state?: LoginLocationState) => {
+      clearPendingLogin();
+      await navigate(loginPath, { replace: true, state });
+    };
+
     const fallBackToSms = async () => {
       if (pending === null) {
-        await navigate(loginPath, { replace: true });
+        await backToLogin();
         return;
       }
 
       try {
         await api.moveCustomerLoginToSms();
-        const state: LoginLocationState = { smsSentTo: pending.phone };
-        await navigate(loginPath, { replace: true, state });
-      } catch {
-        await navigate(loginPath, { replace: true });
+        await backToLogin({ smsSentTo: pending.phone });
+      } catch (reason) {
+        const error = toLoginError(reason);
+        await backToLogin({ error: error === 'offline' ? 'offline' : 'expired' });
       }
     };
 
@@ -58,6 +64,7 @@ export function LoginCallbackPage() {
 
       try {
         logIn(await api.checkCustomerLogin(result));
+        clearPendingLogin();
         await navigate(next, { replace: true });
       } catch {
         await fallBackToSms();

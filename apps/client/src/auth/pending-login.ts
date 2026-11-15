@@ -24,14 +24,21 @@ export function savePendingLogin(login: PendingLogin): void {
   }
 }
 
-export function takePendingLogin(): PendingLogin | null {
+export function readPendingLogin(): PendingLogin | null {
   try {
     const raw = sessionStorage.getItem(PENDING_LOGIN_KEY);
-    sessionStorage.removeItem(PENDING_LOGIN_KEY);
     const parsed: unknown = raw === null ? null : JSON.parse(raw);
 
     return isPendingLogin(parsed) ? parsed : null;
   } catch {
     return null;
+  }
+}
+
+export function clearPendingLogin(): void {
+  try {
+    sessionStorage.removeItem(PENDING_LOGIN_KEY);
+  } catch {
+    return;
   }
 }

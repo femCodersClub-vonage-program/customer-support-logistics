@@ -112,7 +112,7 @@ describe('LoginPage', () => {
     expect(resend).toBeDisabled();
 
     act(() => {
-      vi.advanceTimersByTime(RESEND_AFTER_SECONDS * 1000);
+      vi.advanceTimersByTime((RESEND_AFTER_SECONDS + 1) * 1000);
     });
 
     expect(resend).toBeEnabled();

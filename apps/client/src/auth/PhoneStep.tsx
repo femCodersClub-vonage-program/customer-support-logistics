@@ -12,16 +12,17 @@ import type { FormEvent } from 'react';
 
 interface PhoneStepProps {
   next: string;
+  initialError?: LoginError | null;
   onSent: (phone: string) => void;
 }
 
-export function PhoneStep({ next, onSent }: PhoneStepProps) {
+export function PhoneStep({ next, initialError = null, onSent }: PhoneStepProps) {
   const t = useTranslations('login');
   const errorId = useId();
   const [country, setCountry] = useState<CountryId>('ES');
   const [number, setNumber] = useState('');
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<LoginError | null>(null);
+  const [error, setError] = useState<LoginError | null>(initialError);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -38,6 +39,8 @@ export function PhoneStep({ next, onSent }: PhoneStepProps) {
     try {
       if ((await sendCode(phone, { trySilentAuthThenGoTo: next })) === 'by-sms') {
         onSent(phone);
+      } else {
+        setSending(false);
       }
     } catch (reason) {
       setError(toLoginError(reason));
