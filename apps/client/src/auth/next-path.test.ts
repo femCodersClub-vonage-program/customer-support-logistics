@@ -15,6 +15,10 @@ describe('safeNextPath', () => {
     '/\\evil.com',
     '/\t/evil.com',
     '/\n/evil.com',
+    '/.//evil.com',
+    '/..//evil.com',
+    '/a/..//evil.com',
+    '/%2e//evil.com',
     'orders',
   ])('falls back to the orders page for %j', (next) => {
     expect(safeNextPath(next)).toBe(DEFAULT_PATH);
