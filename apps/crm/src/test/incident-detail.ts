@@ -60,5 +60,6 @@ export function buildIncidentDetail(overrides: Partial<IncidentDetail> = {}): In
     events: [buildEvent()],
     communications: [],
     ...overrides,
+    description: overrides.description ?? null,
   };
 }
