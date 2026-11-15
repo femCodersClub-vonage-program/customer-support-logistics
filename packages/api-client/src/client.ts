@@ -1,6 +1,7 @@
 import { ApiError } from './errors.js';
 
 import type {
+  AgentLoginBody,
   ChangeIncidentStatusBody,
   CurrentUser,
   CustomerLoginCheckBody,
@@ -45,6 +46,7 @@ export interface ApiClient {
   startMediation(incidentId: string, options?: RequestOptions): Promise<StartMediationResponse>;
   callDriver(incidentId: string, options?: RequestOptions): Promise<Communication>;
   getCurrentUser(options?: RequestOptions): Promise<CurrentUser>;
+  agentLogin(body: AgentLoginBody, options?: RequestOptions): Promise<CurrentUser>;
   startCustomerLogin(
     body: CustomerLoginStartBody,
     options?: RequestOptions,
@@ -158,6 +160,8 @@ export function createApiClient({
       }),
     getCurrentUser: ({ signal } = {}) =>
       request<CurrentUser>('/auth/me', { method: 'GET', signal }),
+    agentLogin: (body, { signal } = {}) =>
+      request<CurrentUser>('/auth/agent/login', postJson(body, signal)),
     startCustomerLogin: (body, { signal } = {}) =>
       request<CustomerLoginStartResponse>('/auth/customer/start', postJson(body, signal)),
     moveCustomerLoginToSms: ({ signal } = {}) =>

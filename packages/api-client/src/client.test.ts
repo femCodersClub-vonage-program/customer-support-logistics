@@ -194,6 +194,7 @@ describe('auth', () => {
   it.each([
     ['startCustomerLogin', '/api/auth/customer/start', { phone: '+34600000001' }],
     ['checkCustomerLogin', '/api/auth/customer/check', { code: '123456' }],
+    ['agentLogin', '/api/auth/agent/login', { email: 'a@example.com', password: 'secret' }],
   ] as const)('%s posts a JSON body to %s', async (method, expectedUrl, body) => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}));
     const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
