@@ -127,9 +127,7 @@ describe('LoginPage', () => {
     const resend = await screen.findByRole('button', { name: 'Send a new code' });
     expect(resend).toBeDisabled();
 
-    act(() => {
-      vi.advanceTimersByTime(RESEND_AFTER_SECONDS * 1000);
-    });
+    await act(() => vi.advanceTimersByTimeAsync(RESEND_AFTER_SECONDS * 1000));
 
     expect(resend).toBeEnabled();
     fireEvent.click(resend);
