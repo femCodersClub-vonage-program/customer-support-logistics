@@ -12,7 +12,7 @@ import { STALE_QUEUED_CALL_MS } from '../src/incidents/mediation.service.js';
 import { VonageRequestError } from '../src/vonage/vonage.errors.js';
 
 import { createTestApp, resetDatabase } from './fixtures/app.js';
-import { sessionCookieFor } from './fixtures/auth.js';
+import { sessionCookieFor, sessionCookiesFor } from './fixtures/auth.js';
 import { actor, ids, seed } from './fixtures/seed.js';
 import { vonageFixture } from './fixtures/vonage/index.js';
 import { signVonageJwt } from './fixtures/vonage/sign.js';
@@ -20,8 +20,6 @@ import { signVonageJwt } from './fixtures/vonage/sign.js';
 import type { TestApp } from './fixtures/app.js';
 import type { ApiErrorResponse } from '@csl/contracts';
 import type { IncidentStatus } from '@csl/shared-types';
-
-const DEV_ACTOR = 'X-Dev-Actor';
 
 const DRIVER_PHONE = '+34600000009';
 
@@ -41,14 +39,15 @@ const driverPromptNcco = (incidentId: string, orderId: string) => [
 
 describe('Mediation (e2e)', () => {
   let testApp: TestApp;
+  let cookie: Record<keyof typeof actor, string>;
 
   const http = () => request(testApp.app.getHttpServer());
 
-  const startMediation = (incidentId: string, as: string = actor.agentA) =>
-    http().post(`/incidents/${incidentId}/mediation`).set(DEV_ACTOR, as);
+  const startMediation = (incidentId: string, as: string = cookie.agentA) =>
+    http().post(`/incidents/${incidentId}/mediation`).set('Cookie', as);
 
-  const callDriver = (incidentId: string, as: string = actor.agentA) =>
-    http().post(`/incidents/${incidentId}/mediation/driver-call`).set(DEV_ACTOR, as);
+  const callDriver = (incidentId: string, as: string = cookie.agentA) =>
+    http().post(`/incidents/${incidentId}/mediation/driver-call`).set('Cookie', as);
 
   const expectError = (body: unknown, code: ApiErrorResponse['error']['code']) => {
     expect(apiErrorResponseSchema.parse(body).error.code).toBe(code);
@@ -82,6 +81,7 @@ describe('Mediation (e2e)', () => {
   beforeEach(async () => {
     await resetDatabase(testApp.db);
     await seed(testApp.db);
+    cookie = await sessionCookiesFor(testApp, actor);
     testApp.vonage.reset();
   });
 
@@ -246,7 +246,7 @@ describe('Mediation (e2e)', () => {
     });
 
     it('returns 403 for customers', async () => {
-      const response = await startMediation(ids.notifiedIncident, actor.ana).expect(403);
+      const response = await startMediation(ids.notifiedIncident, cookie.ana).expect(403);
 
       expectError(response.body, 'FORBIDDEN');
       expect((await incidentRow(ids.notifiedIncident)).status).toBe('notified');
@@ -335,7 +335,7 @@ describe('Mediation (e2e)', () => {
     });
 
     it('returns 403 for customers', async () => {
-      const response = await callDriver(ids.notifiedIncident, actor.ana).expect(403);
+      const response = await callDriver(ids.notifiedIncident, cookie.ana).expect(403);
 
       expectError(response.body, 'FORBIDDEN');
       expect(testApp.vonage.calls).toEqual([]);

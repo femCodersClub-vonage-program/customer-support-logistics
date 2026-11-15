@@ -9,3 +9,16 @@ export async function sessionCookieFor(testApp: TestApp, actor: AuthActor): Prom
 
   return `${SESSION_COOKIE}=${token}`;
 }
+
+export async function sessionCookiesFor<Name extends string>(
+  testApp: TestApp,
+  actors: Record<Name, AuthActor>,
+): Promise<Record<Name, string>> {
+  const entries = await Promise.all(
+    Object.entries<AuthActor>(actors).map(
+      async ([name, actor]) => [name, await sessionCookieFor(testApp, actor)] as const,
+    ),
+  );
+
+  return Object.fromEntries(entries) as Record<Name, string>;
+}
