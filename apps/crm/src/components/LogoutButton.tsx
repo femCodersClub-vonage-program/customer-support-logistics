@@ -12,17 +12,32 @@ export function LogoutButton() {
   const t = useTranslations('topBar');
   const router = useRouter();
   const [leaving, setLeaving] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const logOut = async () => {
     setLeaving(true);
-    await api.logout().catch(() => undefined);
+    setFailed(false);
+
+    try {
+      await api.logout();
+    } catch {
+      setFailed(true);
+      setLeaving(false);
+      return;
+    }
+
     router.replace('/login');
     router.refresh();
   };
 
   return (
-    <button type="button" className={styles.logOut} onClick={logOut} disabled={leaving}>
-      {t('logOut')}
-    </button>
+    <>
+      <span role="alert" className={styles.logOutError}>
+        {failed && t('logOutFailed')}
+      </span>
+      <button type="button" className={styles.logOut} onClick={logOut} disabled={leaving}>
+        {t('logOut')}
+      </button>
+    </>
   );
 }

@@ -18,6 +18,11 @@
   color: var(--color-dark-accent);
 }
 
+.logOutError:not(:empty) {
+  margin-left: 16px;
+  font-size: 0.875rem;
+}
+
 .logOut {
   min-height: 44px;
   margin-left: 16px;

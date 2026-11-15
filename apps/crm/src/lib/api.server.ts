@@ -1,23 +1,31 @@
 import { createApiClient } from '@csl/api-client';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { SESSION_EXPIRED_PATH } from './session';
+import { CURRENT_PATH_HEADER, SESSION_EXPIRED_PATH } from './session';
+
+async function sessionExpiredPath(): Promise<string> {
+  const current = (await headers()).get(CURRENT_PATH_HEADER);
+
+  return current
+    ? `${SESSION_EXPIRED_PATH}?next=${encodeURIComponent(current)}`
+    : SESSION_EXPIRED_PATH;
+}
 
 export const serverApi = createApiClient({
   baseUrl: process.env.API_URL ?? 'http://localhost:3000',
   fetch: async (input, init) => {
-    const headers = new Headers(init?.headers);
+    const requestHeaders = new Headers(init?.headers);
     const incoming = (await cookies()).toString();
 
     if (incoming !== '') {
-      headers.set('cookie', incoming);
+      requestHeaders.set('cookie', incoming);
     }
 
-    const response = await fetch(input, { ...init, headers });
+    const response = await fetch(input, { ...init, headers: requestHeaders });
 
     if (response.status === 401) {
-      redirect(SESSION_EXPIRED_PATH);
+      redirect(await sessionExpiredPath());
     }
 
     return response;

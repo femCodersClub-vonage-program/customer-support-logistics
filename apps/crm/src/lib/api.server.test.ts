@@ -11,8 +11,11 @@ const redirect = vi.hoisted(() =>
 );
 
 vi.mock('next/navigation', () => ({ redirect }));
+const currentPath = vi.hoisted(() => ({ value: null as string | null }));
+
 vi.mock('next/headers', () => ({
   cookies: () => Promise.resolve({ toString: () => '' }),
+  headers: () => Promise.resolve({ get: () => currentPath.value }),
 }));
 
 const server = setupServer();
@@ -22,15 +25,19 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('serverApi', () => {
-  it('clears the dead session when the API answers 401', async () => {
+  it.each([
+    [null, '/session-expired'],
+    ['/incidents/1/mediation', '/session-expired?next=%2Fincidents%2F1%2Fmediation'],
+  ])('clears the dead session on a 401, keeping the page %s', async (path, expected) => {
+    currentPath.value = path;
     server.use(
       http.get('*/auth/me', () =>
         HttpResponse.json({ error: { code: 'UNAUTHORIZED', message: 'No' } }, { status: 401 }),
       ),
     );
 
-    await expect(serverApi.getCurrentUser()).rejects.toThrow('redirect:/session-expired');
-    expect(redirect).toHaveBeenCalledWith('/session-expired');
+    await expect(serverApi.getCurrentUser()).rejects.toThrow(`redirect:${expected}`);
+    expect(redirect).toHaveBeenCalledWith(expected);
   });
 
   it('sends no cookie header when the request has no cookies', async () => {

@@ -5,7 +5,8 @@
   },
   "topBar": {
     "brand": "CSL <accent>Support</accent>",
-    "logOut": "Log out"
+    "logOut": "Log out",
+    "logOutFailed": "Couldn't log out. Check the connection and try again."
   },
   "login": {
     "title": "Log in",

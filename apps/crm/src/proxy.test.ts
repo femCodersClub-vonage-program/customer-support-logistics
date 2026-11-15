@@ -34,11 +34,14 @@ describe('proxy', () => {
     expect(proxy(request).headers.get('location')).toBe('http://crm.test/inbox');
   });
 
-  it('lets an agent with a session cookie through', () => {
-    const request = new NextRequest('http://crm.test/inbox', {
-      headers: { cookie: 'csl_session=token' },
+  it('lets an agent with a session cookie through and tells the server where they are', () => {
+    const request = new NextRequest('http://crm.test/inbox?agentId=me', {
+      headers: { cookie: 'csl_session=token', 'x-csl-path': '/forged' },
     });
 
-    expect(proxy(request).headers.get('location')).toBeNull();
+    const response = proxy(request);
+
+    expect(response.headers.get('location')).toBeNull();
+    expect(response.headers.get('x-middleware-request-x-csl-path')).toBe('/inbox?agentId=me');
   });
 });

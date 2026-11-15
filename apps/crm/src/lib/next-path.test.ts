@@ -14,6 +14,10 @@ describe('safeNextPath', () => {
     '//evil.com',
     '/\\evil.com',
     '/\t/evil.com',
+    '/.//evil.com',
+    '/..//evil.com',
+    '/a/..//evil.com',
+    '/%2e//evil.com',
     'inbox',
   ])('falls back to the inbox for %j', (next) => {
     expect(safeNextPath(next)).toBe(DEFAULT_PATH);

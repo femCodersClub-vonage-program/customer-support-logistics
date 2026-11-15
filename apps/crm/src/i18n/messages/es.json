@@ -5,7 +5,8 @@
   },
   "topBar": {
     "brand": "CSL <accent>Support</accent>",
-    "logOut": "Cerrar sesión"
+    "logOut": "Cerrar sesión",
+    "logOutFailed": "No se ha podido cerrar la sesión. Comprueba la conexión y vuelve a probar."
   },
   "login": {
     "title": "Iniciar sesión",

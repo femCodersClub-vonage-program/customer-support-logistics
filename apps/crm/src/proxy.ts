@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { safeNextPath } from './lib/next-path';
-import { LOGIN_PATH, SESSION_COOKIE } from './lib/session';
+import { CURRENT_PATH_HEADER, LOGIN_PATH, SESSION_COOKIE } from './lib/session';
 
 import type { NextRequest } from 'next/server';
 
@@ -18,7 +18,10 @@ export function proxy(request: NextRequest) {
   }
 
   if (signedIn) {
-    return NextResponse.next();
+    const headers = new Headers(request.headers);
+    headers.set(CURRENT_PATH_HEADER, `${request.nextUrl.pathname}${request.nextUrl.search}`);
+
+    return NextResponse.next({ request: { headers } });
   }
 
   const login = new URL(LOGIN_PATH, request.url);
