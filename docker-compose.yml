@@ -31,6 +31,46 @@ services:
       timeout: 5s
       retries: 10
 
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.54
+    command: server -s3 -dir=/data -s3.port=8333
+    restart: unless-stopped
+    environment:
+      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_KEY:-dev_only_seaweedfs_secret}
+      S3_BUCKET: ${STORAGE_BUCKET:-evidence}
+    ports:
+      - '${STORAGE_PORT:-8333}:8333'
+    volumes:
+      - seaweedfs-data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'test -d /data']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  seaweedfs-init:
+    image: amazon/aws-cli:2.22.35
+    restart: 'no'
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY:-admin}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_KEY:-dev_only_seaweedfs_secret}
+      AWS_DEFAULT_REGION: ${STORAGE_REGION:-us-east-1}
+      STORAGE_BUCKET: ${STORAGE_BUCKET:-evidence}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        until aws --endpoint-url http://seaweedfs:8333 s3api list-buckets >/dev/null 2>&1; do
+          sleep 2
+        done
+        aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket "$${STORAGE_BUCKET}" \
+          || aws --endpoint-url http://seaweedfs:8333 s3api create-bucket --bucket "$${STORAGE_BUCKET}"
+
 volumes:
   postgres-data:
   redis-data:
+  seaweedfs-data:

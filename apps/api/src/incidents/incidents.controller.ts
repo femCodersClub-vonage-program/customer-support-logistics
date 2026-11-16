@@ -1,8 +1,10 @@
 import {
   changeIncidentStatusBodySchema,
   createIncidentBodySchema,
+  evidenceIdParamsSchema,
   incidentIdParamsSchema,
   listIncidentsQuerySchema,
+  requestEvidenceUploadBodySchema,
 } from '@csl/contracts';
 import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 
@@ -19,6 +21,10 @@ import type {
   IncidentIdParams,
   ListIncidentsQuery,
   ListIncidentsResponse,
+  EvidenceIdParams,
+  EvidenceUploadUrl,
+  EvidenceDownload,
+  RequestEvidenceUploadBody,
 } from '@csl/contracts';
 import type { Incident } from '@csl/shared-types';
 
@@ -32,7 +38,7 @@ export class IncidentsController {
     @CurrentActor() actor: AuthActor,
     @Body(new ZodValidationPipe(createIncidentBodySchema)) body: CreateIncidentBody,
   ): Promise<Incident> {
-    return this.incidents.create(actor.id, body);
+    return this.incidents.create(actor, body);
   }
 
   @Get()
@@ -59,5 +65,32 @@ export class IncidentsController {
     @Body(new ZodValidationPipe(changeIncidentStatusBodySchema)) body: ChangeIncidentStatusBody,
   ): Promise<Incident> {
     return this.incidents.changeStatus(actor, params.id, body);
+  }
+
+  @Post(':id/evidence/upload-url')
+  @Roles('customer')
+  requestEvidenceUpload(
+    @CurrentActor() actor: AuthActor,
+    @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
+    @Body(new ZodValidationPipe(requestEvidenceUploadBodySchema)) body: RequestEvidenceUploadBody,
+  ): Promise<EvidenceUploadUrl> {
+    return this.incidents.requestEvidenceUpload(actor, params.id, body);
+  }
+
+  @Post(':id/evidence/:evidenceId/complete')
+  @Roles('customer')
+  completeEvidenceUpload(
+    @CurrentActor() actor: AuthActor,
+    @Param(new ZodValidationPipe(evidenceIdParamsSchema)) params: EvidenceIdParams,
+  ): Promise<void> {
+    return this.incidents.completeEvidenceUpload(actor, params.id, params.evidenceId);
+  }
+
+  @Get(':id/evidence')
+  listEvidence(
+    @CurrentActor() actor: AuthActor,
+    @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
+  ): Promise<EvidenceDownload[]> {
+    return this.incidents.listEvidence(actor, params.id);
   }
 }
