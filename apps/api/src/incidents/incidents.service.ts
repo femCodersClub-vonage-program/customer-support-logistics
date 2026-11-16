@@ -43,7 +43,16 @@ function ownedBy(actor: AuthActor): SQL | undefined {
 }
 
 function statusFilter(query: ListIncidentsQuery): SQL | undefined {
-  return query.status === undefined ? undefined : inArray(incidents.status, query.status);
+  if (query.status === undefined) {
+    return undefined;
+  }
+
+  // Normaliza si query.status llega como string separado por comas o ya es un array
+  const statuses = typeof query.status === 'string'
+    ? (query.status.split(',') as IncidentStatus[])
+    : query.status;
+
+  return inArray(incidents.status, statuses);
 }
 
 // Every filter except the status one: the counts per status are computed with these.
@@ -155,8 +164,14 @@ export class IncidentsService {
     ]);
 
     const statusCounts = toStatusCounts(countRows);
-    const selected = query.status ?? INCIDENT_STATUSES;
-    const total = [...new Set(selected)].reduce((sum, status) => sum + statusCounts[status], 0);
+    
+    // Normalizamos también el listado seleccionado de estados para calcular el total correctamente
+    const rawStatus = query.status;
+    const selectedStatuses = rawStatus === undefined
+      ? INCIDENT_STATUSES
+      : (typeof rawStatus === 'string' ? (rawStatus.split(',') as IncidentStatus[]) : rawStatus);
+
+    const total = [...new Set(selectedStatuses)].reduce((sum, status) => sum + statusCounts[status], 0);
 
     return {
       items: rows.map(({ incident, customer }) => toIncidentListItem(incident, customer)),
