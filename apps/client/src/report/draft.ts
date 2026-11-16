@@ -21,9 +21,7 @@ export function loadDraft(orderId: string): ReportDraft {
       return EMPTY_DRAFT;
     }
 
-    const { type, description } = JSON.parse(stored) as Partial<
-      Record<keyof ReportDraft, unknown>
-    >;
+    const { type, description } = JSON.parse(stored) as Partial<Record<keyof ReportDraft, unknown>>;
 
     return {
       type: INCIDENT_TYPES.find((candidate) => candidate === type) ?? null,
