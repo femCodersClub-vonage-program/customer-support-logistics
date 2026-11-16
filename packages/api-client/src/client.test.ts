@@ -132,3 +132,91 @@ describe('mediation', () => {
     expect(init?.method).toBe('POST');
   });
 });
+
+describe('timeout', () => {
+  const neverAnswers = () =>
+    vi.fn<typeof fetch>(
+      (_input, init) =>
+        new Promise((_resolve, reject) => {
+          const signal = init?.signal;
+
+          if (signal?.aborted) {
+            reject(signal.reason);
+          }
+
+          signal?.addEventListener('abort', () => reject(signal.reason));
+        }),
+    );
+
+  it('aborts a request that takes longer than the timeout', async () => {
+    const fetchMock = neverAnswers();
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock, timeoutMs: 10 });
+
+    await expect(client.getHealth()).rejects.toMatchObject({ name: 'TimeoutError' });
+  });
+
+  it('still honours the caller signal', async () => {
+    const fetchMock = neverAnswers();
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+    const controller = new AbortController();
+
+    const request = client.getHealth({ signal: controller.signal });
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+  });
+});
+
+describe('ApiError', () => {
+  it('exposes the error code of the API error body', () => {
+    expect(new ApiError('x', 401, { error: { code: 'INVALID_CODE', message: 'No' } }).code).toBe(
+      'INVALID_CODE',
+    );
+  });
+
+  it('has no code when the body is not an API error', () => {
+    expect(new ApiError('x', 502, 'Bad Gateway').code).toBeUndefined();
+    expect(new ApiError('x', 500, { message: 'No' }).code).toBeUndefined();
+  });
+});
+
+describe('auth', () => {
+  const user = { role: 'customer', id: '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b', name: 'Ana' };
+
+  it('gets the current user', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(user));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await expect(client.getCurrentUser()).resolves.toEqual(user);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/auth/me');
+  });
+
+  it.each([
+    ['startCustomerLogin', '/api/auth/customer/start', { phone: '+34600000001' }],
+    ['checkCustomerLogin', '/api/auth/customer/check', { code: '123456' }],
+    ['agentLogin', '/api/auth/agent/login', { email: 'a@example.com', password: 'secret' }],
+  ] as const)('%s posts a JSON body to %s', async (method, expectedUrl, body) => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await (client[method] as (value: typeof body) => Promise<unknown>)(body);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe(expectedUrl);
+    expect(init?.method).toBe('POST');
+    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+    expect(init?.body).toBe(JSON.stringify(body));
+  });
+
+  it.each([
+    ['moveCustomerLoginToSms', '/api/auth/customer/sms'],
+    ['logout', '/api/auth/logout'],
+  ] as const)('%s posts to %s and resolves with nothing on 204', async (method, expectedUrl) => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await expect(client[method]()).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(expectedUrl);
+  });
+});
