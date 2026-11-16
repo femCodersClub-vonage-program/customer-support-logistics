@@ -29,6 +29,15 @@ const baseEnvSchema = z.object({
       .optional(),
   ),
   WEBHOOK_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+  CLIENT_IP_HEADER: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9-]+$/, 'Expected an HTTP header name, such as x-real-ip')
+      .optional(),
+  ),
   SILENT_AUTH_REDIRECT_URL: z.preprocess(
     (value) => (value === '' ? undefined : value),
     z.url({ protocol: /^https$/ }).optional(),
