@@ -40,8 +40,13 @@ describe('PhoneThrottlerGuard', () => {
     expect(header).not.toHaveBeenCalled();
   });
 
-  it('counts requests without a phone together', async () => {
-    await expect(guard.trackerOf({ body: {} })).resolves.toBe('phone:');
-    await expect(guard.trackerOf({ body: { phone: 34600000001 } })).resolves.toBe('phone:');
+  it('counts requests without a phone by IP', async () => {
+    await expect(guard.trackerOf({ ip: '1.1.1.1', body: {} })).resolves.toBe('1.1.1.1');
+    await expect(guard.trackerOf({ ip: '2.2.2.2', body: { phone: 34600000001 } })).resolves.toBe(
+      '2.2.2.2',
+    );
+    await expect(guard.trackerOf({ ip: '3.3.3.3', body: { phone: '  ' } })).resolves.toBe(
+      '3.3.3.3',
+    );
   });
 });

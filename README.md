@@ -82,8 +82,10 @@ Prettier is configured once at the root through the `prettier` field in `package
 
 To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
 
+
 ## Documentation
 
+- [User flows](docs/design/user-flows/README.md) — Customer, support agent and driver journeys, including the incident management diagram.
 - [Design](docs/design/): what users see, such as the [visual identity](docs/design/visual-identity.md).
 - [Architecture](docs/architecture/README.md): how the system is built, and [how we use Vonage](docs/architecture/vonage.md).
 - [Architecture Decision Records](docs/adr/README.md): why we made each important technical decision.
@@ -93,3 +95,4 @@ To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or a pull request. It covers branches, commits, pull requests and the definition of done.
+

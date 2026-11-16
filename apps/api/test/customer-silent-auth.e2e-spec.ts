@@ -1,4 +1,5 @@
 import { apiErrorResponseSchema } from '@csl/contracts';
+import { ThrottlerStorageService, getStorageToken } from '@nestjs/throttler';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -12,6 +13,7 @@ import { ids, seed } from './fixtures/seed.js';
 
 import type { TestApp } from './fixtures/app.js';
 import type { ApiErrorResponse } from '@csl/contracts';
+import type { ThrottlerStorage } from '@nestjs/throttler';
 
 const REDIRECT_URL = 'https://pwa.test/login/callback';
 const ANA_PHONE = '+34600000001';
@@ -19,6 +21,11 @@ const UNKNOWN_PHONE = '+34699999999';
 
 describe('Customer login with silent authentication (e2e)', () => {
   let testApp: TestApp;
+  let throttlerStorage = new ThrottlerStorageService();
+
+  const freshEveryTest: ThrottlerStorage = {
+    increment: (...args) => throttlerStorage.increment(...args),
+  };
 
   const http = () => request(testApp.app.getHttpServer());
 
@@ -40,11 +47,16 @@ describe('Customer login with silent authentication (e2e)', () => {
 
   beforeAll(async () => {
     testApp = await createTestApp((builder) =>
-      builder.overrideProvider(SILENT_AUTH_REDIRECT_URL).useValue(REDIRECT_URL),
+      builder
+        .overrideProvider(SILENT_AUTH_REDIRECT_URL)
+        .useValue(REDIRECT_URL)
+        .overrideProvider(getStorageToken())
+        .useValue(freshEveryTest),
     );
   });
 
   beforeEach(async () => {
+    throttlerStorage = new ThrottlerStorageService();
     testApp.vonage.reset();
     await resetDatabase(testApp.db);
     await seed(testApp.db);
@@ -97,6 +109,19 @@ describe('Customer login with silent authentication (e2e)', () => {
       .post('/auth/customer/check')
       .set('Cookie', cookie)
       .send({ code: FAKE_VERIFICATION_CODE, requestId: 'someone-else' })
+      .expect(401);
+
+    expectError(response.body, 'INVALID_CODE');
+    expect(testApp.vonage.callsTo('checkVerification')).toEqual([]);
+  });
+
+  it('rejects a code without the request id while the login is still on silent auth', async () => {
+    const cookie = verificationCookieOf(await start(ANA_PHONE).expect(200));
+
+    const response = await http()
+      .post('/auth/customer/check')
+      .set('Cookie', cookie)
+      .send({ code: FAKE_VERIFICATION_CODE })
       .expect(401);
 
     expectError(response.body, 'INVALID_CODE');
