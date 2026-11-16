@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { SdkVonageService, VERIFY_BRAND } from './sdk-vonage.service.js';
+import { NEXT_WORKFLOW_ATTEMPTS, SdkVonageService, VERIFY_BRAND } from './sdk-vonage.service.js';
 import { VonageRequestError, VonageTimeoutError } from './vonage.errors.js';
 
 import type { NccoAction } from './ncco.js';
@@ -21,15 +21,18 @@ function createClient() {
     verify2: {
       newRequest: vi.fn().mockResolvedValue({ requestId: 'req-1' }),
       checkCode: vi.fn().mockResolvedValue('completed'),
+      nextWorkflow: vi.fn().mockResolvedValue(true),
     },
   } satisfies VonageClient;
 }
 
 const API_SECRET = 'super-secret-value';
 
+const REDIRECT_URL = 'https://pwa.example/login/callback';
+
 function createService() {
   const client = createClient();
-  return { client, service: new SdkVonageService(client, VIRTUAL_NUMBER, 50) };
+  return { client, service: new SdkVonageService(client, VIRTUAL_NUMBER, 50, 0) };
 }
 
 function httpError(status: number, body: Record<string, unknown>) {
@@ -129,6 +132,108 @@ describe('SdkVonageService', () => {
       await expect(service.startVerification(DRIVER_PHONE, 'es')).resolves.toEqual({
         status: 'blocked',
       });
+    });
+  });
+
+  describe('startVerification with silent authentication', () => {
+    it('tries silent authentication first, then SMS, and returns the check URL', async () => {
+      const { client, service } = createService();
+      client.verify2.newRequest.mockResolvedValue({ requestId: 'req-1', checkUrl: 'https://c' });
+
+      await expect(service.startVerification(DRIVER_PHONE, 'es', REDIRECT_URL)).resolves.toEqual({
+        status: 'started',
+        requestId: 'req-1',
+        checkUrl: 'https://c',
+      });
+      expect(client.verify2.newRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workflow: [
+            { channel: 'silent_auth', to: '34611000009', redirectUrl: REDIRECT_URL },
+            { channel: 'sms', to: '34611000009' },
+          ],
+        }),
+      );
+    });
+
+    it('starts again with SMS only when Vonage answers 412', async () => {
+      const { client, service } = createService();
+      client.verify2.newRequest
+        .mockRejectedValueOnce(httpError(412, { title: 'Network not supported' }))
+        .mockResolvedValueOnce({ requestId: 'req-2' });
+
+      await expect(service.startVerification(DRIVER_PHONE, 'es', REDIRECT_URL)).resolves.toEqual({
+        status: 'started',
+        requestId: 'req-2',
+      });
+      expect(client.verify2.newRequest).toHaveBeenLastCalledWith(
+        expect.objectContaining({ workflow: [{ channel: 'sms', to: '34611000009' }] }),
+      );
+    });
+  });
+
+  describe('startVerification with silent authentication, blocked', () => {
+    it.each([409, 429])('stays blocked on %i instead of falling back to SMS', async (status) => {
+      const { client, service } = createService();
+      client.verify2.newRequest.mockRejectedValue(httpError(status, { title: 'Blocked' }));
+
+      await expect(service.startVerification(DRIVER_PHONE, 'es', REDIRECT_URL)).resolves.toEqual({
+        status: 'blocked',
+      });
+      expect(client.verify2.newRequest).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('moveVerificationToSms', () => {
+    it('does not try again after an error other than 409', async () => {
+      const { client, service } = createService();
+      client.verify2.nextWorkflow.mockRejectedValue(httpError(500, { title: 'Internal Error' }));
+
+      await expect(service.moveVerificationToSms('req-1')).rejects.toMatchObject({ status: 500 });
+      expect(client.verify2.nextWorkflow).toHaveBeenCalledTimes(1);
+    });
+
+    it('is expired after too many wrong codes (410)', async () => {
+      const { client, service } = createService();
+      client.verify2.nextWorkflow.mockRejectedValue(httpError(410, { title: 'Gone' }));
+
+      await expect(service.moveVerificationToSms('req-1')).resolves.toBe('expired');
+    });
+
+    it('moves the request on to the SMS', async () => {
+      const { client, service } = createService();
+
+      await expect(service.moveVerificationToSms('req-1')).resolves.toBe('moved');
+      expect(client.verify2.nextWorkflow).toHaveBeenCalledWith('req-1');
+    });
+
+    it('tries again while Vonage answers 409', async () => {
+      const { client, service } = createService();
+      client.verify2.nextWorkflow
+        .mockRejectedValueOnce(httpError(409, { title: 'Conflict' }))
+        .mockResolvedValueOnce(true);
+
+      await expect(service.moveVerificationToSms('req-1')).resolves.toBe('moved');
+      expect(client.verify2.nextWorkflow).toHaveBeenCalledTimes(2);
+    });
+
+    it(`fails after ${NEXT_WORKFLOW_ATTEMPTS} conflicts in a row`, async () => {
+      const { client, service } = createService();
+      client.verify2.nextWorkflow.mockImplementation(() =>
+        Promise.reject(httpError(409, { title: 'Conflict' })),
+      );
+
+      await expect(service.moveVerificationToSms('req-1')).rejects.toMatchObject({
+        name: 'VonageRequestError',
+        status: 409,
+      });
+      expect(client.verify2.nextWorkflow).toHaveBeenCalledTimes(NEXT_WORKFLOW_ATTEMPTS);
+    });
+
+    it('is expired when Vonage no longer has the request', async () => {
+      const { client, service } = createService();
+      client.verify2.nextWorkflow.mockRejectedValue(httpError(404, { title: 'Not Found' }));
+
+      await expect(service.moveVerificationToSms('req-1')).resolves.toBe('expired');
     });
   });
 

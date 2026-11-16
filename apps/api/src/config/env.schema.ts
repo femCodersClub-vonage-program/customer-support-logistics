@@ -39,6 +39,10 @@ const baseEnvSchema = z.object({
       .regex(/^[a-z0-9-]+$/, 'Expected an HTTP header name, such as x-real-ip')
       .optional(),
   ),
+  SILENT_AUTH_REDIRECT_URL: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.url({ protocol: /^https$/ }).optional(),
+  ),
 });
 
 export const VONAGE_REQUIRED_VARIABLES = [

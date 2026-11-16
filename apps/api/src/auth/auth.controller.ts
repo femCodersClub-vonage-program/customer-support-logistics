@@ -85,10 +85,19 @@ export class AuthController {
     @Body(new ZodValidationPipe(customerLoginStartBodySchema)) body: CustomerLoginStartBody,
     @Res({ passthrough: true }) response: Response,
   ): Promise<CustomerLoginStartResponse> {
-    const requestId = await this.customerLogin.start(body.phone);
+    const { requestId, checkUrl } = await this.customerLogin.start(body.phone);
     response.cookie(VERIFICATION_COOKIE, requestId, sessionCookieOptions(VERIFICATION_TTL_MS));
 
-    return { channel: 'sms' };
+    return checkUrl === undefined ? { channel: 'sms' } : { channel: 'silent_auth', checkUrl };
+  }
+
+  @Public()
+  @Post('customer/sms')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: CUSTOMER_LOGIN_CHECKS_PER_MINUTE, ttl: 60_000 } })
+  async moveCustomerLoginToSms(@Req() request: Request): Promise<void> {
+    await this.customerLogin.moveToSms(readCookie(request.headers.cookie, VERIFICATION_COOKIE));
   }
 
   @Public()
@@ -103,7 +112,7 @@ export class AuthController {
   ): Promise<CurrentUser> {
     const { session, user } = await this.customerLogin.check(
       readCookie(request.headers.cookie, VERIFICATION_COOKIE),
-      body.code,
+      body,
       readCookie(request.headers.cookie, SESSION_COOKIE),
     );
     response.clearCookie(VERIFICATION_COOKIE, clearedSessionCookieOptions());
