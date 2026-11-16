@@ -54,6 +54,21 @@
   "incident": {
     "title": "Incidencia",
     "reference": "Incidencia {id}",
+    "createdAt": "Creada",
+    "updatedAt": "Última actualización",
+    "assignedAgent": "Agente asignado",
+    "unassigned": "Sin asignar",
+    "sections": {
+      "order": "Pedido",
+      "customer": "Cliente",
+      "driver": "Repartidor",
+      "evidence": "Pruebas",
+      "timeline": "Línea temporal"
+    },
+    "emptyEvidence": "No hay pruebas disponibles",
+    "bytes": "bytes",
+    "emptyTimeline": "No hay eventos en la línea temporal",
+    "notAvailable": "No disponible",
     "status": {
       "open": "Abierta",
       "notified": "Notificada",
@@ -67,6 +82,52 @@
       "damaged": "Dañado",
       "wrong_item": "Artículo incorrecto",
       "other": "Otro"
+    },
+    "actions": {
+      "title": "Acciones",
+      "assign": "Asignarme la incidencia",
+      "assigned": "Incidencia asignada a ti",
+      "notify": "Avisar al repartidor",
+      "notifyAgain": "Volver a avisar al repartidor",
+      "confirmNotify": "¿Enviar un SMS de aviso al repartidor?",
+      "confirmNotifyAgain": "¿Enviar otro SMS de aviso al repartidor?",
+      "sending": "Enviando...",
+      "mediation": "Iniciar mediación",
+      "resolve": "Resolver incidencia",
+      "escalate": "Escalar incidencia",
+      "reason": "Motivo",
+      "resolution": "Nota de resolución",
+      "escalationReason": "Motivo del escalado",
+      "submit": "Confirmar",
+      "cancel": "Cancelar",
+      "success": "Acción completada correctamente",
+      "error": "No se pudo completar la acción"
+    },
+    "phone": {
+      "show": "Mostrar teléfono",
+      "hide": "Ocultar teléfono"
+    },
+    "actor": {
+      "customer": "Cliente",
+      "agent": "Agente",
+      "driver": "Repartidor",
+      "system": "Sistema"
+    },
+    "communication": {
+      "direction": {
+        "inbound": "Entrante",
+        "outbound": "Saliente"
+      },
+      "channel": {
+        "sms": "SMS",
+        "voice": "Llamada"
+      },
+      "status": {
+        "queued": "En cola",
+        "in_progress": "En curso",
+        "completed": "Completada",
+        "failed": "Fallida"
+      }
     }
   },
   "contactLanguage": {
