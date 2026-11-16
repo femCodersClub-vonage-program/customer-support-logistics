@@ -4,6 +4,7 @@ import { DisabledVonageService } from './disabled-vonage.service.js';
 
 import type {
   CreatedCall,
+  NextVerificationChannel,
   SentSms,
   StartedVerification,
   VerificationCheck,
@@ -33,5 +34,9 @@ export class DevVerifyVonageService implements VonageService {
 
   async checkVerification(_requestId: string, code: string): Promise<VerificationCheck> {
     return { status: code === this.code ? 'verified' : 'wrong_code' };
+  }
+
+  async moveVerificationToSms(): Promise<NextVerificationChannel> {
+    return 'moved';
   }
 }
