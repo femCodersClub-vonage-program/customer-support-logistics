@@ -48,17 +48,18 @@ Accepted ADRs are not edited, except to change their status. To change a decisio
 
 ## Index
 
-| ADR                                               | Title                                                       | Status   | Date       |
-| ------------------------------------------------- | ----------------------------------------------------------- | -------- | ---------- |
-| [0001](0001-monorepo-pnpm-turborepo.md)           | Monorepo with pnpm workspaces and Turborepo                 | accepted | 2026-11-08 |
-| [0002](0002-application-stack.md)                 | Application stack: NestJS, React + Vite PWA and Next.js     | accepted | 2026-11-08 |
-| [0003](0003-vonage-as-communications-provider.md) | Vonage as the communications provider                       | accepted | 2026-11-08 |
-| [0004](0004-shared-types-as-api-contract.md)      | `@csl/shared-types` is the API contract                     | accepted | 2026-11-08 |
-| [0005](0005-orm-and-migrations.md)                | Drizzle ORM and SQL migrations for PostgreSQL               | proposed | 2026-11-08 |
-| [0006](0006-internationalisation.md)              | Internationalisation with next-intl and use-intl            | proposed | 2026-11-08 |
-| [0007](0007-zod-schemas-as-runtime-contract.md)   | Zod schemas in `@csl/contracts` as the runtime API contract | proposed | 2026-11-09 |
-| [0008](0008-authentication-and-sessions.md)       | Authentication and sessions                                 | accepted | 2026-11-11 |
-| [0009](0009-hosting-on-railway.md)                | Hosting on Railway                                          | proposed | 2026-11-12 |
+| ADR                                                      | Title                                                       | Status   | Date       |
+| -------------------------------------------------------- | ----------------------------------------------------------- | -------- | ---------- |
+| [0001](0001-monorepo-pnpm-turborepo.md)                  | Monorepo with pnpm workspaces and Turborepo                 | accepted | 2026-11-08 |
+| [0002](0002-application-stack.md)                        | Application stack: NestJS, React + Vite PWA and Next.js     | accepted | 2026-11-08 |
+| [0003](0003-vonage-as-communications-provider.md)        | Vonage as the communications provider                       | accepted | 2026-11-08 |
+| [0004](0004-shared-types-as-api-contract.md)             | `@csl/shared-types` is the API contract                     | accepted | 2026-11-08 |
+| [0005](0005-orm-and-migrations.md)                       | Drizzle ORM and SQL migrations for PostgreSQL               | proposed | 2026-11-08 |
+| [0006](0006-internationalisation.md)                     | Internationalisation with next-intl and use-intl            | proposed | 2026-11-08 |
+| [0007](0007-zod-schemas-as-runtime-contract.md)          | Zod schemas in `@csl/contracts` as the runtime API contract | proposed | 2026-11-09 |
+| [0008](0008-authentication-and-sessions.md)              | Authentication and sessions                                 | accepted | 2026-11-11 |
+| [0009](0009-hosting-on-railway.md)                       | Hosting on Railway                                          | proposed | 2026-11-12 |
+| [0010](0010-keep-x-dev-actor-until-both-logins-exist.md) | Keep `x-dev-actor` until both logins exist                  | proposed | 2026-11-16 |
 
 ### Pending decisions
 
