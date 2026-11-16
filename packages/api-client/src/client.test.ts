@@ -87,6 +87,27 @@ describe('listIncidents', () => {
 describe('incidents', () => {
   const incidentId = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
 
+  it('creates an incident with a JSON body', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ id: incidentId }, 201));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+    const body = {
+      orderId: '3c4d5e6f-0000-4000-8000-000000000001',
+      type: 'damaged',
+      description: 'The box was crushed',
+    } as const;
+
+    await expect(client.createIncident(body)).resolves.toEqual({ id: incidentId });
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe('/api/incidents');
+    expect(init?.method).toBe('POST');
+    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+    expect(init?.body).toBe(JSON.stringify(body));
+  });
+
   it('gets an incident by id', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: incidentId }));
     const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
