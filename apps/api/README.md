@@ -6,6 +6,8 @@ NestJS API. It is the only part of the platform that talks to the database and t
 
 Copy `.env.example` to `.env` and adjust the values. `DATABASE_URL` is required: the API refuses to start if it is missing or is not a `postgres://` or `postgresql://` URL. The Vonage variables are explained in [Vonage](#vonage).
 
+`CLIENT_IP_HEADER` names the header the API takes the client IP from, for the rate limits. Leave it unset locally: anyone could send that header. Behind Railway it is `x-real-ip`; the reason, and every variable of the deployment, are in [Deployment](../../docs/architecture/deployment.md).
+
 Any PostgreSQL 17 works. The easiest way is the one in the root `docker-compose.yml`:
 
 ```sh
@@ -81,6 +83,12 @@ Applied migrations are never edited. To fix one, write a new migration.
   ```sh
   docker run --rm -e DATABASE_URL=... <api-image> node dist/database/migrate.js
   ```
+
+- **Railway:** the same command is the service's pre-deploy command, so migrations run before each new version starts. The previous version keeps serving while they run, so a migration must not break it: add first, remove in a later deploy.
+
+### Deployment
+
+The API runs on Railway from `apps/api/Dockerfile`. Its settings and variables are in [Deployment](../../docs/architecture/deployment.md#api).
 
 ## Vonage
 
@@ -198,7 +206,8 @@ The request and response schemas live in [`@csl/contracts`](../../packages/contr
 | Method  | Path                                   | Who                    | What                                                                                   |
 | ------- | -------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
 | `POST`  | `/auth/agent/login`                    | anyone                 | Log an agent in and set the session cookie                                             |
-| `POST`  | `/auth/customer/start`                 | anyone                 | Send a login code by SMS to a customer's phone                                         |
+| `POST`  | `/auth/customer/start`                 | anyone                 | Start a customer login, by silent authentication or SMS                                |
+| `POST`  | `/auth/customer/sms`                   | anyone                 | Send the SMS now, when silent authentication failed                                    |
 | `POST`  | `/auth/customer/check`                 | anyone                 | Log a customer in with that code and set the session cookie                            |
 | `POST`  | `/auth/logout`                         | anyone                 | End the session and clear the cookie                                                   |
 | `GET`   | `/auth/me`                             | customer / agent       | The person behind the current session                                                  |
@@ -265,7 +274,8 @@ How it works and why is in [ADR 0008](../../docs/adr/0008-authentication-and-ses
 - A new login also ends the session the browser already had, and expired sessions are deleted on each login.
 - The session is an opaque token in the `csl_session` cookie (`HttpOnly`, `Secure`, `SameSite=Lax`). The `sessions` table keeps only its SHA-256 hash. Agent sessions last 12 hours and customer sessions 30 days.
 - `@Roles('customer')` or `@Roles('agent')` on a route enforces the "who" column above: no session gives `401`, the wrong role `403`. Services still check ownership, so another customer's incident is a `404`.
-- Customers log in with Verify v2 by SMS. `POST /auth/customer/start` keeps the Verify request id in the `csl_verification` cookie (`HttpOnly`, 10 minutes, the same `channel_timeout` it asks Verify for), and `POST /auth/customer/check` only accepts a code for that request. Which customer each request belongs to is kept in the API's memory, so a restart in the middle of a login means asking for a new code. That memory has no size limit: unknown phones enter it without any Vonage cost, but the start rate limits bound how fast it grows and each entry goes after 10 minutes. With more than one instance it moves to Redis, like the rate limits. An unknown phone gets a `200` without any SMS, and every code for it is wrong; the third wrong code answers `410 TOO_MANY_ATTEMPTS`, as Verify does for a real one. Someone trying numbers can still tell known ones apart by response time; ADR 0008 accepts that, and the rate limits slow it down.
+- With `SILENT_AUTH_REDIRECT_URL` set to the PWA's `/login/callback`, `POST /auth/customer/start` tries silent authentication first and answers `{ channel: 'silent_auth', checkUrl }`. The PWA navigates to `checkUrl` over mobile data and sends the `code` and `request_id` it gets back to `/auth/customer/check` (until the login moves to SMS, a code without that `request_id` is rejected); if that fails, `POST /auth/customer/sms` sends the SMS at once instead of after Verify's 60 seconds. When the carrier isn't supported (`412`), or the variable is unset, the login goes straight to SMS. How the PWA side works is in [silent authentication from the PWA](../../docs/architecture/silent-auth.md).
+- Without silent authentication, customers log in with an SMS code. `POST /auth/customer/start` keeps the Verify request id in the `csl_verification` cookie (`HttpOnly`, 10 minutes, the same `channel_timeout` it asks Verify for), and `POST /auth/customer/check` only accepts a code for that request. Which customer each request belongs to is kept in the API's memory, so a restart in the middle of a login means asking for a new code. That memory has no size limit: unknown phones enter it without any Vonage cost, but the start rate limits bound how fast it grows and each entry goes after 10 minutes. With more than one instance it moves to Redis, like the rate limits. An unknown phone gets a `200` without any SMS, and every code for it is wrong; the third wrong code answers `410 TOO_MANY_ATTEMPTS`, as Verify does for a real one. Someone trying numbers can still tell known ones apart (by response time, or because only known numbers get `channel: 'silent_auth'`); ADR 0008 accepts that, and the rate limits slow it down.
 
 #### Logging in locally as a customer
 

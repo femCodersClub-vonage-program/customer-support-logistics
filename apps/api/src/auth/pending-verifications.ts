@@ -7,6 +7,7 @@ export const VERIFICATION_TTL_MS = VERIFICATION_TTL_SECONDS * 1000;
 export interface PendingVerification {
   customerId: string | null;
   expiresAt: number;
+  bySms: boolean;
   checks: number;
 }
 
@@ -14,13 +15,22 @@ export interface PendingVerification {
 export class PendingVerifications {
   private readonly pending = new Map<string, PendingVerification>();
 
-  add(requestId: string, customerId: string | null): void {
+  add(requestId: string, customerId: string | null, bySms = true): void {
     this.removeExpired();
     this.pending.set(requestId, {
       customerId,
       expiresAt: Date.now() + VERIFICATION_TTL_MS,
+      bySms,
       checks: 0,
     });
+  }
+
+  markBySms(requestId: string): void {
+    const verification = this.pending.get(requestId);
+
+    if (verification !== undefined) {
+      verification.bySms = true;
+    }
   }
 
   countCheck(requestId: string): number {

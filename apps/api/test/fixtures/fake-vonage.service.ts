@@ -1,6 +1,7 @@
 import type { NccoAction } from '../../src/vonage/ncco.js';
 import type {
   CreatedCall,
+  NextVerificationChannel,
   SentSms,
   StartedVerification,
   VerificationCheck,
@@ -10,12 +11,20 @@ import type { Locale } from '@csl/shared-types';
 
 export const FAKE_VERIFICATION_CODE = '1234';
 
+export const FAKE_CHECK_URL = 'https://verify.fake/silent-auth';
+
 export type RecordedVonageCall =
   | { operation: 'sendSms'; to: string; text: string }
   | { operation: 'createCall'; to: string; ncco: NccoAction[] }
   | { operation: 'transferCall'; callId: string; ncco: NccoAction[] }
-  | { operation: 'startVerification'; phone: string; locale: Locale }
-  | { operation: 'checkVerification'; requestId: string; code: string };
+  | {
+      operation: 'startVerification';
+      phone: string;
+      locale: Locale;
+      silentAuthRedirectUrl?: string;
+    }
+  | { operation: 'checkVerification'; requestId: string; code: string }
+  | { operation: 'moveVerificationToSms'; requestId: string };
 
 type Operation = RecordedVonageCall['operation'];
 
@@ -27,6 +36,10 @@ export class FakeVonageService implements VonageService {
   private blockNextVerification = false;
 
   private nextCheckOutcome: VerificationCheck['status'] | undefined;
+
+  private nextMoveOutcome: NextVerificationChannel | undefined;
+
+  private skipSilentAuthNext = false;
 
   async sendSms(to: string, text: string): Promise<SentSms> {
     this.record({ operation: 'sendSms', to, text });
@@ -42,15 +55,38 @@ export class FakeVonageService implements VonageService {
     this.record({ operation: 'transferCall', callId, ncco });
   }
 
-  async startVerification(phone: string, locale: Locale): Promise<StartedVerification> {
-    this.record({ operation: 'startVerification', phone, locale });
+  async startVerification(
+    phone: string,
+    locale: Locale,
+    silentAuthRedirectUrl?: string,
+  ): Promise<StartedVerification> {
+    this.record(
+      silentAuthRedirectUrl === undefined
+        ? { operation: 'startVerification', phone, locale }
+        : { operation: 'startVerification', phone, locale, silentAuthRedirectUrl },
+    );
 
     if (this.blockNextVerification) {
       this.blockNextVerification = false;
       return { status: 'blocked' };
     }
 
-    return { status: 'started', requestId: `fake-verification-${this.calls.length}` };
+    const requestId = `fake-verification-${this.calls.length}`;
+    const withoutSilentAuth = this.skipSilentAuthNext;
+    this.skipSilentAuthNext = false;
+
+    return silentAuthRedirectUrl === undefined || withoutSilentAuth
+      ? { status: 'started', requestId }
+      : { status: 'started', requestId, checkUrl: `${FAKE_CHECK_URL}/${requestId}` };
+  }
+
+  async moveVerificationToSms(requestId: string): Promise<NextVerificationChannel> {
+    this.record({ operation: 'moveVerificationToSms', requestId });
+
+    const outcome = this.nextMoveOutcome;
+    this.nextMoveOutcome = undefined;
+
+    return outcome ?? 'moved';
   }
 
   async checkVerification(requestId: string, code: string): Promise<VerificationCheck> {
@@ -74,6 +110,14 @@ export class FakeVonageService implements VonageService {
     this.nextCheckOutcome = outcome;
   }
 
+  answerNextMoveToSms(outcome: NextVerificationChannel): void {
+    this.nextMoveOutcome = outcome;
+  }
+
+  startWithoutSilentAuthNext(): void {
+    this.skipSilentAuthNext = true;
+  }
+
   callsTo<T extends Operation>(operation: T): Extract<RecordedVonageCall, { operation: T }>[] {
     return this.calls.filter(
       (call): call is Extract<RecordedVonageCall, { operation: T }> => call.operation === operation,
@@ -85,6 +129,8 @@ export class FakeVonageService implements VonageService {
     this.failures.clear();
     this.blockNextVerification = false;
     this.nextCheckOutcome = undefined;
+    this.nextMoveOutcome = undefined;
+    this.skipSilentAuthNext = false;
   }
 
   private record(call: RecordedVonageCall): void {

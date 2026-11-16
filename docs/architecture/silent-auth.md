@@ -1,6 +1,6 @@
 # Silent authentication from the PWA
 
-> **Status:** planned. Customer login by SMS code is in place (`POST /auth/customer/start` and `/check`); silent authentication is the next part of [#31] (API) and [#33] (client). This page records what the web flow needs, so both sides build the same thing.
+> **Status:** the API side is in place ([#31]): `POST /auth/customer/start` returns the `check_url` when `SILENT_AUTH_REDIRECT_URL` is set, `POST /auth/customer/sms` calls `nextWorkflow()`, and `/check` compares the returned `request_id` with the cookie. The client side is [#33], and the real-phone check is still to do. This page records what the web flow needs, so both sides build the same thing.
 
 [ADR 0008](../adr/0008-authentication-and-sessions.md) decides how customers log in: Verify v2 with `silent_auth` first and `sms` as fallback. This page goes one level deeper. A PWA runs in a browser, not in a native app, and that changes how silent authentication has to be wired.
 
@@ -13,7 +13,7 @@
 
 - **The browser navigates to the `check_url`; it doesn't fetch it.** The `check_url` answers with a chain of `30x` redirects through the mobile carrier, and a `fetch` from the page would be stopped by CORS. Vonage's web flow uses a `redirect_url` in the workflow (the SDK requires it), and at the end of the chain the browser comes back to that URL with `request_id` and `code` in the URL fragment.
 - **A client route that receives the result**, for example `/login/callback`. It reads the fragment and sends the code to `POST /auth/customer/check`.
-- **Compare the `request_id`.** Vonage recommends checking that the `request_id` that comes back matches the one the API stored, in an `HttpOnly` cookie, to prevent person-in-the-middle attacks.
+- **Compare the `request_id`.** Vonage recommends checking that the `request_id` that comes back matches the one the API stored, in an `HttpOnly` cookie, to prevent person-in-the-middle attacks. The API requires it while the login is on the silent auth step: until `POST /auth/customer/sms` moves the login to SMS, a code without the `request_id` is rejected, so the PWA has to call `/sms` before it asks for an SMS code.
 - **An endpoint that moves on to the SMS.** When silent authentication fails, the API calls `nextWorkflow()`. Without it, Verify waits a fixed 60 seconds before sending the SMS. If `next_workflow` is called too early, Vonage can answer `409`, and the call is retried.
 
 ## Limits of a PWA

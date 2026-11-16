@@ -123,7 +123,7 @@ These points come from Vonage's documentation or from browser behaviour, and are
 - e2e tests create sessions directly in the database with a helper, and the tests that use `x-dev-actor` move to it.
 - A new environment variable holds the public URL of the PWA, for the silent auth `redirect_url`. If the Playground needs its own Vonage Application, Verify gets its own application id and private key.
 - In development, cookies are not separated by port: the client and the CRM on `localhost` share `csl_session`. To be logged in as a customer and as an agent at the same time (for example, to test a mediation), open one of the apps on `127.0.0.1`.
-- Rate limits live in each instance's memory, as for the webhooks: with more than one instance they move to Redis, and Express `trust proxy` must be set when the hosting is decided.
+- Rate limits live in each instance's memory, as for the webhooks: with more than one instance they move to Redis. Behind Railway, the client IP comes from `X-Real-IP` through `CLIENT_IP_HEADER`, not from `trust proxy` ([ADR 0009](0009-hosting-on-railway.md)).
 - The `sessions` table stores ids and hashes, not phone numbers. Auth events are logged as structured JSON without phones or emails (`maskPhone`), and expected failures (wrong code, blocked number, wrong password) are logged apart from system errors (Vonage or the database unavailable).
 - We would revisit this decision if the query per request became a bottleneck (sessions cached in Redis) or if agents needed single sign-on.
 
