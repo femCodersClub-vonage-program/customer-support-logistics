@@ -4,4 +4,5 @@ export interface Evidence {
   storageKey: string;
   mimeType: string;
   sizeBytes: number;
+  createdAt: string;
 }

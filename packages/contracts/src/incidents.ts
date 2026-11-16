@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { isoDateTimeSchema, paginatedSchema, paginationQuerySchema, uuidSchema } from './common.js';
 import { orderSchema } from './orders.js';
 
-import type { Communication, Incident, IncidentEvent } from '@csl/shared-types';
+import type { Communication, Evidence, Incident, IncidentEvent } from '@csl/shared-types';
 
 export const incidentStatusSchema = z.enum(INCIDENT_STATUSES).meta({ id: 'IncidentStatus' });
 
@@ -58,9 +58,20 @@ export const communicationSchema = z
     vonageUuid: z.string(),
     status: z.enum(COMMUNICATION_STATUSES),
     durationSeconds: z.number().int().min(0).nullable(),
+    createdAt: z.string().datetime(),
   })
   .meta({ id: 'Communication' }) satisfies z.ZodType<Communication>;
 
+export const evidenceSchema = z
+  .object({
+    id: uuidSchema,
+    incidentId: uuidSchema,
+    storageKey: z.string(),
+    mimeType: z.string(),
+    sizeBytes: z.number().int().nonnegative(),
+    createdAt: isoDateTimeSchema,
+  })
+  .meta({ id: 'Evidence' }) satisfies z.ZodType<Evidence>;
 export const incidentCustomerSchema = z
   .object({
     id: uuidSchema,
@@ -94,6 +105,7 @@ export const incidentDetailSchema = incidentSchema
     driver: incidentDriverSchema.nullable(),
     events: z.array(incidentEventSchema),
     communications: z.array(communicationSchema),
+    evidence: z.array(evidenceSchema),
   })
   .meta({ id: 'IncidentDetail' });
 

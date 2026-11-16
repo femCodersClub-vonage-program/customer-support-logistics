@@ -20,4 +20,5 @@ export interface Communication {
   vonageUuid: string;
   status: CommunicationStatus;
   durationSeconds: number | null;
+  createdAt: string;
 }

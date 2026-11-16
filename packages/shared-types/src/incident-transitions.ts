@@ -11,7 +11,7 @@ export const INCIDENT_TRANSITIONS: Readonly<Record<IncidentStatus, readonly Inci
 
 export const TRANSITION_ACTORS: Readonly<Record<IncidentStatus, readonly Actor[]>> = {
   open: [],
-  notified: ['system'],
+  notified: ['system', 'agent'],
   in_mediation: ['system', 'agent', 'driver'],
   resolved: ['agent'],
   escalated: ['agent', 'system'],
@@ -19,7 +19,10 @@ export const TRANSITION_ACTORS: Readonly<Record<IncidentStatus, readonly Actor[]
 
 export function allowedTransitions(from: IncidentStatus, actor?: Actor): readonly IncidentStatus[] {
   return INCIDENT_TRANSITIONS[from].filter(
-    (to) => actor === undefined || TRANSITION_ACTORS[to].includes(actor),
+    (to) =>
+      actor === undefined ||
+      (TRANSITION_ACTORS[to].includes(actor) &&
+        !(from === 'open' && to === 'notified' && actor === 'agent')),
   );
 }
 
