@@ -15,6 +15,7 @@ export const communications = pgTable(
     fromNumber: text(),
     toNumber: text(),
     vonageUuid: text().notNull().unique('communications_vonage_uuid_unique'),
+    idempotencyKey: text().unique('communications_idempotency_key_unique'),
     status: communicationStatus().notNull(),
     durationSeconds: integer(),
     createdAt: createdAt(),

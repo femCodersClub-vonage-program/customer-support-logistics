@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { incidentEvents, incidents } from '../src/database/schema/index.js';
+import { communications, incidentEvents, incidents } from '../src/database/schema/index.js';
 
 import { createTestApp, resetDatabase, waitForLockWait } from './fixtures/app.js';
 import { actor, ids, seed, times } from './fixtures/seed.js';
@@ -35,6 +35,7 @@ describe('Incidents (e2e)', () => {
   });
 
   beforeEach(async () => {
+    testApp.vonage.reset();
     await resetDatabase(testApp.db);
     await seed(testApp.db);
   });
@@ -346,6 +347,103 @@ describe('Incidents (e2e)', () => {
     });
   });
 
+  describe('POST /incidents/:id/assign-to-me', () => {
+    const assign = (id: string, who: string = actor.agentA) =>
+      http().post(`/incidents/${id}/assign-to-me`).set(DEV_ACTOR, who);
+
+    it('assigns the incident to the current agent', async () => {
+      const response = await assign(ids.openIncident).expect(201);
+
+      expect(incidentSchema.parse(response.body).agentId).toBe(ids.agentA);
+
+      const [updated] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.openIncident));
+      if (!updated) {
+        throw new Error('Updated incident not found');
+      }
+
+      expect(updated.agentId).toBe(ids.agentA);
+      expect(updated.status).toBe('open');
+    });
+
+    it('rejects customers', async () => {
+      await assign(ids.openIncident, actor.ana).expect(403);
+    });
+
+    it('returns 404 for a missing incident', async () => {
+      await assign(ids.missing).expect(404);
+    });
+  });
+
+  describe('POST /incidents/:id/notify-driver', () => {
+    const notify = (id: string, who: string = actor.agentA) =>
+      http().post(`/incidents/${id}/notify-driver`).set(DEV_ACTOR, who);
+
+    it('sends a localized SMS, records the communication and transitions to notified', async () => {
+      const response = await notify(ids.openIncident).expect(201);
+
+      expect(incidentSchema.parse(response.body).status).toBe('notified');
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+      expect(testApp.vonage.callsTo('sendSms')[0]).toMatchObject({
+        to: '+34600000009',
+        text: expect.stringContaining('incidencia en el pedido'),
+      });
+
+      const [communication] = await testApp.db
+        .select()
+        .from(communications)
+        .where(eq(communications.incidentId, ids.openIncident));
+
+      expect(communication).toMatchObject({
+        channel: 'sms',
+        direction: 'outbound',
+        toNumber: '+34600000009',
+        vonageUuid: 'fake-sms-1',
+        status: 'queued',
+      });
+
+      const events = await eventsOf(ids.openIncident);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          fromStatus: 'open',
+          toStatus: 'notified',
+          actor: 'agent',
+          actorId: ids.agentA,
+          reason: 'Driver notified by SMS',
+        }),
+      );
+    });
+
+    it('rejects customers without sending an SMS', async () => {
+      await notify(ids.openIncident, actor.ana).expect(403);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
+    });
+
+    it('rejects an incident that has already been notified', async () => {
+      await notify(ids.notifiedIncident).expect(409);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
+    });
+
+    it('does not send a second SMS when two agents notify concurrently', async () => {
+      const responses = await Promise.all([notify(ids.openIncident), notify(ids.openIncident)]);
+
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+
+      const communicationsForIncident = await testApp.db
+        .select()
+        .from(communications)
+        .where(eq(communications.incidentId, ids.openIncident));
+
+      expect(communicationsForIncident).toHaveLength(1);
+    });
+  });
+
   describe('PATCH /incidents/:id/status', () => {
     const patch = (id: string, body: object, who: string = actor.agentA) =>
       http().patch(`/incidents/${id}/status`).set(DEV_ACTOR, who).send(body);
@@ -453,6 +551,107 @@ describe('Incidents (e2e)', () => {
         (await patch(ids.openIncident, { status: 'escalated' }, actor.stranger).expect(404)).body,
         'NOT_FOUND',
       );
+    });
+  });
+
+  describe('POST /incidents/:id/notify-driver/again', () => {
+    it('requires an idempotency key', async () => {
+      const response = await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set(DEV_ACTOR, actor.agentA)
+        .expect(409);
+
+      expect(response.body).toBeDefined();
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
+    });
+
+    it('resends an SMS and records the communication and event', async () => {
+      const response = await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set(DEV_ACTOR, actor.agentA)
+        .set('Idempotency-Key', 'incident-102-resend-1')
+        .expect(201);
+
+      expect(incidentSchema.parse(response.body).status).toBe('notified');
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+      expect(testApp.vonage.callsTo('sendSms')[0]).toMatchObject({
+        to: '+34600000009',
+        text: expect.stringContaining('incidencia en el pedido'),
+      });
+
+      const events = await eventsOf(ids.notifiedIncident);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          fromStatus: 'notified',
+          toStatus: 'notified',
+          actor: 'agent',
+          actorId: ids.agentA,
+          reason: 'Driver notification resent',
+        }),
+      );
+    });
+
+    it('does not send or record a duplicate when the same key is retried', async () => {
+      const path = `/incidents/${ids.notifiedIncident}/notify-driver/again`;
+
+      await http()
+        .post(path)
+        .set(DEV_ACTOR, actor.agentA)
+        .set('Idempotency-Key', 'incident-102-resend-retry')
+        .expect(201);
+
+      const eventsAfterFirstRequest = await eventsOf(ids.notifiedIncident);
+
+      await http()
+        .post(path)
+        .set(DEV_ACTOR, actor.agentA)
+        .set('Idempotency-Key', 'incident-102-resend-retry')
+        .expect(201);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(eventsAfterFirstRequest.length);
+    });
+
+    it('allows a deliberate resend with a different key', async () => {
+      const path = `/incidents/${ids.notifiedIncident}/notify-driver/again`;
+
+      for (const key of ['incident-102-resend-a', 'incident-102-resend-b']) {
+        await http()
+          .post(path)
+          .set(DEV_ACTOR, actor.agentA)
+          .set('Idempotency-Key', key)
+          .expect(201);
+      }
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(2);
+      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(2);
+    });
+
+    it('rejects an idempotency key already used by another incident', async () => {
+      const key = 'incident-resend-cross-incident';
+
+      await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set(DEV_ACTOR, actor.agentA)
+        .set('Idempotency-Key', key)
+        .expect(201);
+
+      await http()
+        .post(`/incidents/${ids.openIncident}/notify-driver/again`)
+        .set(DEV_ACTOR, actor.agentA)
+        .set('Idempotency-Key', key)
+        .expect(409);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+    });
+    it('rejects customers', async () => {
+      await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set(DEV_ACTOR, actor.ana)
+        .set('Idempotency-Key', 'incident-102-customer')
+        .expect(403);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
     });
   });
 

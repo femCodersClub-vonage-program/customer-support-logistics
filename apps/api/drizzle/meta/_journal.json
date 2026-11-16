@@ -36,6 +36,13 @@
       "when": 1794184641679,
       "tag": "0004_communications_numbers_webhook_events",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794220732000,
+      "tag": "0005_communications_idempotency_key",
+      "breakpoints": true
     }
   ]
 }

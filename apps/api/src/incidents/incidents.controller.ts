@@ -8,6 +8,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Inject,
   Param,
   Patch,
@@ -68,5 +69,30 @@ export class IncidentsController {
     @Body(new ZodValidationPipe(changeIncidentStatusBodySchema)) body: ChangeIncidentStatusBody,
   ): Promise<Incident> {
     return this.incidents.changeStatus(actor, params.id, body);
+  }
+
+  @Post(':id/assign-to-me')
+  assignToMe(
+    @CurrentActor() actor: DevActor,
+    @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
+  ): Promise<Incident> {
+    return this.incidents.assignToMe(actor, params.id);
+  }
+
+  @Post(':id/notify-driver')
+  notifyDriver(
+    @CurrentActor() actor: DevActor,
+    @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
+  ): Promise<Incident> {
+    return this.incidents.notifyDriver(actor, params.id);
+  }
+
+  @Post(':id/notify-driver/again')
+  notifyDriverAgain(
+    @CurrentActor() actor: DevActor,
+    @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
+    @Headers('Idempotency-Key') idempotencyKey: string,
+  ): Promise<Incident> {
+    return this.incidents.notifyDriverAgain(actor, params.id, idempotencyKey);
   }
 }
