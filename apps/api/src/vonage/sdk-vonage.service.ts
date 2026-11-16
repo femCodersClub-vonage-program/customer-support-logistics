@@ -11,6 +11,7 @@ import {
   isAbortError,
   readVonageErrorDetails,
 } from './vonage.errors.js';
+import { VERIFICATION_TTL_SECONDS } from './vonage.service.js';
 
 import type { NccoAction } from './ncco.js';
 import type { VonageClient } from './vonage.client.js';
@@ -181,6 +182,7 @@ export class SdkVonageService implements VonageService {
           brand: VERIFY_BRAND,
           locale: toVerifyLocale(locale),
           codeLength: VERIFY_CODE_LENGTH,
+          channelTimeout: VERIFICATION_TTL_SECONDS,
           workflow,
         });
 

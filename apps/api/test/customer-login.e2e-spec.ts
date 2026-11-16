@@ -11,6 +11,7 @@ import {
 import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../src/auth/session-cookie.js';
 import { customers } from '../src/database/schema/index.js';
 import { VonageRequestError } from '../src/vonage/vonage.errors.js';
+import { VERIFICATION_MAX_WRONG_CODES } from '../src/vonage/vonage.service.js';
 
 import { createTestApp, resetDatabase } from './fixtures/app.js';
 import { sessionCookieFor } from './fixtures/auth.js';
@@ -184,6 +185,17 @@ describe('Customer login (e2e)', () => {
 
       expectError(response.body, 'INVALID_CODE');
       expect(testApp.vonage.calls).toEqual([]);
+    });
+
+    it('ends an unknown phone on the third wrong code, as Verify ends a real one', async () => {
+      const verification = await startAndKeepCookie(UNKNOWN_PHONE);
+
+      for (let attempt = 1; attempt < VERIFICATION_MAX_WRONG_CODES; attempt += 1) {
+        expectError((await check('0000', verification).expect(401)).body, 'INVALID_CODE');
+      }
+
+      expectError((await check('0000', verification).expect(410)).body, 'TOO_MANY_ATTEMPTS');
+      expectError((await check('0000', verification).expect(410)).body, 'VERIFICATION_EXPIRED');
     });
 
     it('returns 410 without the verification cookie', async () => {
