@@ -10,7 +10,7 @@ import type {
 } from './schema/index.js';
 
 type AgentRow = typeof agents.$inferInsert;
-type CustomerRow = typeof customers.$inferInsert;
+type CustomerRow = typeof customers.$inferInsert & { id: string };
 type DriverRow = typeof drivers.$inferInsert;
 type RouteRow = typeof routes.$inferInsert;
 type OrderRow = typeof orders.$inferInsert;

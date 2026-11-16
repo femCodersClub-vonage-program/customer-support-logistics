@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { isVonageEnabled } from '../config/env.schema.js';
 
+import { DevVerifyVonageService } from './dev-verify-vonage.service.js';
 import { DisabledVonageService } from './disabled-vonage.service.js';
 import { SdkVonageService } from './sdk-vonage.service.js';
 import { createVonageClient } from './vonage.client.js';
@@ -22,7 +23,17 @@ export function createVonageService(
   });
 
   if (!enabled) {
-    return new DisabledVonageService();
+    const devVerifyCode = config.get('DEV_VERIFY_CODE', { infer: true });
+
+    if (devVerifyCode === undefined) {
+      return new DisabledVonageService();
+    }
+
+    new Logger('VonageModule').warn(
+      'DEV_VERIFY_CODE is set: customer logins accept that code and no SMS is sent',
+    );
+
+    return new DevVerifyVonageService(devVerifyCode);
   }
 
   const client = createClient({

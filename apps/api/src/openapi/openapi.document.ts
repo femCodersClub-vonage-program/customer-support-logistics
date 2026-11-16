@@ -5,6 +5,9 @@ import {
   communicationSchema,
   createIncidentBodySchema,
   currentUserSchema,
+  customerLoginCheckBodySchema,
+  customerLoginStartBodySchema,
+  customerLoginStartResponseSchema,
   incidentDetailSchema,
   incidentIdParamsSchema,
   incidentSchema,
@@ -15,9 +18,15 @@ import {
 } from '@csl/contracts';
 import { createDocument } from 'zod-openapi';
 
-import { AGENT_LOGIN_ATTEMPTS_PER_MINUTE } from '../auth/auth.controller.js';
+import {
+  AGENT_LOGIN_ATTEMPTS_PER_MINUTE,
+  CUSTOMER_LOGIN_CHECKS_PER_MINUTE,
+  CUSTOMER_LOGIN_STARTS_PER_WINDOW,
+  CUSTOMER_LOGIN_START_WINDOW_MS,
+} from '../auth/auth.controller.js';
 import { DEV_ACTOR_HEADER } from '../auth/dev-actor.js';
-import { SESSION_COOKIE } from '../auth/session-cookie.js';
+import { VERIFICATION_TTL_MS } from '../auth/pending-verifications.js';
+import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../auth/session-cookie.js';
 import { APP_VERSION } from '../version.js';
 
 import type { z } from 'zod';
@@ -98,6 +107,68 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             '429': error(
               `More than ${AGENT_LOGIN_ATTEMPTS_PER_MINUTE} attempts in a minute from the same IP`,
             ),
+          },
+        },
+      },
+      '/auth/customer/start': {
+        post: {
+          tags: ['auth'],
+          summary: 'Start a customer login with Verify',
+          description: [
+            `Starts a Verify request in the customer's language and keeps its id in the \`${VERIFICATION_COOKIE}\` cookie (\`HttpOnly\`, ${VERIFICATION_TTL_MS / 60_000} minutes).`,
+            'With `SILENT_AUTH_REDIRECT_URL` set, it tries silent authentication first: the answer has `channel: silent_auth` and a `checkUrl` the PWA navigates to over mobile data. Otherwise, or when the carrier is not supported, the code goes by SMS.',
+            'An unknown phone gets `channel: sms`, without any SMS, and its codes are always wrong.',
+          ].join(' '),
+          security: [],
+          requestBody: {
+            content: { 'application/json': { schema: customerLoginStartBodySchema } },
+          },
+          responses: {
+            '200': json('The code is on its way', customerLoginStartResponseSchema),
+            '400': error('The phone is not in E.164 format'),
+            '429': error(
+              `Verify blocks the number for now, or more than ${CUSTOMER_LOGIN_STARTS_PER_WINDOW} attempts in ${CUSTOMER_LOGIN_START_WINDOW_MS / 60_000} minutes from the same IP or for the same phone`,
+            ),
+            '502': error('Vonage could not start the verification'),
+          },
+        },
+      },
+      '/auth/customer/sms': {
+        post: {
+          tags: ['auth'],
+          summary: 'Send the SMS now, when silent authentication failed',
+          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie. Without this call, Verify waits 60 seconds before moving on to the SMS.`,
+          security: [],
+          responses: {
+            '204': { description: 'The SMS is on its way' },
+            '410': error('`VERIFICATION_EXPIRED`: the customer has to start again'),
+            '429': error(
+              `More than ${CUSTOMER_LOGIN_CHECKS_PER_MINUTE} attempts in a minute from the same IP`,
+            ),
+            '502': error('Vonage could not move on to the SMS'),
+          },
+        },
+      },
+      '/auth/customer/check': {
+        post: {
+          tags: ['auth'],
+          summary: 'Log a customer in with the code from silent authentication or the SMS',
+          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie from \`/auth/customer/start\`. After silent authentication, send the \`request_id\` from the redirect as \`requestId\`: it must match the cookie, and until \`/auth/customer/sms\` moves the login to SMS a code without it is rejected as \`INVALID_CODE\`. Sets the \`${SESSION_COOKIE}\` cookie and marks the phone as verified.`,
+          security: [],
+          requestBody: {
+            content: { 'application/json': { schema: customerLoginCheckBodySchema } },
+          },
+          responses: {
+            '200': json('The customer who logged in', currentUserSchema),
+            '400': error('Invalid input, with one entry per offending field in `details`'),
+            '401': error('`INVALID_CODE`: wrong code; the customer can try again'),
+            '410': error(
+              '`VERIFICATION_EXPIRED` or `TOO_MANY_ATTEMPTS`: the customer has to ask for a new code',
+            ),
+            '429': error(
+              `Verify asks to wait, or more than ${CUSTOMER_LOGIN_CHECKS_PER_MINUTE} attempts in a minute from the same IP`,
+            ),
+            '502': error('Vonage could not check the code'),
           },
         },
       },

@@ -1,6 +1,7 @@
 import { Catch, HttpException, HttpStatus, Inject, Logger } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 
+import { CustomerLoginError } from '../../auth/customer-login.errors.js';
 import {
   InvalidTransitionError,
   UnauthorizedTransitionError,
@@ -74,6 +75,10 @@ export function toApiErrorReply(exception: unknown): ApiErrorReply {
 
   if (exception instanceof UnauthorizedTransitionError) {
     return reply(HttpStatus.CONFLICT, 'TRANSITION_NOT_ALLOWED_FOR_ACTOR', exception.message);
+  }
+
+  if (exception instanceof CustomerLoginError) {
+    return reply(exception.status, exception.code, exception.message);
   }
 
   if (exception instanceof VonageError) {
