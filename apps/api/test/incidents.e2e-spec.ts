@@ -74,7 +74,7 @@ describe('Incidents (e2e)', () => {
       ]);
     });
 
-        it('stores the trimmed description and returns it in the detail', async () => {
+    it('stores the trimmed description and returns it in the detail', async () => {
       const created = await http()
         .post('/incidents')
         .set(DEV_ACTOR, actor.ana)
