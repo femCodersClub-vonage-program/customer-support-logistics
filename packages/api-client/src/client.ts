@@ -2,6 +2,7 @@ import { ApiError } from './errors.js';
 
 import type {
   ChangeIncidentStatusBody,
+  CreateIncidentBody,
   IncidentDetail,
   ListIncidentsQueryInput,
   ListIncidentsResponse,
@@ -29,6 +30,7 @@ export interface ApiClient {
     query?: ListIncidentsQueryInput,
     options?: RequestOptions,
   ): Promise<ListIncidentsResponse>;
+  createIncident(body: CreateIncidentBody, options?: RequestOptions): Promise<Incident>;
   getIncident(incidentId: string, options?: RequestOptions): Promise<IncidentDetail>;
   changeIncidentStatus(
     incidentId: string,
@@ -101,6 +103,13 @@ export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions):
     listIncidents: (query = {}, { signal } = {}) =>
       request<ListIncidentsResponse>(`/incidents${toQueryString(query)}`, {
         method: 'GET',
+        signal,
+      }),
+    createIncident: (body, { signal } = {}) =>
+      request<Incident>('/incidents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
         signal,
       }),
     getIncident: (incidentId, { signal } = {}) =>
