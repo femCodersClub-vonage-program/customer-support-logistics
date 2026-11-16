@@ -50,18 +50,18 @@ The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that 
 
 #### Seeded actors
 
-Paste the value into **Authorize** in [Swagger UI](#openapi) or into the `X-Dev-Actor` header.
+Customers log in with their phone ([as a customer](#logging-in-locally-as-a-customer)) and agents with their email and `SEED_AGENT_PASSWORD` ([as an agent](#logging-in-locally-as-an-agent)).
 
-| `X-Dev-Actor`                                   | Who                                       | Locale | What they have                                                              |
-| ----------------------------------------------- | ----------------------------------------- | ------ | --------------------------------------------------------------------------- |
-| `customer:5eed0000-0000-4000-8000-0000000000c1` | Lucía Martín                              | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
-| `customer:5eed0000-0000-4000-8000-0000000000c2` | Carlos Romero                             | `es`   | Incidents in `notified`, `escalated` and `resolved`                         |
-| `customer:5eed0000-0000-4000-8000-0000000000c3` | Emma Wilson                               | `en`   | Two incidents `in_mediation`                                                |
-| `customer:5eed0000-0000-4000-8000-0000000000c4` | James Taylor                              | `en`   | A `resolved` incident and a pending order without incidents                 |
-| `agent:5eed0000-0000-4000-8000-0000000000a1`    | Marta Vidal (`marta.vidal@example.com`)   | `es`   | Assigned to one `in_mediation` and one `resolved` incident                  |
-| `agent:5eed0000-0000-4000-8000-0000000000a2`    | Olivia Brown (`olivia.brown@example.com`) | `en`   | Assigned to one `escalated` and one `resolved` incident                     |
+| Who                     | Logs in with               | Locale | What they have                                                              |
+| ----------------------- | -------------------------- | ------ | --------------------------------------------------------------------------- |
+| Lucía Martín, customer  | `+34611000001`             | `es`   | An `open` incident on a failed order, an `escalated` one on a pending order |
+| Carlos Romero, customer | `+34611000002`             | `es`   | Incidents in `notified`, `escalated` and `resolved`                         |
+| Emma Wilson, customer   | `+447700900001`            | `en`   | Two incidents `in_mediation`                                                |
+| James Taylor, customer  | `+447700900002`            | `en`   | A `resolved` incident and a pending order without incidents                 |
+| Marta Vidal, agent      | `marta.vidal@example.com`  | `es`   | Assigned to one `in_mediation` and one `resolved` incident                  |
+| Olivia Brown, agent     | `olivia.brown@example.com` | `en`   | Assigned to one `escalated` and one `resolved` incident                     |
 
-The customers' demo phones are `+34611000001` (Lucía), `+34611000002` (Carlos), `+447700900001` (Emma) and `+447700900002` (James); see [logging in locally as a customer](#logging-in-locally-as-a-customer). Every agent sees every incident in `GET /incidents`. Four of them are unassigned (`?agentId=unassigned`). The driver is Javier Molina (`+34611000009`), on the route of `2026-11-02`.
+Every agent sees every incident in `GET /incidents`. Four of them are unassigned (`?agentId=unassigned`). The driver is Javier Molina (`+34611000009`), on the route of `2026-11-02`.
 
 ### Changing the schema
 
@@ -317,22 +317,9 @@ pnpm exec turbo run build --filter=@csl/api
 pnpm --filter ./apps/api run agent:create --email lucia@example.com --name "Lucía Pérez" --locale es
 ```
 
-### Temporary dev authentication
-
-> [!WARNING]
-> This bridge stays until the CRM and the client use the real login ([1.5]). Don't build on it.
-
-With `DEV_AUTH_ENABLED=true`, a request without a valid session can still identify itself with the `X-Dev-Actor` header: `customer:<uuid>` or `agent:<uuid>`. Roles and ownership apply to it as to a session. With the flag off (the default), only sessions work. The API refuses to start if the flag is on and `NODE_ENV=production`.
-
-```sh
-curl -H 'X-Dev-Actor: agent:5eed0000-0000-4000-8000-0000000000a1' 'http://localhost:3000/incidents?status=open'
-```
-
-The [seeded actors](#seeded-actors) are ready to use.
-
 ### Vonage webhooks
 
-Vonage calls the routes under `/webhooks/*`. They don't use `X-Dev-Actor`; they check Vonage's signature with `VONAGE_SIGNATURE_SECRET` instead, and reject everything if it isn't set. What each route does, how to point a Vonage application to a local tunnel and how to test with a real phone are in [Vonage integration](../../docs/architecture/vonage.md#webhooks).
+Vonage calls the routes under `/webhooks/*`. They don't use a session; they check Vonage's signature with `VONAGE_SIGNATURE_SECRET` instead, and reject everything if it isn't set. What each route does, how to point a Vonage application to a local tunnel and how to test with a real phone are in [Vonage integration](../../docs/architecture/vonage.md#webhooks).
 
 To replay a sample payload against the local API without a phone, sign it with the secret from `.env`:
 
@@ -353,7 +340,6 @@ Outside production, the API serves Swagger UI at [`/docs`](http://localhost:3000
 pnpm --filter ./apps/api run test
 ```
 
-Unit tests (`src/**/*.spec.ts`) don't need a database. End-to-end tests (`test/**/*.e2e-spec.ts`) need a running PostgreSQL with migrations applied, at `DATABASE_URL` or at the default from `.env.example`. They empty the tables before each test, so don't point them at a database you care about. They run one file at a time and set `DEV_AUTH_ENABLED`, `PUBLIC_URL` and the Vonage webhook variables themselves (see `vitest.config.ts`); `VonageService` is replaced by `FakeVonageService`, so nothing reaches Vonage.
+Unit tests (`src/**/*.spec.ts`) don't need a database. End-to-end tests (`test/**/*.e2e-spec.ts`) need a running PostgreSQL with migrations applied, at `DATABASE_URL` or at the default from `.env.example`. They empty the tables before each test, so don't point them at a database you care about. They run one file at a time and set `PUBLIC_URL` and the Vonage webhook variables themselves (see `vitest.config.ts`); `VonageService` is replaced by `FakeVonageService`, so nothing reaches Vonage. To act as someone, a test creates a session with `sessionCookieFor` or `sessionCookiesFor` (`test/fixtures/auth.ts`) and sends it as the `Cookie` header.
 
 [#30]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/30
-[1.5]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31

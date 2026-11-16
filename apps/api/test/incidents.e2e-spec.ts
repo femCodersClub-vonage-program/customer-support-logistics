@@ -11,15 +11,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { incidentEvents, incidents } from '../src/database/schema/index.js';
 
 import { createTestApp, resetDatabase, waitForLockWait } from './fixtures/app.js';
+import { sessionCookiesFor } from './fixtures/auth.js';
 import { actor, ids, seed, times } from './fixtures/seed.js';
 
 import type { TestApp } from './fixtures/app.js';
 import type { ApiErrorResponse, ListIncidentsResponse } from '@csl/contracts';
 
-const DEV_ACTOR = 'X-Dev-Actor';
-
 describe('Incidents (e2e)', () => {
   let testApp: TestApp;
+  let cookie: Record<keyof typeof actor, string>;
 
   const http = () => request(testApp.app.getHttpServer());
 
@@ -37,6 +37,7 @@ describe('Incidents (e2e)', () => {
   beforeEach(async () => {
     await resetDatabase(testApp.db);
     await seed(testApp.db);
+    cookie = await sessionCookiesFor(testApp, actor);
   });
 
   afterAll(async () => {
@@ -48,7 +49,7 @@ describe('Incidents (e2e)', () => {
     it('creates an incident for the customer’s order and records the initial event', async () => {
       const response = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .send({ orderId: ids.anaOrder, type: 'damaged' })
         .expect(201);
 
@@ -77,7 +78,7 @@ describe('Incidents (e2e)', () => {
     it('returns 404 for another customer’s order, without leaking that it exists', async () => {
       const response = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .send({ orderId: ids.brunoOrder, type: 'damaged' })
         .expect(404);
 
@@ -86,7 +87,7 @@ describe('Incidents (e2e)', () => {
         (
           await http()
             .post('/incidents')
-            .set(DEV_ACTOR, actor.ana)
+            .set('Cookie', cookie.ana)
             .send({ orderId: ids.missing, type: 'damaged' })
             .expect(404)
         ).body,
@@ -96,7 +97,7 @@ describe('Incidents (e2e)', () => {
     it('returns 400 with the offending fields', async () => {
       const response = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .send({ orderId: 'not-a-uuid', type: 'lost' })
         .expect(400);
 
@@ -109,7 +110,7 @@ describe('Incidents (e2e)', () => {
     it('returns 400 for a malformed JSON body', async () => {
       const response = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .set('Content-Type', 'application/json')
         .send('{"orderId":')
         .expect(400);
@@ -120,14 +121,14 @@ describe('Incidents (e2e)', () => {
     it('returns 403 for agents', async () => {
       const response = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.agentA)
+        .set('Cookie', cookie.agentA)
         .send({ orderId: ids.anaOrder, type: 'damaged' })
         .expect(403);
 
       expectError(response.body, 'FORBIDDEN');
     });
 
-    it('returns 401 without the dev actor header', async () => {
+    it('returns 401 without a session', async () => {
       const response = await http()
         .post('/incidents')
         .send({ orderId: ids.anaOrder, type: 'damaged' })
@@ -142,7 +143,7 @@ describe('Incidents (e2e)', () => {
       const response = await http()
         .get('/incidents')
         .query(query)
-        .set(DEV_ACTOR, actor.agentA)
+        .set('Cookie', cookie.agentA)
         .expect(200);
 
       return listIncidentsResponseSchema.parse(response.body);
@@ -304,7 +305,7 @@ describe('Incidents (e2e)', () => {
       const response = await http()
         .get('/incidents')
         .query(query)
-        .set(DEV_ACTOR, actor.agentA)
+        .set('Cookie', cookie.agentA)
         .expect(400);
 
       expectError(response.body, 'VALIDATION_FAILED');
@@ -318,7 +319,7 @@ describe('Incidents (e2e)', () => {
     it('returns the detail with order, customer, driver, events and communications', async () => {
       const response = await http()
         .get(`/incidents/${ids.openIncident}`)
-        .set(DEV_ACTOR, actor.agentA)
+        .set('Cookie', cookie.agentA)
         .expect(200);
 
       const detail = incidentDetailSchema.parse(response.body);
@@ -342,7 +343,7 @@ describe('Incidents (e2e)', () => {
     it('returns events in chronological order and the communications', async () => {
       const response = await http()
         .get(`/incidents/${ids.mediationIncident}`)
-        .set(DEV_ACTOR, actor.agentA)
+        .set('Cookie', cookie.agentA)
         .expect(200);
 
       const detail = incidentDetailSchema.parse(response.body);
@@ -364,17 +365,17 @@ describe('Incidents (e2e)', () => {
     });
 
     it('lets customers see their own incidents', async () => {
-      await http().get(`/incidents/${ids.openIncident}`).set(DEV_ACTOR, actor.ana).expect(200);
+      await http().get(`/incidents/${ids.openIncident}`).set('Cookie', cookie.ana).expect(200);
     });
 
     it('returns the same 404 for another customer’s incident and for a missing one', async () => {
       const notYours = await http()
         .get(`/incidents/${ids.openIncident}`)
-        .set(DEV_ACTOR, actor.bruno)
+        .set('Cookie', cookie.bruno)
         .expect(404);
       const missing = await http()
         .get(`/incidents/${ids.missing}`)
-        .set(DEV_ACTOR, actor.agentA)
+        .set('Cookie', cookie.agentA)
         .expect(404);
 
       expectError(notYours.body, 'NOT_FOUND');
@@ -384,7 +385,7 @@ describe('Incidents (e2e)', () => {
     it('returns 400 for an id that is not a UUID', async () => {
       const response = await http()
         .get('/incidents/not-a-uuid')
-        .set(DEV_ACTOR, actor.agentA)
+        .set('Cookie', cookie.agentA)
         .expect(400);
 
       expectError(response.body, 'VALIDATION_FAILED');
@@ -392,8 +393,8 @@ describe('Incidents (e2e)', () => {
   });
 
   describe('PATCH /incidents/:id/status', () => {
-    const patch = (id: string, body: object, who: string = actor.agentA) =>
-      http().patch(`/incidents/${id}/status`).set(DEV_ACTOR, who).send(body);
+    const patch = (id: string, body: object, who: string = cookie.agentA) =>
+      http().patch(`/incidents/${id}/status`).set('Cookie', who).send(body);
 
     it('changes the status and records the event in the same transaction', async () => {
       const response = await patch(ids.openIncident, {
@@ -498,7 +499,7 @@ describe('Incidents (e2e)', () => {
 
     it('returns 403 for customers, who cannot change the status', async () => {
       expectError(
-        (await patch(ids.openIncident, { status: 'escalated' }, actor.ana).expect(403)).body,
+        (await patch(ids.openIncident, { status: 'escalated' }, cookie.ana).expect(403)).body,
         'FORBIDDEN',
       );
     });
