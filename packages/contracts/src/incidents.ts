@@ -110,7 +110,13 @@ export const createIncidentBodySchema = z
   .object({
     orderId: uuidSchema,
     type: incidentTypeSchema,
-    description: z.string().trim().min(1).max(INCIDENT_DESCRIPTION_MAX_LENGTH).optional(),
+    description: z
+      .string()
+      .trim()
+      .min(1)
+      .max(INCIDENT_DESCRIPTION_MAX_LENGTH)
+      .meta({ description: 'Required when type is other' })
+      .optional(),
   })
   .refine(({ type, description }) => type !== 'other' || description !== undefined, {
     path: ['description'],
