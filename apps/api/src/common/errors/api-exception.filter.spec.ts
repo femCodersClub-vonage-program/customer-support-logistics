@@ -9,6 +9,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
+import { CustomerLoginError } from '../../auth/customer-login.errors.js';
 import {
   InvalidTransitionError,
   UnauthorizedTransitionError,
@@ -80,6 +81,18 @@ describe('toApiErrorReply', () => {
     expect(toApiErrorReply(exception)).toEqual({
       status,
       body: { error: { code, message: exception.message } },
+    });
+  });
+
+  it.each([
+    ['wrong_code', 401, 'INVALID_CODE'],
+    ['expired', 410, 'VERIFICATION_EXPIRED'],
+    ['too_many_attempts', 410, 'TOO_MANY_ATTEMPTS'],
+    ['blocked', 429, 'RATE_LIMITED'],
+  ] as const)('maps the customer login failure %s to %i %s', (failure, status, code) => {
+    expect(toApiErrorReply(new CustomerLoginError(failure))).toMatchObject({
+      status,
+      body: { error: { code } },
     });
   });
 

@@ -1,8 +1,13 @@
 import {
+  agentLoginBodySchema,
   apiErrorResponseSchema,
   changeIncidentStatusBodySchema,
   communicationSchema,
   createIncidentBodySchema,
+  currentUserSchema,
+  customerLoginCheckBodySchema,
+  customerLoginStartBodySchema,
+  customerLoginStartResponseSchema,
   incidentDetailSchema,
   incidentIdParamsSchema,
   incidentSchema,
@@ -13,7 +18,15 @@ import {
 } from '@csl/contracts';
 import { createDocument } from 'zod-openapi';
 
-import { DEV_ACTOR_HEADER } from '../common/dev-auth/dev-actor.js';
+import {
+  AGENT_LOGIN_ATTEMPTS_PER_MINUTE,
+  CUSTOMER_LOGIN_CHECKS_PER_MINUTE,
+  CUSTOMER_LOGIN_STARTS_PER_WINDOW,
+  CUSTOMER_LOGIN_START_WINDOW_MS,
+} from '../auth/auth.controller.js';
+import { DEV_ACTOR_HEADER } from '../auth/dev-actor.js';
+import { VERIFICATION_TTL_MS } from '../auth/pending-verifications.js';
+import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../auth/session-cookie.js';
 import { APP_VERSION } from '../version.js';
 
 import type { z } from 'zod';
@@ -26,12 +39,14 @@ const json = (description: string, schema: z.ZodType): ZodOpenApiResponseObject 
 
 const error = (description: string) => json(description, apiErrorResponseSchema);
 
-const unauthorized = error(`Missing or invalid \`${DEV_ACTOR_HEADER}\` header`);
+const unauthorized = error('No valid session');
 
 const commonErrors: ZodOpenApiResponsesObject = {
   '400': error('Invalid input, with one entry per offending field in `details`'),
   '401': unauthorized,
 };
+
+const forbiddenFor = (role: string) => error(`Not available for ${role}`);
 
 const incidentErrors: ZodOpenApiResponsesObject = {
   ...commonErrors,
@@ -40,7 +55,8 @@ const incidentErrors: ZodOpenApiResponsesObject = {
 
 const driverCallErrors: ZodOpenApiResponsesObject = {
   ...incidentErrors,
-  '403': error('Only agents can call the driver'),
+  '403': forbiddenFor('customers'),
+  '404': error('The incident does not exist'),
   '502': error('Vonage could not create the call; the agent can try again'),
 };
 
@@ -51,8 +67,9 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
       title: 'Customer Support Logistics API',
       version: APP_VERSION,
       description: [
-        'Until authentication lands, protected routes need the temporary, development-only',
-        `\`${DEV_ACTOR_HEADER}\` header (\`customer:<uuid>\` or \`agent:<uuid>\`) and`,
+        `Protected routes need the \`${SESSION_COOKIE}\` session cookie, set by the login endpoints.`,
+        'While the CRM and the PWA move to the real login, development also accepts the temporary',
+        `\`${DEV_ACTOR_HEADER}\` header (\`customer:<uuid>\` or \`agent:<uuid>\`) with`,
         '`DEV_AUTH_ENABLED=true`.',
         '',
         'Lists use `limit` / `offset` pagination and return `total`.',
@@ -60,6 +77,12 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
     },
     components: {
       securitySchemes: {
+        session: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: SESSION_COOKIE,
+          description: 'Opaque session id, `HttpOnly`, set by the login endpoints',
+        },
         devActor: {
           type: 'apiKey',
           in: 'header',
@@ -68,8 +91,106 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
         },
       },
     },
-    security: [{ devActor: [] }],
+    security: [{ session: [] }, { devActor: [] }],
     paths: {
+      '/auth/agent/login': {
+        post: {
+          tags: ['auth'],
+          summary: 'Log an agent in with email and password',
+          description: `Sets the \`${SESSION_COOKIE}\` cookie.`,
+          security: [],
+          requestBody: { content: { 'application/json': { schema: agentLoginBodySchema } } },
+          responses: {
+            '200': json('The agent who logged in', currentUserSchema),
+            '400': error('Invalid input, with one entry per offending field in `details`'),
+            '401': error('Wrong email or password'),
+            '429': error(
+              `More than ${AGENT_LOGIN_ATTEMPTS_PER_MINUTE} attempts in a minute from the same IP`,
+            ),
+          },
+        },
+      },
+      '/auth/customer/start': {
+        post: {
+          tags: ['auth'],
+          summary: 'Start a customer login with Verify',
+          description: [
+            `Starts a Verify request in the customer's language and keeps its id in the \`${VERIFICATION_COOKIE}\` cookie (\`HttpOnly\`, ${VERIFICATION_TTL_MS / 60_000} minutes).`,
+            'With `SILENT_AUTH_REDIRECT_URL` set, it tries silent authentication first: the answer has `channel: silent_auth` and a `checkUrl` the PWA navigates to over mobile data. Otherwise, or when the carrier is not supported, the code goes by SMS.',
+            'An unknown phone gets `channel: sms`, without any SMS, and its codes are always wrong.',
+          ].join(' '),
+          security: [],
+          requestBody: {
+            content: { 'application/json': { schema: customerLoginStartBodySchema } },
+          },
+          responses: {
+            '200': json('The code is on its way', customerLoginStartResponseSchema),
+            '400': error('The phone is not in E.164 format'),
+            '429': error(
+              `Verify blocks the number for now, or more than ${CUSTOMER_LOGIN_STARTS_PER_WINDOW} attempts in ${CUSTOMER_LOGIN_START_WINDOW_MS / 60_000} minutes from the same IP or for the same phone`,
+            ),
+            '502': error('Vonage could not start the verification'),
+          },
+        },
+      },
+      '/auth/customer/sms': {
+        post: {
+          tags: ['auth'],
+          summary: 'Send the SMS now, when silent authentication failed',
+          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie. Without this call, Verify waits 60 seconds before moving on to the SMS.`,
+          security: [],
+          responses: {
+            '204': { description: 'The SMS is on its way' },
+            '410': error('`VERIFICATION_EXPIRED`: the customer has to start again'),
+            '429': error(
+              `More than ${CUSTOMER_LOGIN_CHECKS_PER_MINUTE} attempts in a minute from the same IP`,
+            ),
+            '502': error('Vonage could not move on to the SMS'),
+          },
+        },
+      },
+      '/auth/customer/check': {
+        post: {
+          tags: ['auth'],
+          summary: 'Log a customer in with the code from silent authentication or the SMS',
+          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie from \`/auth/customer/start\`. After silent authentication, send the \`request_id\` from the redirect as \`requestId\`: it must match the cookie, and until \`/auth/customer/sms\` moves the login to SMS a code without it is rejected as \`INVALID_CODE\`. Sets the \`${SESSION_COOKIE}\` cookie and marks the phone as verified.`,
+          security: [],
+          requestBody: {
+            content: { 'application/json': { schema: customerLoginCheckBodySchema } },
+          },
+          responses: {
+            '200': json('The customer who logged in', currentUserSchema),
+            '400': error('Invalid input, with one entry per offending field in `details`'),
+            '401': error('`INVALID_CODE`: wrong code; the customer can try again'),
+            '410': error(
+              '`VERIFICATION_EXPIRED` or `TOO_MANY_ATTEMPTS`: the customer has to ask for a new code',
+            ),
+            '429': error(
+              `Verify asks to wait, or more than ${CUSTOMER_LOGIN_CHECKS_PER_MINUTE} attempts in a minute from the same IP`,
+            ),
+            '502': error('Vonage could not check the code'),
+          },
+        },
+      },
+      '/auth/logout': {
+        post: {
+          tags: ['auth'],
+          summary: 'End the current session',
+          description: `Deletes the session and clears the \`${SESSION_COOKIE}\` cookie. Answers \`204\` even without a session.`,
+          security: [],
+          responses: { '204': { description: 'Logged out' } },
+        },
+      },
+      '/auth/me': {
+        get: {
+          tags: ['auth'],
+          summary: 'The customer or agent behind the current session',
+          responses: {
+            '200': json('The current user', currentUserSchema),
+            '401': unauthorized,
+          },
+        },
+      },
       '/incidents': {
         post: {
           tags: ['incidents'],
@@ -78,7 +199,7 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           responses: {
             '201': json('The created incident', incidentSchema),
             ...commonErrors,
-            '403': error('Only customers can create incidents'),
+            '403': forbiddenFor('agents'),
             '404': error('The order does not exist or does not belong to the customer'),
           },
         },
@@ -91,6 +212,7 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           responses: {
             '200': json('A page of incidents', listIncidentsResponseSchema),
             ...commonErrors,
+            '403': forbiddenFor('customers'),
           },
         },
       },
@@ -116,6 +238,7 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           responses: {
             '200': json('The updated incident', incidentSchema),
             ...incidentErrors,
+            '403': forbiddenFor('customers'),
             '409': error('The transition is not allowed from the current status or for the actor'),
           },
         },
@@ -160,7 +283,7 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           responses: {
             '200': json('The customer’s orders', listOrdersResponseSchema),
             '401': unauthorized,
-            '403': error('Only customers have orders'),
+            '403': forbiddenFor('agents'),
           },
         },
       },

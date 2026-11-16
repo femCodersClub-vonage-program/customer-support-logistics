@@ -1,4 +1,5 @@
 import {
+  agents,
   communications,
   customers,
   drivers,
@@ -52,6 +53,11 @@ export const times = {
 } as const;
 
 export async function seed(db: Database): Promise<void> {
+  await db.insert(agents).values([
+    { id: ids.agentA, email: 'agent.a@example.com', name: 'Agent A' },
+    { id: ids.agentB, email: 'agent.b@example.com', name: 'Agent B' },
+  ]);
+
   await db.insert(customers).values([
     { id: ids.ana, name: 'Ana García', phone: '+34600000001' },
     { id: ids.bruno, name: 'Bruno Díaz', phone: '+34600000002', locale: 'en' },

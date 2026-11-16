@@ -1,3 +1,4 @@
+export * from './agent.js';
 export * from './communication.js';
 export * from './customer.js';
 export * from './driver.js';
