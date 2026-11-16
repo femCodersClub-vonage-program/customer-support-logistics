@@ -1,7 +1,7 @@
 import { Vonage } from '@vonage/server-sdk';
 
 import type { NccoAction } from './ncco.js';
-import type { Channels } from '@vonage/verify2';
+import type { Channels, SilentAuthChannel } from '@vonage/verify2';
 
 type PhoneEndpoint = {
   type: 'phone';
@@ -30,9 +30,15 @@ export interface VonageClient {
     newRequest(params: {
       brand: string;
       locale: string;
-      workflow: { channel: Channels.SMS; to: string }[];
-    }): Promise<{ requestId: string }>;
+      codeLength: 6;
+      channelTimeout: number;
+      workflow: (
+        | { channel: Channels.SMS; to: string }
+        | { channel: SilentAuthChannel.SILENT_AUTH; to: string; redirectUrl: string }
+      )[];
+    }): Promise<{ requestId: string; checkUrl?: string }>;
     checkCode(requestId: string, code: string): Promise<string>;
+    nextWorkflow(requestId: string): Promise<boolean>;
   };
 }
 

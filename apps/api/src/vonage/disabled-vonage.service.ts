@@ -5,6 +5,7 @@ import { VonageDisabledError } from './vonage.errors.js';
 import type { VonageOperation } from './vonage.errors.js';
 import type {
   CreatedCall,
+  NextVerificationChannel,
   SentSms,
   StartedVerification,
   VerificationCheck,
@@ -32,6 +33,10 @@ export class DisabledVonageService implements VonageService {
 
   async checkVerification(): Promise<VerificationCheck> {
     throw this.reject('checkVerification');
+  }
+
+  async moveVerificationToSms(): Promise<NextVerificationChannel> {
+    throw this.reject('moveVerificationToSms');
   }
 
   private reject(operation: VonageOperation): VonageDisabledError {
