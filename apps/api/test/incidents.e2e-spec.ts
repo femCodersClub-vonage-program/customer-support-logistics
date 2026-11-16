@@ -129,19 +129,21 @@ describe('Incidents (e2e)', () => {
     });
 
     it.each([
-      ['empty', ''],
-      ['too long', 'a'.repeat(1001)],
-    ])('returns 400 for a description that is %s', async (_name, description) => {
-      const response = await http()
+      ['exactly 1000 characters', 'a'.repeat(1000)],
+      ['1000 characters with spaces around them', `  ${'a'.repeat(1000)}  `],
+    ])('accepts a description of %s', async (_name, description) => {
+      const created = await http()
         .post('/incidents')
         .set(DEV_ACTOR, actor.ana)
         .send({ orderId: ids.anaOrder, type: 'damaged', description })
-        .expect(400);
+        .expect(201);
 
-      expectError(response.body, 'VALIDATION_FAILED');
-      expect((response.body as ApiErrorResponse).error.details?.map(({ path }) => path)).toEqual([
-        'description',
-      ]);
+      const detail = await http()
+        .get(`/incidents/${incidentSchema.parse(created.body).id}`)
+        .set(DEV_ACTOR, actor.ana)
+        .expect(200);
+
+      expect(incidentDetailSchema.parse(detail.body).description).toBe('a'.repeat(1000));
     });
 
     it('returns 404 for another customer’s order, without leaking that it exists', async () => {
