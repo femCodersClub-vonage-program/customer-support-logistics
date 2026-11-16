@@ -1,7 +1,12 @@
 import { ApiError } from './errors.js';
 
-import type { ListIncidentsQueryInput, ListIncidentsResponse } from '@csl/contracts';
-import type { HealthResponse } from '@csl/shared-types';
+import type {
+  ChangeIncidentStatusBody,
+  IncidentDetail,
+  ListIncidentsQueryInput,
+  ListIncidentsResponse,
+} from '@csl/contracts';
+import type { HealthResponse, Incident } from '@csl/shared-types';
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -23,6 +28,19 @@ export interface ApiClient {
     query?: ListIncidentsQueryInput,
     options?: RequestOptions,
   ): Promise<ListIncidentsResponse>;
+  getIncident(id: string, options?: RequestOptions): Promise<IncidentDetail>;
+  assignIncidentToMe(id: string, options?: RequestOptions): Promise<Incident>;
+  notifyDriver(id: string, options?: RequestOptions): Promise<Incident>;
+  notifyDriverAgain(
+    id: string,
+    idempotencyKey: string,
+    options?: RequestOptions,
+  ): Promise<Incident>;
+  changeIncidentStatus(
+    id: string,
+    body: ChangeIncidentStatusBody,
+    options?: RequestOptions,
+  ): Promise<Incident>;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -87,6 +105,34 @@ export function createApiClient({ baseUrl, getToken, fetch }: ApiClientOptions):
     listIncidents: (query = {}, { signal } = {}) =>
       request<ListIncidentsResponse>(`/incidents${toQueryString(query)}`, {
         method: 'GET',
+        signal,
+      }),
+    getIncident: (id, { signal } = {}) =>
+      request<IncidentDetail>(`/incidents/${encodeURIComponent(id)}`, {
+        method: 'GET',
+        signal,
+      }),
+    assignIncidentToMe: (id, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/assign-to-me`, {
+        method: 'POST',
+        signal,
+      }),
+    notifyDriver: (id, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/notify-driver`, {
+        method: 'POST',
+        signal,
+      }),
+    notifyDriverAgain: (id, idempotencyKey, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/notify-driver/again`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        signal,
+      }),
+    changeIncidentStatus: (id, body, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
         signal,
       }),
   };
