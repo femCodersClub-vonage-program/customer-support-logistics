@@ -1,0 +1,119 @@
+.report-form {
+  display: grid;
+  gap: 1.5rem;
+  margin-block: 1rem;
+}
+
+.report-form__group {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.report-form__legend {
+  padding: 0;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.report-form__label {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.report-form__types {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.75rem;
+}
+
+.report-type {
+  position: relative;
+}
+
+.report-type__input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.report-type__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 5.5rem;
+  padding: 0.75rem;
+  border: 2px solid var(--color-border-input);
+  border-radius: 0.75rem;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  text-align: center;
+}
+
+.report-type__icon {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.report-type__input:checked + .report-type__card {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.report-type__input:focus-visible + .report-type__card {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.report-form__textarea {
+  min-height: 7rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: 0.5rem;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.report-form__textarea:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.report-form__textarea[aria-invalid='true'] {
+  border-color: var(--color-error);
+}
+
+.report-form__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.report-form__error {
+  margin: 0;
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.report-form__submit {
+  width: 100%;
+}
+
+.report-form__submit:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
