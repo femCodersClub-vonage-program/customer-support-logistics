@@ -7,12 +7,18 @@ import { ASSIGNEE_ME, firstParam } from '../lib/inbox-query';
 import styles from './InboxFilters.module.css';
 
 import type { SearchParams } from '../lib/inbox-query';
+import type { IncidentStatusCounts } from '@csl/contracts';
 import type { IncidentStatus } from '@csl/shared-types';
 
 export function InboxFilters({
   params,
   status,
-}: Readonly<{ params: SearchParams; status: readonly IncidentStatus[] }>) {
+  counts,
+}: Readonly<{
+  params: SearchParams;
+  status: readonly IncidentStatus[];
+  counts: IncidentStatusCounts;
+}>) {
   const t = useTranslations('inbox');
   const tStatus = useTranslations('incident.status');
   const tType = useTranslations('incident.type');
@@ -40,7 +46,7 @@ export function InboxFilters({
                   value={value}
                   defaultChecked={status.includes(value)}
                 />
-                {tStatus(value)}
+                {t('filters.statusWithCount', { status: tStatus(value), count: counts[value] })}
               </label>
             ))}
           </div>

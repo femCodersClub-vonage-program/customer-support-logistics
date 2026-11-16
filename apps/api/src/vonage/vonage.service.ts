@@ -3,6 +3,10 @@ import type { Locale } from '@csl/shared-types';
 
 export const VONAGE_SERVICE = Symbol('VONAGE_SERVICE');
 
+export const VERIFICATION_TTL_SECONDS = 10 * 60;
+
+export const VERIFICATION_MAX_WRONG_CODES = 3;
+
 export interface SentSms {
   messageId: string;
 }
@@ -11,12 +15,10 @@ export interface CreatedCall {
   callId: string;
 }
 
-export interface StartedVerification {
-  requestId: string;
-}
+export type StartedVerification = { status: 'started'; requestId: string } | { status: 'blocked' };
 
 export interface VerificationCheck {
-  verified: boolean;
+  status: 'verified' | 'wrong_code' | 'expired' | 'too_many_attempts' | 'blocked';
 }
 
 export interface VonageService {

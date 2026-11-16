@@ -107,12 +107,27 @@ describe('SdkVonageService', () => {
       const { client, service } = createService();
 
       await expect(service.startVerification(DRIVER_PHONE, 'es')).resolves.toEqual({
+        status: 'started',
         requestId: 'req-1',
       });
       expect(client.verify2.newRequest).toHaveBeenCalledWith({
         brand: VERIFY_BRAND,
         locale: 'es-es',
+        codeLength: 6,
+        channelTimeout: 600,
         workflow: [{ channel: 'sms', to: '34611000009' }],
+      });
+    });
+
+    it.each([
+      [409, 'Conflict'],
+      [429, 'Rate Limit Hit'],
+    ])('is blocked when Vonage answers %i', async (status, title) => {
+      const { client, service } = createService();
+      client.verify2.newRequest.mockRejectedValue(httpError(status, { title }));
+
+      await expect(service.startVerification(DRIVER_PHONE, 'es')).resolves.toEqual({
+        status: 'blocked',
       });
     });
   });
@@ -122,17 +137,30 @@ describe('SdkVonageService', () => {
       const { client, service } = createService();
 
       await expect(service.checkVerification('req-1', '1234')).resolves.toEqual({
-        verified: true,
+        status: 'verified',
       });
       expect(client.verify2.checkCode).toHaveBeenCalledWith('req-1', '1234');
     });
 
-    it('is not verified for any other status', async () => {
+    it('is a wrong code for any other status', async () => {
       const { client, service } = createService();
       client.verify2.checkCode.mockResolvedValue('failed');
 
       await expect(service.checkVerification('req-1', '1234')).resolves.toEqual({
-        verified: false,
+        status: 'wrong_code',
+      });
+    });
+
+    it.each([
+      [404, 'Not Found', 'expired'],
+      [410, 'Gone', 'too_many_attempts'],
+      [429, 'Rate Limit Hit', 'blocked'],
+    ])('maps a %i from Vonage to %s', async (status, title, outcome) => {
+      const { client, service } = createService();
+      client.verify2.checkCode.mockRejectedValue(httpError(status, { title }));
+
+      await expect(service.checkVerification('req-1', '1234')).resolves.toEqual({
+        status: outcome,
       });
     });
   });
@@ -203,7 +231,7 @@ describe('SdkVonageService', () => {
       expect(String(error)).not.toContain(API_SECRET);
     });
 
-    it('returns not verified for a wrong code instead of failing', async () => {
+    it('returns a wrong code instead of failing', async () => {
       const { client, service } = createService();
       client.verify2.checkCode.mockRejectedValue(
         httpError(400, {
@@ -213,22 +241,17 @@ describe('SdkVonageService', () => {
       );
 
       await expect(service.checkVerification('req-1', '0000')).resolves.toEqual({
-        verified: false,
+        status: 'wrong_code',
       });
     });
 
     it('still fails a verification check for any other error', async () => {
       const { client, service } = createService();
-      client.verify2.checkCode.mockRejectedValue(
-        httpError(404, {
-          title: 'Not Found',
-          type: 'https://www.developer.vonage.com/api-errors#not-found',
-        }),
-      );
+      client.verify2.checkCode.mockRejectedValue(httpError(500, { title: 'Internal Error' }));
 
       await expect(service.checkVerification('req-1', '1234')).rejects.toMatchObject({
         name: 'VonageRequestError',
-        status: 404,
+        status: 500,
       });
     });
   });

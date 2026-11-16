@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { validateEnv } from '../config/env.schema.js';
 
+import { DevVerifyVonageService } from './dev-verify-vonage.service.js';
 import { DisabledVonageService } from './disabled-vonage.service.js';
 import { SdkVonageService } from './sdk-vonage.service.js';
 import { createVonageService } from './vonage.module.js';
@@ -62,6 +63,41 @@ describe('createVonageService', () => {
 
     expect(service).toBeInstanceOf(DisabledVonageService);
     expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it('replaces Verify with the development code when DEV_VERIFY_CODE is set', () => {
+    const createClient = vi.fn(() => ({}) as VonageClient);
+
+    const service = createVonageService(
+      configFor({ VONAGE_ENABLED: 'false', DEV_VERIFY_CODE: '123456' }),
+      createClient,
+    );
+
+    expect(service).toBeInstanceOf(DevVerifyVonageService);
+    expect(createClient).not.toHaveBeenCalled();
+  });
+});
+
+describe('DevVerifyVonageService', () => {
+  it('accepts only the development code, without calling Vonage', async () => {
+    const service = new DevVerifyVonageService('123456');
+    const started = await service.startVerification();
+
+    expect(started).toMatchObject({ status: 'started', requestId: expect.any(String) });
+    await expect(service.checkVerification('any', '123456')).resolves.toEqual({
+      status: 'verified',
+    });
+    await expect(service.checkVerification('any', '000000')).resolves.toEqual({
+      status: 'wrong_code',
+    });
+  });
+
+  it('still rejects SMS and calls', async () => {
+    const service = new DevVerifyVonageService('123456');
+
+    await expect(service.sendSms()).rejects.toThrow(/"sendSms"/);
+    await expect(service.createCall()).rejects.toThrow(/"createCall"/);
+    await expect(service.transferCall()).rejects.toThrow(/"transferCall"/);
   });
 });
 

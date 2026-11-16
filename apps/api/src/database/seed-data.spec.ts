@@ -34,7 +34,8 @@ describe('seed data', () => {
           expect(event.fromStatus).toBe(previous?.toStatus);
           expect(event.occurredAt.getTime()).toBeGreaterThan(previous?.occurredAt.getTime() ?? 0);
           expect(
-            event.fromStatus !== null && canTransition(event.fromStatus, event.toStatus, event.actor),
+            event.fromStatus !== null &&
+              canTransition(event.fromStatus, event.toStatus, event.actor),
           ).toBe(true);
         }
       });
@@ -76,6 +77,16 @@ describe('seed data', () => {
   it('has assigned and unassigned incidents', () => {
     expect(seedData.incidents.some((incident) => incident.agentId === null)).toBe(true);
     expect(seedData.incidents.some((incident) => incident.agentId !== null)).toBe(true);
+  });
+
+  it('assigns incidents only to seeded agents', () => {
+    const agentIds = new Set(seedData.agents.map((agent) => agent.id));
+
+    expect(
+      seedData.incidents.every(
+        (incident) => incident.agentId === null || agentIds.has(incident.agentId),
+      ),
+    ).toBe(true);
   });
 
   it('has customers in every supported locale', () => {

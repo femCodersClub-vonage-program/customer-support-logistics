@@ -13,12 +13,12 @@ export default async function InboxPage({
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   const t = await getTranslations('inbox');
   const { query, params } = parseInboxQuery(await searchParams, CURRENT_AGENT_ID);
-  const { items, total, limit, offset } = await serverApi.listIncidents(query);
+  const { items, total, limit, offset, statusCounts } = await serverApi.listIncidents(query);
 
   return (
     <>
       <h1>{t('title')}</h1>
-      <InboxFilters params={params} status={query.status ?? []} />
+      <InboxFilters params={params} status={query.status ?? []} counts={statusCounts} />
       <IncidentTable items={items} params={params} sort={query.sort} order={query.order} />
       {total > 0 && <Pagination params={params} total={total} limit={limit} offset={offset} />}
     </>

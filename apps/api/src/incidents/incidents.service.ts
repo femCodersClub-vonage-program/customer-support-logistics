@@ -1,8 +1,8 @@
 import { UNASSIGNED_AGENT } from '@csl/contracts';
+import { INCIDENT_STATUSES } from '@csl/shared-types';
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 
-import { requireCustomerId } from '../common/dev-auth/dev-actor.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
   communications,
@@ -19,16 +19,17 @@ import { toOrder } from '../orders/orders.mapper.js';
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
 import { persistTransition } from './persist-transition.js';
 
-import type { DevActor } from '../common/dev-auth/dev-actor.js';
+import type { AuthActor } from '../auth/auth-actor.js';
 import type { Database } from '../database/database.constants.js';
 import type {
   ChangeIncidentStatusBody,
   CreateIncidentBody,
   IncidentDetail,
+  IncidentStatusCounts,
   ListIncidentsQuery,
   ListIncidentsResponse,
 } from '@csl/contracts';
-import type { Incident } from '@csl/shared-types';
+import type { Incident, IncidentStatus } from '@csl/shared-types';
 import type { SQL } from 'drizzle-orm';
 
 const INCIDENT_NOT_FOUND = 'Incident not found';
@@ -37,16 +38,17 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
 }
 
-function ownedBy(actor: DevActor): SQL | undefined {
+function ownedBy(actor: AuthActor): SQL | undefined {
   return actor.role === 'customer' ? eq(orders.customerId, actor.id) : undefined;
 }
 
-function listFilters(query: ListIncidentsQuery): SQL | undefined {
-  const conditions: (SQL | undefined)[] = [];
+function statusFilter(query: ListIncidentsQuery): SQL | undefined {
+  return query.status === undefined ? undefined : inArray(incidents.status, query.status);
+}
 
-  if (query.status !== undefined) {
-    conditions.push(inArray(incidents.status, query.status));
-  }
+// Every filter except the status one: the counts per status are computed with these.
+function otherFilters(query: ListIncidentsQuery): SQL | undefined {
+  const conditions: (SQL | undefined)[] = [];
 
   if (query.type !== undefined) {
     conditions.push(eq(incidents.type, query.type));
@@ -81,13 +83,23 @@ function listFilters(query: ListIncidentsQuery): SQL | undefined {
   return and(...conditions);
 }
 
+function toStatusCounts(rows: { status: IncidentStatus; total: number }[]): IncidentStatusCounts {
+  const counts = Object.fromEntries(
+    INCIDENT_STATUSES.map((status) => [status, 0]),
+  ) as IncidentStatusCounts;
+
+  for (const { status, total } of rows) {
+    counts[status] = total;
+  }
+
+  return counts;
+}
+
 @Injectable()
 export class IncidentsService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async create(actor: DevActor, body: CreateIncidentBody): Promise<Incident> {
-    const customerId = requireCustomerId(actor);
-
+  async create(customerId: string, body: CreateIncidentBody): Promise<Incident> {
     return this.db.transaction(async (tx) => {
       const [order] = await tx
         .select({ id: orders.id })
@@ -116,37 +128,43 @@ export class IncidentsService {
   }
 
   async list(query: ListIncidentsQuery): Promise<ListIncidentsResponse> {
-    const where = listFilters(query);
+    const filters = otherFilters(query);
     const direction = query.order === 'asc' ? asc : desc;
     const sortColumn = query.sort === 'updatedAt' ? incidents.updatedAt : incidents.createdAt;
 
-    const [rows, totals] = await Promise.all([
+    const [rows, countRows] = await Promise.all([
       this.db
         .select({ incident: incidents, customer: { id: customers.id, name: customers.name } })
         .from(incidents)
         .innerJoin(orders, eq(orders.id, incidents.orderId))
         .innerJoin(customers, eq(customers.id, orders.customerId))
-        .where(where)
+        .where(and(statusFilter(query), filters))
         .orderBy(direction(sortColumn), direction(incidents.id))
         .limit(query.limit)
         .offset(query.offset),
       this.db
-        .select({ total: count() })
+        .select({ status: incidents.status, total: count() })
         .from(incidents)
         .innerJoin(orders, eq(orders.id, incidents.orderId))
         .innerJoin(customers, eq(customers.id, orders.customerId))
-        .where(where),
+        .where(filters)
+        .groupBy(incidents.status),
     ]);
+
+    const statusCounts = toStatusCounts(countRows);
+    const selected = query.status ?? INCIDENT_STATUSES;
+    const total = [...new Set(selected)].reduce((sum, status) => sum + statusCounts[status], 0);
 
     return {
       items: rows.map(({ incident, customer }) => toIncidentListItem(incident, customer)),
-      total: singleRow(totals).total,
+      total,
       limit: query.limit,
       offset: query.offset,
+      statusCounts,
     };
   }
 
-  async findOne(actor: DevActor, id: string): Promise<IncidentDetail> {
+  async findOne(actor: AuthActor, id: string): Promise<IncidentDetail> {
     const [row] = await this.db
       .select({ incident: incidents, order: orders, customer: customers, driver: drivers })
       .from(incidents)
@@ -184,7 +202,7 @@ export class IncidentsService {
   }
 
   async changeStatus(
-    actor: DevActor,
+    actor: AuthActor,
     id: string,
     body: ChangeIncidentStatusBody,
   ): Promise<Incident> {
@@ -192,8 +210,7 @@ export class IncidentsService {
       const [row] = await tx
         .select({ incident: incidents })
         .from(incidents)
-        .innerJoin(orders, eq(orders.id, incidents.orderId))
-        .where(and(eq(incidents.id, id), ownedBy(actor)))
+        .where(eq(incidents.id, id))
         .for('update', { of: incidents });
 
       if (!row) {

@@ -243,6 +243,51 @@ describe('Incidents (e2e)', () => {
       expect(await list('limit=2&offset=10')).toMatchObject({ items: [], total: 5 });
     });
 
+    it('counts the incidents of every status, with zeros for the empty ones', async () => {
+      expect((await list()).statusCounts).toEqual({
+        open: 1,
+        notified: 1,
+        in_mediation: 1,
+        resolved: 1,
+        escalated: 1,
+      });
+      expect((await list('type=wrong_item')).statusCounts).toEqual({
+        open: 0,
+        notified: 0,
+        in_mediation: 0,
+        resolved: 1,
+        escalated: 0,
+      });
+    });
+
+    it('counts with every filter except the status one', async () => {
+      const page = await list('status=open&type=delayed');
+
+      expect(idsOf(page)).toEqual([ids.openIncident]);
+      expect(page.total).toBe(1);
+      expect(page.statusCounts).toEqual({
+        open: 1,
+        notified: 0,
+        in_mediation: 0,
+        resolved: 0,
+        escalated: 1,
+      });
+    });
+
+    it('does not count an incident twice when a status is repeated', async () => {
+      const page = await list('status=open&status=open');
+
+      expect(idsOf(page)).toEqual([ids.openIncident]);
+      expect(page.total).toBe(1);
+      expect(page.statusCounts).toEqual({
+        open: 1,
+        notified: 1,
+        in_mediation: 1,
+        resolved: 1,
+        escalated: 1,
+      });
+    });
+
     it.each([
       ['limit=0', 'limit'],
       [`limit=101`, 'limit'],
@@ -444,14 +489,17 @@ describe('Incidents (e2e)', () => {
       expect((emptyReason.body as ApiErrorResponse).error.details?.[0]?.path).toBe('reason');
     });
 
-    it('returns 404 for a missing incident and for another customer’s incident', async () => {
+    it('returns 404 for a missing incident', async () => {
       expectError(
         (await patch(ids.missing, { status: 'escalated' }).expect(404)).body,
         'NOT_FOUND',
       );
+    });
+
+    it('returns 403 for customers, who cannot change the status', async () => {
       expectError(
-        (await patch(ids.openIncident, { status: 'escalated' }, actor.stranger).expect(404)).body,
-        'NOT_FOUND',
+        (await patch(ids.openIncident, { status: 'escalated' }, actor.ana).expect(403)).body,
+        'FORBIDDEN',
       );
     });
   });

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { VONAGE_REQUIRED_VARIABLES, validateDatabaseEnv, validateEnv } from './env.schema.js';
+import {
+  VONAGE_REQUIRED_VARIABLES,
+  validateDatabaseEnv,
+  validateEnv,
+  validateSeedEnv,
+} from './env.schema.js';
 
 const DATABASE_URL = 'postgresql://app:password@localhost:5432/customer_support_logistics';
 
@@ -63,6 +68,36 @@ describe('validateEnv', () => {
     expect(() =>
       validateEnv({ ...DISABLED, NODE_ENV: 'production', DEV_AUTH_ENABLED: 'true' }),
     ).toThrow(/DEV_AUTH_ENABLED/);
+  });
+
+  describe('DEV_VERIFY_CODE', () => {
+    it('is accepted while Vonage is disabled', () => {
+      expect(validateEnv({ ...DISABLED, DEV_VERIFY_CODE: '123456' })).toMatchObject({
+        DEV_VERIFY_CODE: '123456',
+      });
+    });
+
+    it('treats an empty value as unset', () => {
+      expect(validateEnv({ ...DISABLED, DEV_VERIFY_CODE: '' }).DEV_VERIFY_CODE).toBeUndefined();
+    });
+
+    it('throws when it is not 4 to 10 digits', () => {
+      expect(() => validateEnv({ ...DISABLED, DEV_VERIFY_CODE: '12a4' })).toThrow(
+        /DEV_VERIFY_CODE/,
+      );
+    });
+
+    it('throws in production', () => {
+      expect(() =>
+        validateEnv({ ...DISABLED, NODE_ENV: 'production', DEV_VERIFY_CODE: '123456' }),
+      ).toThrow(/DEV_VERIFY_CODE must not be set in production/);
+    });
+
+    it('throws while Vonage is enabled, where it would be ignored', () => {
+      expect(() => validateEnv({ DATABASE_URL, ...VONAGE_ENV, DEV_VERIFY_CODE: '123456' })).toThrow(
+        /DEV_VERIFY_CODE only works while Vonage is disabled/,
+      );
+    });
   });
 
   it('throws when a variable is invalid', () => {
@@ -164,6 +199,46 @@ describe('validateEnv', () => {
         validateEnv({ DATABASE_URL, ...VONAGE_ENV, VONAGE_VIRTUAL_NUMBER: '34600000000' }),
       ).toThrow(/VONAGE_VIRTUAL_NUMBER/);
     });
+  });
+});
+
+describe('validateSeedEnv', () => {
+  it('treats an empty SEED_AGENT_PASSWORD as unset', () => {
+    expect(validateSeedEnv({ DATABASE_URL, SEED_AGENT_PASSWORD: '' })).not.toHaveProperty(
+      'SEED_AGENT_PASSWORD',
+      expect.anything(),
+    );
+  });
+
+  it('throws when SEED_AGENT_PASSWORD is shorter than 12 characters', () => {
+    expect(() => validateSeedEnv({ DATABASE_URL, SEED_AGENT_PASSWORD: 'short' })).toThrow(
+      /SEED_AGENT_PASSWORD/,
+    );
+  });
+
+  it('splits SEED_CUSTOMER_PHONES on commas and ignores spaces and empty entries', () => {
+    expect(
+      validateSeedEnv({ DATABASE_URL, SEED_CUSTOMER_PHONES: ' +34600000001, +34600000002 ,' }),
+    ).toMatchObject({ SEED_CUSTOMER_PHONES: ['+34600000001', '+34600000002'] });
+  });
+
+  it('has no customer phones when SEED_CUSTOMER_PHONES is unset or empty', () => {
+    expect(validateSeedEnv({ DATABASE_URL }).SEED_CUSTOMER_PHONES).toEqual([]);
+    expect(
+      validateSeedEnv({ DATABASE_URL, SEED_CUSTOMER_PHONES: '' }).SEED_CUSTOMER_PHONES,
+    ).toEqual([]);
+  });
+
+  it('throws when SEED_CUSTOMER_PHONES repeats a phone', () => {
+    expect(() =>
+      validateSeedEnv({ DATABASE_URL, SEED_CUSTOMER_PHONES: '+34600000001,+34600000001' }),
+    ).toThrow(/Each phone must appear once/);
+  });
+
+  it('throws when a phone in SEED_CUSTOMER_PHONES is not E.164', () => {
+    expect(() =>
+      validateSeedEnv({ DATABASE_URL, SEED_CUSTOMER_PHONES: '+34600000001,600000002' }),
+    ).toThrow(/SEED_CUSTOMER_PHONES/);
   });
 });
 

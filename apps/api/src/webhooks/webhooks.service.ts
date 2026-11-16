@@ -21,6 +21,7 @@ import {
   buildInvalidKeyNcco,
   buildJoinConversationNcco,
 } from '../vonage/ncco.js';
+import { buildVoiceInputUrl } from '../vonage/voice-urls.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 
 import { BackgroundTasks } from './background-tasks.js';
@@ -65,8 +66,6 @@ interface InvalidReplyFollowUp {
 const ACTIVE_STATUSES: IncidentStatus[] = ['notified', 'in_mediation'];
 
 const ACCEPTED_CALL_REASON = 'accepted_call';
-
-export const VOICE_INPUT_PATH = '/webhooks/voice/input';
 
 function describeNumber(value: string | undefined): string {
   return value === undefined ? 'unknown number' : maskPhone(value);
@@ -494,13 +493,6 @@ export class WebhooksService {
   private voiceInputUrl(incidentId: string): string | null {
     const publicUrl = this.config.get('PUBLIC_URL', { infer: true });
 
-    if (publicUrl === undefined) {
-      return null;
-    }
-
-    const url = new URL(VOICE_INPUT_PATH, publicUrl);
-    url.searchParams.set('incident', incidentId);
-
-    return url.toString();
+    return publicUrl === undefined ? null : buildVoiceInputUrl(publicUrl, incidentId);
   }
 }
