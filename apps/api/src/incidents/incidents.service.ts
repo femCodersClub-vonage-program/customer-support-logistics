@@ -114,7 +114,8 @@ export class IncidentsService {
         await tx
           .insert(incidents)
           .values({ orderId: order.id, type: body.type, description: body.description })
-          .returning(),      );
+          .returning(),
+      );
 
       await tx.insert(incidentEvents).values({
         incidentId: incident.id,
