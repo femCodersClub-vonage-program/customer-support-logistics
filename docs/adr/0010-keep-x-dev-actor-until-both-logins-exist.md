@@ -1,4 +1,4 @@
-# 0009. Keep `x-dev-actor` until both logins exist
+# 0010. Keep `x-dev-actor` until both logins exist
 
 - **Status:** proposed
 - **Date:** 2026-11-16
