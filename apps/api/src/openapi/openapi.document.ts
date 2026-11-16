@@ -143,7 +143,7 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
         post: {
           tags: ['auth'],
           summary: 'Log a customer in with the code from silent authentication or the SMS',
-          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie from \`/auth/customer/start\`. After silent authentication, send the \`request_id\` from the redirect as \`requestId\`: it must match the cookie. Sets the \`${SESSION_COOKIE}\` cookie and marks the phone as verified.`,
+          description: `Needs the \`${VERIFICATION_COOKIE}\` cookie from \`/auth/customer/start\`. After silent authentication, send the \`request_id\` from the redirect as \`requestId\`: it must match the cookie, and until \`/auth/customer/sms\` moves the login to SMS a code without it is rejected as \`INVALID_CODE\`. Sets the \`${SESSION_COOKIE}\` cookie and marks the phone as verified.`,
           security: [],
           requestBody: {
             content: { 'application/json': { schema: customerLoginCheckBodySchema } },

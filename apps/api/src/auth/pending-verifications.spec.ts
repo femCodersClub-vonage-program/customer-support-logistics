@@ -31,6 +31,18 @@ describe('PendingVerifications', () => {
     expect(pending.find('req-1')).toMatchObject({ customerId: null });
   });
 
+  it('counts the checks of each verification', () => {
+    const pending = new PendingVerifications();
+    pending.add('req-1', null);
+    pending.add('req-2', null);
+
+    pending.countCheck('req-1');
+
+    expect(pending.countCheck('req-1')).toBe(2);
+    expect(pending.countCheck('req-2')).toBe(1);
+    expect(pending.countCheck('unknown')).toBe(0);
+  });
+
   it('forgets a removed verification', () => {
     const pending = new PendingVerifications();
     pending.add('req-1', CUSTOMER_ID);
