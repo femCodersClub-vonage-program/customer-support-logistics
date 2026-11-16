@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
-export const VERIFICATION_TTL_MS = 10 * 60 * 1000;
+import { VERIFICATION_TTL_SECONDS } from '../vonage/vonage.service.js';
+
+export const VERIFICATION_TTL_MS = VERIFICATION_TTL_SECONDS * 1000;
 
 export interface PendingVerification {
   customerId: string | null;
   expiresAt: number;
   bySms: boolean;
+  checks: number;
 }
 
 @Injectable()
@@ -18,6 +21,7 @@ export class PendingVerifications {
       customerId,
       expiresAt: Date.now() + VERIFICATION_TTL_MS,
       bySms,
+      checks: 0,
     });
   }
 
@@ -27,6 +31,18 @@ export class PendingVerifications {
     if (verification !== undefined) {
       verification.bySms = true;
     }
+  }
+
+  countCheck(requestId: string): number {
+    const verification = this.pending.get(requestId);
+
+    if (verification === undefined) {
+      return 0;
+    }
+
+    verification.checks += 1;
+
+    return verification.checks;
   }
 
   find(requestId: string): PendingVerification | undefined {
