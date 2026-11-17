@@ -92,12 +92,14 @@ describe('DevVerifyVonageService', () => {
     });
   });
 
-  it('still rejects SMS and calls', async () => {
+  it('still rejects SMS, calls and Client SDK tokens', async () => {
     const service = new DevVerifyVonageService('123456');
 
     await expect(service.sendSms()).rejects.toThrow(/"sendSms"/);
     await expect(service.createCall()).rejects.toThrow(/"createCall"/);
     await expect(service.transferCall()).rejects.toThrow(/"transferCall"/);
+    await expect(service.ensureUser()).rejects.toThrow(/"ensureUser"/);
+    await expect(service.createClientToken()).rejects.toThrow(/"createClientToken"/);
   });
 });
 
@@ -110,5 +112,7 @@ describe('DisabledVonageService', () => {
     await expect(service.transferCall()).rejects.toThrow(/"transferCall"/);
     await expect(service.startVerification()).rejects.toThrow(/"startVerification"/);
     await expect(service.checkVerification()).rejects.toThrow(/"checkVerification"/);
+    await expect(service.ensureUser()).rejects.toThrow(/"ensureUser"/);
+    await expect(service.createClientToken()).rejects.toThrow(/"createClientToken"/);
   });
 });

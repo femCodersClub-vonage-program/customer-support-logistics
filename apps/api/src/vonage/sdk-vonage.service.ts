@@ -13,6 +13,7 @@ import {
 } from './vonage.errors.js';
 import { VERIFICATION_TTL_SECONDS } from './vonage.service.js';
 
+import type { ClientToken, ClientTokenSigner } from './client-token.js';
 import type { NccoAction } from './ncco.js';
 import type { VonageClient } from './vonage.client.js';
 import type { VonageError, VonageErrorDetails, VonageOperation } from './vonage.errors.js';
@@ -67,6 +68,7 @@ export class SdkVonageService implements VonageService {
   constructor(
     private readonly client: VonageClient,
     private readonly virtualNumber: string,
+    private readonly signClientToken: ClientTokenSigner,
     private readonly timeoutMs = VONAGE_TIMEOUT_MS,
     private readonly retryDelayMs = NEXT_WORKFLOW_RETRY_MS,
   ) {}
@@ -220,6 +222,22 @@ export class SdkVonageService implements VonageService {
         return outcome ? { status: outcome } : undefined;
       },
     });
+  }
+
+  async ensureUser(name: string): Promise<void> {
+    await this.attempt<'created' | 'existing'>({
+      operation: 'ensureUser',
+      target: `user ${name}`,
+      request: async () => {
+        await this.client.users.createUser({ name });
+        return 'created';
+      },
+      recover: ({ status }) => (status === HttpStatus.CONFLICT ? 'existing' : undefined),
+    });
+  }
+
+  async createClientToken(userName: string): Promise<ClientToken> {
+    return this.signClientToken(userName);
   }
 
   private async attempt<T>({ operation, target, request, recover }: Attempt<T>): Promise<T> {
