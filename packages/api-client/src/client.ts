@@ -4,6 +4,10 @@ import type {
   AgentLoginBody,
   ChangeIncidentStatusBody,
   CreateIncidentBody,
+  CurrentUser,
+  CustomerLoginCheckBody,
+  CustomerLoginStartBody,
+  CustomerLoginStartResponse,
   IncidentDetail,
   ListIncidentsQueryInput,
   ListIncidentsResponse,
@@ -135,12 +139,7 @@ export function createApiClient({
         signal,
       }),
     createIncident: (body, { signal } = {}) =>
-      request<Incident>('/incidents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal,
-      }),
+      request<Incident>('/incidents', postJson(body, signal)),
     getIncident: (incidentId, { signal } = {}) =>
       request<IncidentDetail>(`/incidents/${encodeURIComponent(incidentId)}`, {
         method: 'GET',
