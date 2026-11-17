@@ -65,6 +65,7 @@ function renderForm(locale: Locale = 'en') {
       <Routes>
         <Route path="report/:orderId" element={<ReportForm orderId={ORDER_ID} />} />
         <Route path="incidents/:id" element={<Destination />} />
+        <Route path="login" element={<Destination />} />
       </Routes>
     </MemoryRouter>,
     { locale },
@@ -224,18 +225,36 @@ describe('ReportForm', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent('We could not find this order.');
     });
 
-    it('shows a general error and keeps the draft when the server fails', async () => {
-      answerWith(failWith(500, { code: 'INTERNAL_ERROR', message: 'Internal server error' }));
+    it.each([403, 409, 500])(
+      'shows a general error and keeps the draft when the server answers %s',
+      async (status) => {
+        answerWith(failWith(status, { code: 'INTERNAL_ERROR', message: 'Something failed' }));
+        renderForm();
+
+        choose('Damaged');
+        write('The box was crushed');
+        send();
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'We could not send the report. Try again in a moment.',
+        );
+        expect(screen.getByRole('button', { name: 'Send report' })).toBeEnabled();
+        expect(loadDraft(ORDER_ID)).toEqual({
+          type: 'damaged',
+          description: 'The box was crushed',
+        });
+      },
+    );
+
+    it('sends the customer to the login when the session has expired', async () => {
+      answerWith(failWith(401, { code: 'UNAUTHORIZED', message: 'A valid session is required' }));
       renderForm();
 
       choose('Damaged');
       write('The box was crushed');
       send();
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        'We could not send the report. Check your connection and try again.',
-      );
-      expect(screen.getByRole('button', { name: 'Send report' })).toBeEnabled();
+      expect(await screen.findByText('/login')).toBeInTheDocument();
       expect(loadDraft(ORDER_ID)).toEqual({ type: 'damaged', description: 'The box was crushed' });
     });
   });
@@ -260,6 +279,41 @@ describe('ReportForm', () => {
 
     expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
     expect(bodies).toHaveLength(1);
+  });
+
+  it('ignores a second submit fired before the form is blocked', async () => {
+    answerWith(incidentCreated);
+    renderForm();
+
+    choose('Damaged');
+
+    const form = screen
+      .getByRole('button', { name: 'Send report' })
+      .closest('form') as HTMLFormElement;
+
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
+    expect(bodies).toHaveLength(1);
+  });
+
+  it('does not clear the draft when the customer leaves before the answer', async () => {
+    answerWith(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      return incidentCreated();
+    });
+
+    const { unmount } = renderForm();
+
+    choose('Damaged');
+    send();
+    unmount();
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(loadDraft(ORDER_ID)).toEqual({ type: 'damaged', description: '' });
   });
 
   describe('draft', () => {
