@@ -49,7 +49,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
   const tType = useTranslations('incident.type');
   const navigate = useNavigate();
   const id = useId();
-  const sending = useRef<AbortController | null>(null);
+  const sendingRef = useRef<AbortController | null>(null);
   const [initial] = useState(() => loadDraft(orderId));
   const [type, setType] = useState<IncidentType | null>(initial.type);
   const [description, setDescription] = useState(initial.description);
@@ -63,7 +63,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
 
   useEffect(
     () => () => {
-      sending.current?.abort();
+      sendingRef.current?.abort();
     },
     [],
   );
@@ -82,7 +82,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (sending.current) {
+    if (sendingRef.current) {
       return;
     }
 
@@ -113,7 +113,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
 
     const request = new AbortController();
 
-    sending.current = request;
+    sendingRef.current = request;
     setErrors({});
     setFailure(null);
     setSubmitting(true);
@@ -130,7 +130,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
           return;
         }
 
-        sending.current = null;
+        sendingRef.current = null;
         setSubmitting(false);
 
         if (error instanceof ApiError && error.status === 401) {
