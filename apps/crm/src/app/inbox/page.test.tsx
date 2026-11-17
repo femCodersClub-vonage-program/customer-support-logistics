@@ -3,7 +3,6 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
-import { CURRENT_AGENT_ID } from '../../lib/api.server';
 import { renderWithIntl } from '../../test/render';
 
 import InboxPage from './page';
@@ -17,6 +16,13 @@ vi.mock('next-intl/server', async () => {
 
   return { getTranslations: () => Promise.resolve(() => getMessages('en').inbox.title) };
 });
+
+const SESSION = 'csl_session=agent-token';
+const CURRENT_AGENT_ID = '5eed0000-0000-4000-8000-0000000000a1';
+
+vi.mock('next/headers', () => ({
+  cookies: () => Promise.resolve({ toString: () => SESSION }),
+}));
 
 const incident: IncidentListItem = {
   id: 'a1b2c3d4-0000-4000-8000-000000000001',
@@ -49,6 +55,9 @@ function respondWith(items: IncidentListItem[], total = items.length) {
 
       return HttpResponse.json({ items, total, limit: 20, offset: 0, statusCounts });
     }),
+    http.get('*/auth/me', () =>
+      HttpResponse.json({ role: 'agent', id: CURRENT_AGENT_ID, name: 'Marta Vidal' }),
+    ),
   );
 }
 
@@ -88,12 +97,13 @@ describe('InboxPage', () => {
     expect(screen.getByText('Lucía Martín')).toBeInTheDocument();
   });
 
-  it('identifies the current agent in the request', async () => {
+  it('forwards the session cookie of the agent to the API', async () => {
     respondWith([incident]);
 
     await renderInbox();
 
-    expect((requests[0] as Request).headers.get('x-dev-actor')).toBe(`agent:${CURRENT_AGENT_ID}`);
+    expect((requests[0] as Request).headers.get('cookie')).toBe(SESSION);
+    expect((requests[0] as Request).headers.has('x-dev-actor')).toBe(false);
   });
 
   it('shows how many incidents each status has next to the status options', async () => {

@@ -3,8 +3,8 @@ import { getTranslations } from 'next-intl/server';
 import { InboxFilters } from '../../components/InboxFilters';
 import { IncidentTable } from '../../components/IncidentTable';
 import { Pagination } from '../../components/Pagination';
-import { CURRENT_AGENT_ID, serverApi } from '../../lib/api.server';
-import { parseInboxQuery } from '../../lib/inbox-query';
+import { currentAgentId, serverApi } from '../../lib/api.server';
+import { ASSIGNEE_ME, parseInboxQuery } from '../../lib/inbox-query';
 
 import type { SearchParams } from '../../lib/inbox-query';
 
@@ -12,7 +12,9 @@ export default async function InboxPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   const t = await getTranslations('inbox');
-  const { query, params } = parseInboxQuery(await searchParams, CURRENT_AGENT_ID);
+  const raw = await searchParams;
+  const agentId = raw.agentId === ASSIGNEE_ME ? await currentAgentId() : '';
+  const { query, params } = parseInboxQuery(raw, agentId);
   const { items, total, limit, offset, statusCounts } = await serverApi.listIncidents(query);
 
   return (
