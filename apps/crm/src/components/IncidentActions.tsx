@@ -17,13 +17,7 @@ interface IncidentActionsProps {
   hasDriver: boolean;
 }
 
-type PendingAction =
-  | 'notify'
-  | 'notifyAgain'
-  | 'mediation'
-  | 'resolve'
-  | 'escalate'
-  | null;
+type PendingAction = 'notify' | 'notifyAgain' | 'mediation' | 'resolve' | 'escalate' | null;
 
 export function IncidentActions({
   incidentId,
@@ -48,10 +42,7 @@ export function IncidentActions({
       return;
     }
 
-    if (
-      (pendingAction === 'resolve' || pendingAction === 'escalate') &&
-      !reason.trim()
-    ) {
+    if ((pendingAction === 'resolve' || pendingAction === 'escalate') && !reason.trim()) {
       return;
     }
 
@@ -66,10 +57,7 @@ export function IncidentActions({
           break;
 
         case 'notifyAgain':
-          await api.notifyDriverAgain(
-            incidentId,
-            globalThis.crypto.randomUUID(),
-          );
+          await api.notifyDriverAgain(incidentId, globalThis.crypto.randomUUID());
           break;
 
         case 'mediation':
@@ -131,11 +119,9 @@ export function IncidentActions({
     }
   }
 
-  const needsReason =
-    pendingAction === 'resolve' || pendingAction === 'escalate';
+  const needsReason = pendingAction === 'resolve' || pendingAction === 'escalate';
 
-  const needsSmsConfirmation =
-    pendingAction === 'notify' || pendingAction === 'notifyAgain';
+  const needsSmsConfirmation = pendingAction === 'notify' || pendingAction === 'notifyAgain';
 
   return (
     <section aria-labelledby="incident-actions-heading">
@@ -150,74 +136,44 @@ export function IncidentActions({
       {assignedToMe && <p>{t('assigned')}</p>}
 
       {status === 'open' && hasDriver && (
-        <button
-          type="button"
-          onClick={() => setPendingAction('notify')}
-          disabled={loading}
-        >
+        <button type="button" onClick={() => setPendingAction('notify')} disabled={loading}>
           {t('notify')}
         </button>
       )}
 
       {status === 'notified' && hasDriver && (
-        <button
-          type="button"
-          onClick={() => setPendingAction('notifyAgain')}
-          disabled={loading}
-        >
+        <button type="button" onClick={() => setPendingAction('notifyAgain')} disabled={loading}>
           {t('notifyAgain')}
         </button>
       )}
 
       {status === 'notified' && (
-        <button
-          type="button"
-          onClick={() => setPendingAction('mediation')}
-          disabled={loading}
-        >
+        <button type="button" onClick={() => setPendingAction('mediation')} disabled={loading}>
           {t('mediation')}
         </button>
       )}
 
-      {(status === 'open' ||
-        status === 'notified' ||
-        status === 'in_mediation') && (
-        <button
-          type="button"
-          onClick={() => setPendingAction('escalate')}
-          disabled={loading}
-        >
+      {(status === 'open' || status === 'notified' || status === 'in_mediation') && (
+        <button type="button" onClick={() => setPendingAction('escalate')} disabled={loading}>
           {t('escalate')}
         </button>
       )}
 
       {(status === 'in_mediation' || status === 'escalated') && (
-        <button
-          type="button"
-          onClick={() => setPendingAction('resolve')}
-          disabled={loading}
-        >
+        <button type="button" onClick={() => setPendingAction('resolve')} disabled={loading}>
           {t('resolve')}
         </button>
       )}
 
       {needsSmsConfirmation && (
         <div>
-          <p>
-            {pendingAction === 'notify'
-              ? t('confirmNotify')
-              : t('confirmNotifyAgain')}
-          </p>
+          <p>{pendingAction === 'notify' ? t('confirmNotify') : t('confirmNotifyAgain')}</p>
 
           <button type="button" onClick={executeAction} disabled={loading}>
             {loading ? t('sending') : t('submit')}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setPendingAction(null)}
-            disabled={loading}
-          >
+          <button type="button" onClick={() => setPendingAction(null)} disabled={loading}>
             {t('cancel')}
           </button>
         </div>
@@ -226,9 +182,7 @@ export function IncidentActions({
       {needsReason && (
         <div>
           <label htmlFor="incident-action-reason">
-            {pendingAction === 'resolve'
-              ? t('resolution')
-              : t('escalationReason')}
+            {pendingAction === 'resolve' ? t('resolution') : t('escalationReason')}
           </label>
 
           <textarea
@@ -239,11 +193,7 @@ export function IncidentActions({
             maxLength={1000}
           />
 
-          <button
-            type="button"
-            onClick={executeAction}
-            disabled={loading || !reason.trim()}
-          >
+          <button type="button" onClick={executeAction} disabled={loading || !reason.trim()}>
             {loading ? t('sending') : t('submit')}
           </button>
 
@@ -268,11 +218,7 @@ export function IncidentActions({
             {loading ? t('sending') : t('submit')}
           </button>
 
-          <button
-            type="button"
-            onClick={() => setPendingAction(null)}
-            disabled={loading}
-          >
+          <button type="button" onClick={() => setPendingAction(null)} disabled={loading}>
             {t('cancel')}
           </button>
         </div>

@@ -263,11 +263,7 @@ export class IncidentsService {
     });
   }
 
-  async notifyDriverAgain(
-    actor: DevActor,
-    id: string,
-    idempotencyKey: string,
-  ): Promise<Incident> {
+  async notifyDriverAgain(actor: DevActor, id: string, idempotencyKey: string): Promise<Incident> {
     if (actor.role !== 'agent') {
       throw new ForbiddenException('Only agents can notify drivers');
     }
