@@ -5,7 +5,7 @@ import {
   INCIDENT_DESCRIPTION_MAX_LENGTH,
 } from '@csl/contracts';
 import { INCIDENT_TYPES } from '@csl/shared-types';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslations } from 'use-intl';
 
@@ -27,6 +27,7 @@ const TYPE_ICONS: Record<IncidentType, string> = {
 
 type Field = 'type' | 'description';
 type FieldErrors = Partial<Record<Field, string>>;
+type FallbackKey = 'errors.orderNotFound' | 'errors.generic';
 
 function serverFieldErrors(error: unknown): FieldErrors {
   const parsed =
@@ -48,6 +49,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
   const tType = useTranslations('incident.type');
   const navigate = useNavigate();
   const id = useId();
+  const sending = useRef<AbortController | null>(null);
   const [initial] = useState(() => loadDraft(orderId));
   const [type, setType] = useState<IncidentType | null>(initial.type);
   const [description, setDescription] = useState(initial.description);
@@ -59,14 +61,30 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
     saveDraft(orderId, { type, description });
   }, [orderId, type, description]);
 
+  useEffect(
+    () => () => {
+      sending.current?.abort();
+    },
+    [],
+  );
+
   const trimmed = description.trim();
   const typeErrorId = `${id}-type-error`;
   const descriptionId = `${id}-description`;
   const hintId = `${id}-hint`;
   const descriptionErrorId = `${id}-description-error`;
 
+  function showErrors(fields: FieldErrors, fallbackKey: FallbackKey) {
+    setErrors(fields);
+    setFailure(Object.keys(fields).length > 0 ? null : t(fallbackKey));
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (sending.current) {
+      return;
+    }
 
     const parsed = createIncidentBodySchema.safeParse({
       orderId,
@@ -88,36 +106,42 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
         }
       }
 
-      setErrors(next);
-      setFailure(Object.keys(next).length === 0 ? t('errors.orderNotFound') : null);
+      showErrors(next, 'errors.orderNotFound');
 
       return;
     }
 
+    const request = new AbortController();
+
+    sending.current = request;
     setErrors({});
     setFailure(null);
     setSubmitting(true);
 
     api
-      .createIncident(parsed.data)
+      .createIncident(parsed.data, { signal: request.signal })
       .then((incident) => {
         clearDraft(orderId);
 
         return navigate(`/incidents/${incident.id}`);
       })
       .catch((error: unknown) => {
-        const fields = serverFieldErrors(error);
+        if (request.signal.aborted) {
+          return;
+        }
 
+        sending.current = null;
         setSubmitting(false);
-        setErrors(fields);
-        setFailure(
-          Object.keys(fields).length > 0
-            ? null
-            : t(
-                error instanceof ApiError && error.status === 404
-                  ? 'errors.orderNotFound'
-                  : 'errors.generic',
-              ),
+
+        if (error instanceof ApiError && error.status === 401) {
+          return navigate('/login');
+        }
+
+        showErrors(
+          serverFieldErrors(error),
+          error instanceof ApiError && error.status === 404
+            ? 'errors.orderNotFound'
+            : 'errors.generic',
         );
       });
   }
