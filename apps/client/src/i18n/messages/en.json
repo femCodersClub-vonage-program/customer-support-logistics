@@ -4,10 +4,38 @@
   },
   "orders": {
     "title": "My orders",
-    "empty": "You have no orders yet."
+    "empty": "You have no orders yet.",
+    "logOut": "Log out"
   },
   "login": {
-    "title": "Log in"
+    "title": "Log in",
+    "intro": "Use the phone number you gave with your order. We'll send you a code by SMS.",
+    "country": "Country",
+    "countries": {
+      "ES": "Spain (+34)",
+      "GB": "United Kingdom (+44)"
+    },
+    "phone": "Phone number",
+    "sendCode": "Send code",
+    "sending": "Sending…",
+    "codeTitle": "Enter the code",
+    "codeSent": "We've sent a code by SMS to {phone}.",
+    "code": "Code",
+    "logIn": "Log in",
+    "checking": "Checking…",
+    "resend": "Send a new code",
+    "resendIn": "You can ask for a new code in {time}.",
+    "changeNumber": "Change number",
+    "verifying": "Checking your number…",
+    "errors": {
+      "invalidPhone": "Check the phone number: it should be a mobile number from the country you chose.",
+      "wrongCode": "That code isn't right. Check the SMS and try again.",
+      "expired": "The code has expired. Ask for a new one.",
+      "tooManyAttempts": "Too many wrong codes. Ask for a new one.",
+      "wait": "Too many attempts for this number. Wait a few minutes and try again.",
+      "offline": "There's no connection. Check it and try again.",
+      "generic": "Something went wrong. Try again in a moment."
+    }
   },
   "report": {
     "title": "Report an incident",

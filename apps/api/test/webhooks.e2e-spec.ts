@@ -18,6 +18,7 @@ import { signVonageJwt } from './fixtures/vonage/sign.js';
 
 import type { TestApp } from './fixtures/app.js';
 import type { IncidentStatus } from '@csl/shared-types';
+import type { TestingModuleBuilder } from '@nestjs/testing';
 
 const DRIVER_PHONE = '+34600000009';
 const VIRTUAL_NUMBER = '+34900000000';
@@ -549,6 +550,52 @@ describe('Webhooks (e2e)', () => {
       const response = await request(server).post('/webhooks/voice/event').send({}).expect(429);
 
       expect(response.body).toMatchObject({ error: { code: 'RATE_LIMITED' } });
+    });
+  });
+
+  describe('client IP behind a proxy', () => {
+    const limitOne = (builder: TestingModuleBuilder) =>
+      builder.overrideProvider(getOptionsToken()).useValue([{ ttl: 60_000, limit: 1 }]);
+
+    const post = (app: TestApp, realIp: string) =>
+      request(app.app.getHttpServer())
+        .post('/webhooks/voice/event')
+        .set('X-Real-IP', realIp)
+        .send({});
+
+    describe('with CLIENT_IP_HEADER set', () => {
+      let proxied: TestApp;
+
+      beforeAll(async () => {
+        proxied = await createTestApp(limitOne, { clientIpHeader: 'x-real-ip' });
+      });
+
+      afterAll(async () => {
+        await proxied.app.close();
+      });
+
+      it('rate-limits each client IP from the header separately', async () => {
+        await post(proxied, '203.0.113.1').expect(401);
+        await post(proxied, '203.0.113.1').expect(429);
+        await post(proxied, '203.0.113.2').expect(401);
+      });
+    });
+
+    describe('without CLIENT_IP_HEADER', () => {
+      let direct: TestApp;
+
+      beforeAll(async () => {
+        direct = await createTestApp(limitOne, { clientIpHeader: undefined });
+      });
+
+      afterAll(async () => {
+        await direct.app.close();
+      });
+
+      it('ignores the header, so a client cannot pick its own IP', async () => {
+        await post(direct, '203.0.113.1').expect(401);
+        await post(direct, '203.0.113.2').expect(429);
+      });
     });
   });
 });

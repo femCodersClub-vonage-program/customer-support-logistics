@@ -4,10 +4,38 @@
   },
   "orders": {
     "title": "Mis pedidos",
-    "empty": "Todavía no tienes pedidos."
+    "empty": "Todavía no tienes pedidos.",
+    "logOut": "Cerrar sesión"
   },
   "login": {
-    "title": "Iniciar sesión"
+    "title": "Iniciar sesión",
+    "intro": "Usa el teléfono que diste con tu pedido. Te enviaremos un código por SMS.",
+    "country": "País",
+    "countries": {
+      "ES": "España (+34)",
+      "GB": "Reino Unido (+44)"
+    },
+    "phone": "Número de teléfono",
+    "sendCode": "Enviar código",
+    "sending": "Enviando…",
+    "codeTitle": "Escribe el código",
+    "codeSent": "Te hemos enviado un código por SMS al {phone}.",
+    "code": "Código",
+    "logIn": "Entrar",
+    "checking": "Comprobando…",
+    "resend": "Enviar otro código",
+    "resendIn": "Podrás pedir otro código en {time}.",
+    "changeNumber": "Cambiar de número",
+    "verifying": "Comprobando tu número…",
+    "errors": {
+      "invalidPhone": "Revisa el número: tiene que ser un móvil del país que has elegido.",
+      "wrongCode": "Ese código no es correcto. Revisa el SMS y vuelve a probar.",
+      "expired": "El código ha caducado. Pide uno nuevo.",
+      "tooManyAttempts": "Demasiados códigos incorrectos. Pide uno nuevo.",
+      "wait": "Demasiados intentos con este número. Espera unos minutos y vuelve a probar.",
+      "offline": "No hay conexión. Compruébala y vuelve a probar.",
+      "generic": "Algo ha fallado. Vuelve a probar en un momento."
+    }
   },
   "report": {
     "title": "Reportar una incidencia",

@@ -1,5 +1,6 @@
 import { ApiError } from '@csl/api-client';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { serverApi } from '../../../../lib/api.server';
@@ -38,6 +39,19 @@ describe('mediation actions', () => {
 
     expect(serverApi.startMediation).toHaveBeenCalledWith(INCIDENT_ID);
     expect(revalidatePath).toHaveBeenCalledWith(`/incidents/${INCIDENT_ID}`, 'layout');
+  });
+
+  it('lets the redirect of an expired session through instead of reporting an error', async () => {
+    const sessionExpired = (() => {
+      try {
+        redirect('/session-expired');
+      } catch (error) {
+        return error;
+      }
+    })();
+    vi.mocked(serverApi.callDriver).mockRejectedValue(sessionExpired);
+
+    await expect(callDriverAgain(INCIDENT_ID)).rejects.toBe(sessionExpired);
   });
 
   it('returns the error and does not revalidate when the API fails', async () => {

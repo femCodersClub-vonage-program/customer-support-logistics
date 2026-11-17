@@ -1,6 +1,8 @@
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { sql } from 'drizzle-orm';
 
+import { APP_OPTIONS, configureApp } from '../../src/app-setup.js';
 import { AppModule } from '../../src/app.module.js';
 import { DATABASE } from '../../src/database/database.constants.js';
 import { setupOpenApi } from '../../src/openapi/setup-openapi.js';
@@ -8,8 +10,11 @@ import { VONAGE_SERVICE } from '../../src/vonage/vonage.service.js';
 
 import { FakeVonageService } from './fake-vonage.service.js';
 
+import type { AppSettings } from '../../src/app-setup.js';
+import type { Env } from '../../src/config/env.schema.js';
 import type { Database } from '../../src/database/database.constants.js';
 import type { INestApplication } from '@nestjs/common';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { TestingModuleBuilder } from '@nestjs/testing';
 
 export interface TestApp {
@@ -20,14 +25,20 @@ export interface TestApp {
 
 export async function createTestApp(
   customize: (builder: TestingModuleBuilder) => TestingModuleBuilder = (builder) => builder,
+  settings: Partial<AppSettings> = {},
 ): Promise<TestApp> {
   const vonage = new FakeVonageService();
   const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(VONAGE_SERVICE)
     .useValue(vonage);
   const moduleRef = await customize(builder).compile();
-  const app = moduleRef.createNestApplication({ rawBody: true });
+  const app = moduleRef.createNestApplication<NestExpressApplication>(APP_OPTIONS);
+  const config = app.get<ConfigService<Env, true>>(ConfigService);
 
+  configureApp(app, {
+    clientIpHeader: config.get('CLIENT_IP_HEADER', { infer: true }),
+    ...settings,
+  });
   setupOpenApi(app, 'development');
   await app.init();
 

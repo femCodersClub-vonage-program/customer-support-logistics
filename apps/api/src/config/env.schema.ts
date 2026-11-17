@@ -21,7 +21,6 @@ const baseEnvSchema = z.object({
     .optional(),
   VONAGE_VIRTUAL_NUMBER: z.e164().optional(),
   VONAGE_SIGNATURE_SECRET: z.string().min(1).optional(),
-  DEV_AUTH_ENABLED: z.stringbool().default(false),
   DEV_VERIFY_CODE: z.preprocess(
     (value) => (value === '' ? undefined : value),
     z
@@ -30,6 +29,15 @@ const baseEnvSchema = z.object({
       .optional(),
   ),
   WEBHOOK_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).default(120),
+  CLIENT_IP_HEADER: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9-]+$/, 'Expected an HTTP header name, such as x-real-ip')
+      .optional(),
+  ),
   SILENT_AUTH_REDIRECT_URL: z.preprocess(
     (value) => (value === '' ? undefined : value),
     z.url({ protocol: /^https$/ }).optional(),
@@ -51,14 +59,6 @@ export function isVonageEnabled(env: Pick<Env, 'NODE_ENV' | 'VONAGE_ENABLED'>): 
 }
 
 export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
-  if (env.NODE_ENV === 'production' && env.DEV_AUTH_ENABLED) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['DEV_AUTH_ENABLED'],
-      message: 'DEV_AUTH_ENABLED must not be enabled in production',
-    });
-  }
-
   if (env.DEV_VERIFY_CODE !== undefined && env.NODE_ENV === 'production') {
     ctx.addIssue({
       code: 'custom',
