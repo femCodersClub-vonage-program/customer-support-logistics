@@ -23,7 +23,7 @@
       "descriptionRequired": "Describe el problema.",
       "descriptionTooLong": "La descripción es demasiado larga. Usa como máximo {max} caracteres.",
       "orderNotFound": "No hemos encontrado este pedido.",
-      "generic": "No hemos podido enviar el reporte. Comprueba tu conexión e inténtalo de nuevo."
+      "generic": "No hemos podido enviar el reporte. Inténtalo de nuevo en un momento."
     }
   },
   "incident": {

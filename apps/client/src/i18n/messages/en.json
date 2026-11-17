@@ -23,7 +23,7 @@
       "descriptionRequired": "Describe the problem.",
       "descriptionTooLong": "The description is too long. Use at most {max} characters.",
       "orderNotFound": "We could not find this order.",
-      "generic": "We could not send the report. Check your connection and try again."
+      "generic": "We could not send the report. Try again in a moment."
     }
   },
   "incident": {
