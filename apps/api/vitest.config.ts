@@ -1,4 +1,28 @@
+import { existsSync } from 'node:fs';
+
 import { defineConfig } from 'vitest/config';
+
+if (existsSync('.env')) {
+  process.loadEnvFile('.env');
+}
+
+const configuredDatabaseUrl = process.env.DATABASE_URL;
+
+if (!configuredDatabaseUrl) {
+  throw new Error('DATABASE_URL must be configured to run API tests');
+}
+
+const testDatabaseUrl = new URL(configuredDatabaseUrl);
+
+if (
+  !['/customer_support_logistics', '/customer_support_logistics_test'].includes(
+    testDatabaseUrl.pathname,
+  )
+) {
+  throw new Error('API tests must use the dedicated test database');
+}
+
+testDatabaseUrl.pathname = '/customer_support_logistics_test';
 
 export default defineConfig({
   test: {
@@ -32,9 +56,7 @@ export default defineConfig({
             VONAGE_API_KEY: 'test-api-key',
             VONAGE_SIGNATURE_SECRET: 'test-signature-secret-0123456789abcdef',
             WEBHOOK_RATE_LIMIT_PER_MINUTE: '10000',
-            DATABASE_URL:
-              process.env.DATABASE_URL ??
-              'postgresql://app:dev_only_password@localhost:5432/customer_support_logistics',
+            DATABASE_URL: testDatabaseUrl.toString(),
           },
         },
       },
