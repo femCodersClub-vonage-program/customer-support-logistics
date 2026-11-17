@@ -88,17 +88,19 @@ describe('IncidentActions', () => {
       expect(api.notifyDriverAgain).toHaveBeenCalledWith('incident-123', expect.any(String));
     });
   });
-  it('navigates to mediation after confirmation', async () => {
+  it('starts mediation after confirmation', async () => {
     renderWithIntl(<IncidentActions {...defaultProps} status="notified" agentId="agent-123" />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Start mediation' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/incidents/incident-123/mediation');
+      expect(api.changeIncidentStatus).toHaveBeenCalledWith('incident-123', {
+        status: 'in_mediation',
+      });
     });
 
-    expect(api.changeIncidentStatus).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
   it('requires a resolution note before resolving an incident', () => {
     renderWithIntl(<IncidentActions {...defaultProps} status="in_mediation" agentId="agent-123" />);

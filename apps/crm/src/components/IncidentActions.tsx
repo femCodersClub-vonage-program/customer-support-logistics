@@ -61,9 +61,10 @@ export function IncidentActions({
           break;
 
         case 'mediation':
-          setPendingAction(null);
-          router.push(`/incidents/${incidentId}/mediation`);
-          return;
+          await api.changeIncidentStatus(incidentId, {
+            status: 'in_mediation',
+          });
+          break;
 
         case 'resolve':
           await api.changeIncidentStatus(incidentId, {
