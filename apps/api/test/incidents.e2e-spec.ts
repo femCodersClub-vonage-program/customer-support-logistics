@@ -78,13 +78,13 @@ describe('Incidents (e2e)', () => {
     it('stores the trimmed description and returns it in the detail', async () => {
       const created = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .send({ orderId: ids.anaOrder, type: 'damaged', description: '  The box was crushed  ' })
         .expect(201);
 
       const detail = await http()
         .get(`/incidents/${incidentSchema.parse(created.body).id}`)
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .expect(200);
 
       expect(incidentDetailSchema.parse(detail.body).description).toBe('The box was crushed');
@@ -93,13 +93,13 @@ describe('Incidents (e2e)', () => {
     it('returns a null description when none is sent', async () => {
       const created = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .send({ orderId: ids.anaOrder, type: 'damaged' })
         .expect(201);
 
       const detail = await http()
         .get(`/incidents/${incidentSchema.parse(created.body).id}`)
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .expect(200);
 
       expect(incidentDetailSchema.parse(detail.body).description).toBeNull();
@@ -108,7 +108,7 @@ describe('Incidents (e2e)', () => {
     it('accepts the type other when it has a description', async () => {
       await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .send({ orderId: ids.anaOrder, type: 'other', description: 'Wrong floor' })
         .expect(201);
     });
@@ -119,7 +119,7 @@ describe('Incidents (e2e)', () => {
     ])('returns 400 for the type other with %s', async (_name, extra) => {
       const response = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .send({ orderId: ids.anaOrder, type: 'other', ...extra })
         .expect(400);
 
@@ -135,13 +135,13 @@ describe('Incidents (e2e)', () => {
     ])('accepts a description of %s', async (_name, description) => {
       const created = await http()
         .post('/incidents')
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .send({ orderId: ids.anaOrder, type: 'damaged', description })
         .expect(201);
 
       const detail = await http()
         .get(`/incidents/${incidentSchema.parse(created.body).id}`)
-        .set(DEV_ACTOR, actor.ana)
+        .set('Cookie', cookie.ana)
         .expect(200);
 
       expect(incidentDetailSchema.parse(detail.body).description).toBe('a'.repeat(1000));
