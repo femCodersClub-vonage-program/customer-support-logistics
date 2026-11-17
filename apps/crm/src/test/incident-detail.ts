@@ -43,6 +43,7 @@ export function buildIncidentDetail(overrides: Partial<IncidentDetail> = {}): In
     createdAt: '2026-11-13T09:00:00.000Z',
     updatedAt: '2026-11-13T10:00:00.000Z',
     closedAt: null,
+    description: null,
     order: {
       id: '3c4d5e6f-0000-4000-8000-000000000001',
       customerId: '4d5e6f70-0000-4000-8000-000000000001',

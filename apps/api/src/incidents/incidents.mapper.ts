@@ -78,6 +78,7 @@ export interface IncidentDetailRows {
 export function toIncidentDetail(rows: IncidentDetailRows): IncidentDetail {
   return {
     ...toIncident(rows.incident),
+    description: rows.incident.description,
     order: rows.order,
     customer: {
       id: rows.customer.id,

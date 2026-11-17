@@ -43,6 +43,13 @@
       "when": 1794531861555,
       "tag": "0005_auth_agents_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794782474477,
+      "tag": "0006_incident_description",
+      "breakpoints": true
     }
   ]
 }
