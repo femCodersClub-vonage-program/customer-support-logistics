@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config';
 
 import { isVonageEnabled } from '../config/env.schema.js';
 
+import { ClientTokenController } from './client-token.controller.js';
 import { createClientTokenSigner } from './client-token.js';
+import { ClientTokenService } from './client-token.service.js';
 import { DevVerifyVonageService } from './dev-verify-vonage.service.js';
 import { DisabledVonageService } from './disabled-vonage.service.js';
 import { SdkVonageService } from './sdk-vonage.service.js';
@@ -52,7 +54,9 @@ export function createVonageService(
 }
 
 @Module({
+  controllers: [ClientTokenController],
   providers: [
+    ClientTokenService,
     {
       provide: VONAGE_SERVICE,
       inject: [ConfigService],
