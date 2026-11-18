@@ -20,6 +20,7 @@
     "@csl/design-tokens": "workspace:*",
     "@csl/i18n": "workspace:*",
     "@csl/shared-types": "workspace:*",
+    "@vonage/client-sdk": "2.11.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-router": "8.5.1",
