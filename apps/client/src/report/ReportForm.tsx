@@ -79,6 +79,10 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
     setFailure(Object.keys(fields).length > 0 ? null : t(fallbackKey));
   }
 
+  function clearDescriptionError() {
+    setErrors(({ type: typeError }) => (typeError === undefined ? {} : { type: typeError }));
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -165,6 +169,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
                 checked={type === value}
                 onChange={() => {
                   setType(value);
+                  setErrors({});
                 }}
               />
               <span className="report-type__card">
@@ -198,6 +203,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
           aria-describedby={errors.description ? `${hintId} ${descriptionErrorId}` : hintId}
           onChange={(event) => {
             setDescription(event.target.value);
+            clearDescriptionError();
           }}
         />
         <p id={hintId} className="report-form__hint">
