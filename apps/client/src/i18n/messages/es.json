@@ -67,7 +67,54 @@
   },
   "call": {
     "title": "Llamada de mediación",
-    "incident": "Incidencia {id}"
+    "incident": "Incidencia {id}",
+    "intro": "Únete a la llamada para resolver tu incidencia con soporte y el repartidor.",
+    "participantsTitle": "Quién está en la llamada",
+    "participants": {
+      "you": "Tú",
+      "agent": "Una persona de soporte",
+      "driver": "El repartidor de tu pedido, por teléfono"
+    },
+    "microphoneTitle": "Tu micrófono",
+    "microphoneIntro": "Cuando pulses «Unirme a la llamada», el navegador te pedirá permiso para usar el micrófono. Permítelo para que te puedan oír. Solo lo usamos durante esta llamada.",
+    "join": "Unirme a la llamada",
+    "status": {
+      "connecting": "Conectando…",
+      "ringing": "Entrando en la llamada…",
+      "connected": "Conectada",
+      "reconnecting": "Se ha perdido la conexión. Reconectando…",
+      "ended": "Llamada terminada",
+      "failed": "No se ha podido conectar la llamada"
+    },
+    "duration": "Duración",
+    "mute": "Silenciar micrófono",
+    "hangUp": "Colgar",
+    "ended": {
+      "title": "La llamada ha terminado",
+      "byRemote": "Soporte ha terminado la llamada.",
+      "byYou": "Has salido de la llamada."
+    },
+    "microphoneHelp": {
+      "title": "Permite el micrófono",
+      "intro": "La llamada necesita tu micrófono, pero el navegador lo ha bloqueado. Permítelo con estos pasos y vuelve a intentarlo.",
+      "chromeTitle": "Chrome en Android",
+      "chromeStep1": "Toca el icono a la izquierda de la dirección web.",
+      "chromeStep2": "Toca «Permisos».",
+      "chromeStep3": "Activa «Micrófono».",
+      "safariTitle": "Safari en iPhone",
+      "safariStep1": "Toca «aA» en la barra de direcciones.",
+      "safariStep2": "Toca «Ajustes del sitio web».",
+      "safariStep3": "Pon «Micrófono» en «Permitir»."
+    },
+    "errors": {
+      "notAvailable": "Esta llamada no está disponible. Puede que la mediación aún no haya empezado o que ya haya terminado.",
+      "noConnection": "No hay conexión. Compruébala y vuelve a intentarlo.",
+      "sessionExpired": "La sesión de la llamada ha caducado. Vuelve a unirte para continuar.",
+      "microphoneUnavailable": "No encontramos ningún micrófono, o lo está usando otra aplicación. Compruébalo y vuelve a intentarlo.",
+      "generic": "Algo ha fallado. Vuelve a intentarlo en un momento."
+    },
+    "tryAgain": "Volver a intentarlo",
+    "backToIncident": "Volver a la incidencia"
   },
   "notFound": {
     "title": "Página no encontrada",

@@ -154,6 +154,23 @@ describe('mediation', () => {
   });
 });
 
+describe('vonage', () => {
+  it('posts the incident id to get a Client SDK token', async () => {
+    const token = { token: 'jwt', userName: 'cust-1', expiresAt: '2026-11-18T10:15:00.000Z' };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(token, 201));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+    const incidentId = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
+
+    await expect(client.createClientToken(incidentId)).resolves.toEqual(token);
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe('/api/vonage/client-token');
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe(JSON.stringify({ incidentId }));
+  });
+});
+
 describe('timeout', () => {
   const neverAnswers = () =>
     vi.fn<typeof fetch>(

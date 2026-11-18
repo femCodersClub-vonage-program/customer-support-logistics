@@ -4,6 +4,7 @@ import type {
   AgentLoginBody,
   ChangeIncidentStatusBody,
   CreateIncidentBody,
+  ClientTokenResponse,
   CurrentUser,
   CustomerLoginCheckBody,
   CustomerLoginStartBody,
@@ -47,6 +48,7 @@ export interface ApiClient {
   ): Promise<Incident>;
   startMediation(incidentId: string, options?: RequestOptions): Promise<StartMediationResponse>;
   callDriver(incidentId: string, options?: RequestOptions): Promise<Communication>;
+  createClientToken(incidentId: string, options?: RequestOptions): Promise<ClientTokenResponse>;
   getCurrentUser(options?: RequestOptions): Promise<CurrentUser>;
   agentLogin(body: AgentLoginBody, options?: RequestOptions): Promise<CurrentUser>;
   startCustomerLogin(
@@ -162,6 +164,8 @@ export function createApiClient({
         method: 'POST',
         signal,
       }),
+    createClientToken: (incidentId, { signal } = {}) =>
+      request<ClientTokenResponse>('/vonage/client-token', postJson({ incidentId }, signal)),
     getCurrentUser: ({ signal } = {}) =>
       request<CurrentUser>('/auth/me', { method: 'GET', signal }),
     agentLogin: (body, { signal } = {}) =>
