@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { isVonageEnabled, validateEnv } from '../config/env.schema.js';
 
+import { createClientTokenSigner } from './client-token.js';
 import { SdkVonageService } from './sdk-vonage.service.js';
 import { createVonageClient } from './vonage.client.js';
 
@@ -25,14 +26,17 @@ if (!isVonageEnabled(env)) {
   throw new Error('Vonage is disabled: set VONAGE_ENABLED=true and the Vonage credentials');
 }
 
+const credentials = {
+  apiKey: env.VONAGE_API_KEY ?? '',
+  apiSecret: env.VONAGE_API_SECRET ?? '',
+  applicationId: env.VONAGE_APPLICATION_ID ?? '',
+  privateKey: env.VONAGE_PRIVATE_KEY ?? '',
+};
+
 const service = new SdkVonageService(
-  createVonageClient({
-    apiKey: env.VONAGE_API_KEY ?? '',
-    apiSecret: env.VONAGE_API_SECRET ?? '',
-    applicationId: env.VONAGE_APPLICATION_ID ?? '',
-    privateKey: env.VONAGE_PRIVATE_KEY ?? '',
-  }),
+  createVonageClient(credentials),
   env.VONAGE_VIRTUAL_NUMBER ?? '',
+  createClientTokenSigner(credentials),
 );
 
 const { messageId } = await service.sendSms(to, text);

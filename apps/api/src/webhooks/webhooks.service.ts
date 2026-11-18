@@ -6,6 +6,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { maskPhone } from '../common/logging/mask-phone.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
+  agents,
   communications,
   drivers,
   incidents,
@@ -22,6 +23,7 @@ import {
   buildJoinConversationNcco,
 } from '../vonage/ncco.js';
 import { buildVoiceInputUrl } from '../vonage/voice-urls.js';
+import { parseVonageUserName } from '../vonage/vonage-users.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 
 import { BackgroundTasks } from './background-tasks.js';
@@ -37,6 +39,7 @@ import type {
   VoiceEvent,
   VoiceInput,
 } from './vonage-payloads.js';
+import type { AuthActor } from '../auth/auth-actor.js';
 import type { Env } from '../config/env.schema.js';
 import type { Database, DatabaseTransaction } from '../database/database.constants.js';
 import type { WebhookEventSource } from '../database/schema/index.js';
@@ -343,6 +346,15 @@ export class WebhooksService {
   }
 
   private async answerAppCall(payload: VoiceAnswer): Promise<NccoAction[]> {
+    const caller = parseVonageUserName(payload.from_user);
+
+    if (caller === null) {
+      this.logger.warn(
+        `App call ${payload.uuid ?? ''} from unknown user ${payload.from_user ?? 'none'}`,
+      );
+      return [];
+    }
+
     const incidentId = incidentIdFromCustomData(payload.custom_data);
 
     if (incidentId === null) {
@@ -350,12 +362,16 @@ export class WebhooksService {
       return [];
     }
 
-    const [incident] = await this.db
-      .select({ status: incidents.status })
-      .from(incidents)
-      .where(eq(incidents.id, incidentId));
+    const incident = await this.findIncidentForCaller(caller, incidentId);
 
-    if (incident?.status !== 'in_mediation') {
+    if (incident === null) {
+      this.logger.warn(
+        `App call ${payload.uuid ?? ''} from ${payload.from_user ?? ''} for incident ${incidentId} it does not belong to`,
+      );
+      return [];
+    }
+
+    if (incident.status !== 'in_mediation') {
       this.logger.warn(
         `App call ${payload.uuid ?? ''} for incident ${incidentId} not in mediation`,
       );
@@ -363,6 +379,25 @@ export class WebhooksService {
     }
 
     return buildJoinConversationNcco(incidentId);
+  }
+
+  private async findIncidentForCaller(
+    caller: AuthActor,
+    incidentId: string,
+  ): Promise<Pick<IncidentRow, 'status'> | null> {
+    const query = this.db
+      .select({ status: incidents.status })
+      .from(incidents)
+      .innerJoin(orders, eq(orders.id, incidents.orderId));
+
+    const [row] =
+      caller.role === 'customer'
+        ? await query.where(and(eq(incidents.id, incidentId), eq(orders.customerId, caller.id)))
+        : await query
+            .innerJoin(agents, eq(agents.id, caller.id))
+            .where(eq(incidents.id, incidentId));
+
+    return row ?? null;
   }
 
   private async sendInvalidReply({
