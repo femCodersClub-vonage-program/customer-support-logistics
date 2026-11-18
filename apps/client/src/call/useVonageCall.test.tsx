@@ -4,10 +4,10 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiError, apiUrl } from '../test/app.tsx';
+import { createFakeCallClient } from '../test/fake-call-client.ts';
 
 import { TOKEN_REFRESH_MARGIN_MS, useVonageCall } from './useVonageCall.ts';
 
-import type { CallClient, CallClientEvent, CallClientEvents } from './call-client.ts';
 import type { MicrophoneAccess } from './microphone.ts';
 
 const INCIDENT_ID = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
@@ -38,41 +38,8 @@ beforeEach(() => {
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-type Listener = (...args: unknown[]) => void;
-
-function createFakeClient() {
-  const listeners = new Map<symbol, { event: CallClientEvent; callback: Listener }>();
-
-  const client = {
-    createSession: vi.fn<CallClient['createSession']>().mockResolvedValue('session-1'),
-    refreshSession: vi.fn<CallClient['refreshSession']>().mockResolvedValue(undefined),
-    deleteSession: vi.fn<CallClient['deleteSession']>().mockResolvedValue(undefined),
-    serverCall: vi.fn<CallClient['serverCall']>().mockResolvedValue('call-1'),
-    hangup: vi.fn<CallClient['hangup']>().mockResolvedValue(undefined),
-    mute: vi.fn<CallClient['mute']>().mockResolvedValue(undefined),
-    unmute: vi.fn<CallClient['unmute']>().mockResolvedValue(undefined),
-    on: vi.fn((event: CallClientEvent, callback: unknown) => {
-      const listener = Symbol(event);
-      listeners.set(listener, { event, callback: callback as Listener });
-      return listener;
-    }) as CallClient['on'],
-    off: vi.fn((_event: CallClientEvent, listener: symbol) => listeners.delete(listener)),
-  } satisfies CallClient;
-
-  const emit = <E extends CallClientEvent>(event: E, ...args: Parameters<CallClientEvents[E]>) =>
-    act(() => {
-      for (const listener of listeners.values()) {
-        if (listener.event === event) {
-          listener.callback(...args);
-        }
-      }
-    });
-
-  return { client, emit, listenerCount: () => listeners.size };
-}
-
 function renderCall(microphone: MicrophoneAccess = 'granted') {
-  const fake = createFakeClient();
+  const fake = createFakeCallClient();
   const loadClient = vi.fn(async () => fake.client);
   const requestMic = vi.fn(async () => microphone);
   const hook = renderHook(() => useVonageCall(INCIDENT_ID, { loadClient, requestMic }));
