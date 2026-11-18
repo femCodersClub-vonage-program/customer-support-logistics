@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 
 import { isVonageEnabled } from '../config/env.schema.js';
 
+import { ClientTokenController } from './client-token.controller.js';
+import { createClientTokenSigner } from './client-token.js';
+import { ClientTokenService } from './client-token.service.js';
 import { DevVerifyVonageService } from './dev-verify-vonage.service.js';
 import { DisabledVonageService } from './disabled-vonage.service.js';
 import { SdkVonageService } from './sdk-vonage.service.js';
@@ -36,18 +39,24 @@ export function createVonageService(
     return new DevVerifyVonageService(devVerifyCode);
   }
 
-  const client = createClient({
+  const credentials: VonageCredentials = {
     apiKey: config.getOrThrow('VONAGE_API_KEY', { infer: true }),
     apiSecret: config.getOrThrow('VONAGE_API_SECRET', { infer: true }),
     applicationId: config.getOrThrow('VONAGE_APPLICATION_ID', { infer: true }),
     privateKey: config.getOrThrow('VONAGE_PRIVATE_KEY', { infer: true }),
-  });
+  };
 
-  return new SdkVonageService(client, config.getOrThrow('VONAGE_VIRTUAL_NUMBER', { infer: true }));
+  return new SdkVonageService(
+    createClient(credentials),
+    config.getOrThrow('VONAGE_VIRTUAL_NUMBER', { infer: true }),
+    createClientTokenSigner(credentials),
+  );
 }
 
 @Module({
+  controllers: [ClientTokenController],
   providers: [
+    ClientTokenService,
     {
       provide: VONAGE_SERVICE,
       inject: [ConfigService],

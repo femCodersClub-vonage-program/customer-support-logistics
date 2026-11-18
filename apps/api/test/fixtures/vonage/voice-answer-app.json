@@ -1,5 +1,5 @@
 {
-  "from_user": "agent-a",
+  "from_user": "cust-00000000-0000-4000-8000-0000000000c1",
   "uuid": "bbbbbbbb-cccc-4ddd-8eee-000000000002",
   "conversation_uuid": "CON-bbbbbbbb-cccc-4ddd-8eee-000000000002",
   "region_url": "https://api-eu-1.vonage.com",

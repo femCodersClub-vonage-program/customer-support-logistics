@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NEXT_WORKFLOW_ATTEMPTS, SdkVonageService, VERIFY_BRAND } from './sdk-vonage.service.js';
 import { VonageRequestError, VonageTimeoutError } from './vonage.errors.js';
 
+import type { ClientToken, ClientTokenSigner } from './client-token.js';
 import type { NccoAction } from './ncco.js';
 import type { VonageClient } from './vonage.client.js';
 
@@ -23,8 +24,14 @@ function createClient() {
       checkCode: vi.fn().mockResolvedValue('completed'),
       nextWorkflow: vi.fn().mockResolvedValue(true),
     },
+    users: { createUser: vi.fn().mockResolvedValue({ id: 'USR-1' }) },
   } satisfies VonageClient;
 }
+
+const CLIENT_TOKEN: ClientToken = {
+  token: 'signed-token',
+  expiresAt: new Date('2026-11-18T10:15:00Z'),
+};
 
 const API_SECRET = 'super-secret-value';
 
@@ -32,7 +39,12 @@ const REDIRECT_URL = 'https://pwa.example/login/callback';
 
 function createService() {
   const client = createClient();
-  return { client, service: new SdkVonageService(client, VIRTUAL_NUMBER, 50, 0) };
+  const signClientToken = vi.fn<ClientTokenSigner>().mockReturnValue(CLIENT_TOKEN);
+  return {
+    client,
+    signClientToken,
+    service: new SdkVonageService(client, VIRTUAL_NUMBER, signClientToken, 50, 0),
+  };
 }
 
 function httpError(status: number, body: Record<string, unknown>) {
@@ -102,6 +114,45 @@ describe('SdkVonageService', () => {
       await service.transferCall('call-1', NCCO);
 
       expect(client.voice.transferCallWithNCCO).toHaveBeenCalledWith('call-1', NCCO);
+    });
+  });
+
+  describe('ensureUser', () => {
+    it('creates the Vonage user with the name', async () => {
+      const { client, service } = createService();
+
+      await service.ensureUser('cust-1');
+
+      expect(client.users.createUser).toHaveBeenCalledWith({ name: 'cust-1' });
+    });
+
+    it('accepts a user that already exists (409)', async () => {
+      const { client, service } = createService();
+      client.users.createUser.mockRejectedValue(
+        httpError(409, { title: 'User already exists', type: 'user:error:duplicate-name' }),
+      );
+
+      await expect(service.ensureUser('cust-1')).resolves.toBeUndefined();
+    });
+
+    it('fails for any other error', async () => {
+      const { client, service } = createService();
+      client.users.createUser.mockRejectedValue(httpError(401, { title: 'Unauthorized' }));
+
+      await expect(service.ensureUser('cust-1')).rejects.toMatchObject({
+        name: 'VonageRequestError',
+        operation: 'ensureUser',
+        status: 401,
+      });
+    });
+  });
+
+  describe('createClientToken', () => {
+    it('signs a token for the user', async () => {
+      const { service, signClientToken } = createService();
+
+      await expect(service.createClientToken('cust-1')).resolves.toEqual(CLIENT_TOKEN);
+      expect(signClientToken).toHaveBeenCalledWith('cust-1');
     });
   });
 

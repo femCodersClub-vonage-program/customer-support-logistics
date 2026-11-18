@@ -1,3 +1,4 @@
+import type { ClientToken } from './client-token.js';
 import type { NccoAction } from './ncco.js';
 import type { Locale } from '@csl/shared-types';
 
@@ -35,4 +36,6 @@ export interface VonageService {
   ): Promise<StartedVerification>;
   checkVerification(requestId: string, code: string): Promise<VerificationCheck>;
   moveVerificationToSms(requestId: string): Promise<NextVerificationChannel>;
+  ensureUser(name: string): Promise<void>;
+  createClientToken(userName: string): Promise<ClientToken>;
 }

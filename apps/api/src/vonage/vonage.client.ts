@@ -40,6 +40,9 @@ export interface VonageClient {
     checkCode(requestId: string, code: string): Promise<string>;
     nextWorkflow(requestId: string): Promise<boolean>;
   };
+  users: {
+    createUser(user: { name: string }): Promise<{ id?: string }>;
+  };
 }
 
 export interface VonageCredentials {
