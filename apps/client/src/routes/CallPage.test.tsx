@@ -106,26 +106,51 @@ describe('/call/:id', () => {
     expect(fake.client.mute).toHaveBeenCalledWith('call-1');
   });
 
-  it('hangs up and offers the way back to the incident', async () => {
+  it('hangs up and goes back to the incident', async () => {
     await joinCall();
 
     fireEvent.click(screen.getByRole('button', { name: 'Hang up' }));
 
+    expect(await screen.findByRole('heading', { level: 1, name: 'Incident' })).toBeInTheDocument();
+    expect(screen.getByText(`Incident ${INCIDENT_ID}`)).toBeInTheDocument();
+    expect(fake.client.hangup).toHaveBeenCalledWith('call-1');
+  });
+
+  it('keeps the screen awake only during the call', async () => {
+    const sentinel = { released: false, release: vi.fn(async () => undefined) };
+    const request = vi.fn(async () => sentinel);
+    Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request } });
+
+    try {
+      openCall();
+      await screen.findByRole('button', { name: 'Join the call' });
+
+      expect(request).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Join the call' }));
+
+      await waitFor(() => expect(request).toHaveBeenCalledWith('screen'));
+
+      fake.emit('callHangup', 'call-1', null, 'REMOTE_HANGUP');
+
+      await waitFor(() => expect(sentinel.release).toHaveBeenCalled());
+    } finally {
+      Reflect.deleteProperty(navigator, 'wakeLock');
+    }
+  });
+
+  it('says so when support ends the call and offers the way back to the incident', async () => {
+    await joinCall();
+
+    fake.emit('callHangup', 'call-1', null, 'REMOTE_HANGUP');
+
     expect(
       await screen.findByRole('heading', { level: 1, name: 'The call has ended' }),
     ).toHaveFocus();
-    expect(screen.getByText('You left the call.')).toBeInTheDocument();
-    expect(fake.client.hangup).toHaveBeenCalledWith('call-1');
     expect(screen.getByRole('link', { name: 'Back to the incident' })).toHaveAttribute(
       'href',
       `/incidents/${INCIDENT_ID}`,
     );
-  });
-
-  it('says so when support ends the call', async () => {
-    await joinCall();
-
-    fake.emit('callHangup', 'call-1', null, 'REMOTE_HANGUP');
 
     expect(await screen.findByText('Support ended the call.')).toBeInTheDocument();
     expect(status()).toHaveTextContent('Call ended');
