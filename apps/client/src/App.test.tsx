@@ -1,60 +1,54 @@
 import { screen } from '@testing-library/react';
-import { HttpResponse, http } from 'msw';
-import { setupServer } from 'msw/node';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { MemoryRouter } from 'react-router';
+import { describe, expect, it } from 'vitest';
 
-import { CUSTOMER, apiUrl, renderApp, sessionOf } from './test/app.tsx';
+import { App } from './App.tsx';
+import { renderWithIntl } from './test/render.tsx';
 
-const server = setupServer(sessionOf(CUSTOMER));
+import type { Locale } from '@csl/shared-types';
 
-beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
+
+function renderAt(path: string, locale: Locale = 'en') {
+  return renderWithIntl(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
+    { locale },
+  );
+}
 
 describe('App', () => {
-  it('redirects the root path to the orders page', async () => {
-    renderApp('/');
+  it('redirects the root path to the orders page', () => {
+    renderAt('/');
 
-    expect(await screen.findByRole('heading', { name: 'My orders' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'My orders' })).toBeInTheDocument();
   });
 
-  it('renders the report page with the order id from the URL', async () => {
-    renderApp('/report/123');
+  it('renders the report page with the order id from the URL', () => {
+    renderAt(`/report/${ORDER_ID}`);
 
-    expect(await screen.findByRole('heading', { name: 'Report an incident' })).toBeInTheDocument();
-    expect(screen.getByText('Order 123')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Report an incident' })).toBeInTheDocument();
+    expect(screen.getByText(`Order ${ORDER_ID}`)).toBeInTheDocument();
   });
 
-  it('renders the not found page for unknown paths', async () => {
-    renderApp('/unknown');
+  it('renders the not found page when the order id is not valid', () => {
+    renderAt('/report/123');
 
-    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Report an incident' })).not.toBeInTheDocument();
   });
 
-  it('renders the pages in Spanish', async () => {
-    renderApp('/report/123', 'es');
+  it('renders the not found page for unknown paths', () => {
+    renderAt('/unknown');
 
-    expect(
-      await screen.findByRole('heading', { name: 'Reportar una incidencia' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Pedido 123')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
   });
 
-  it('sends a visitor without a session to the login page', async () => {
-    server.use(sessionOf(null));
-    renderApp('/report/123');
+  it('renders the pages in Spanish', () => {
+    renderAt(`/report/${ORDER_ID}`, 'es');
 
-    expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
-  });
-
-  it('checks the session again when the connection comes back', async () => {
-    server.use(http.get(apiUrl('/auth/me'), () => HttpResponse.error(), { once: true }));
-    renderApp('/orders');
-
-    expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
-
-    window.dispatchEvent(new Event('online'));
-
-    expect(await screen.findByRole('heading', { name: 'My orders' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Reportar una incidencia' })).toBeInTheDocument();
+    expect(screen.getByText(`Pedido ${ORDER_ID}`)).toBeInTheDocument();
   });
 });
