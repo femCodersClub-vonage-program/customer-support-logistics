@@ -17,7 +17,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'unit',
-          include: ['src/**/*.spec.ts'],
+          include: ['src/**/*.spec.ts', 'test/setup/**/*.spec.ts'],
         },
       },
       {
@@ -26,14 +26,12 @@ export default defineConfig({
           name: 'e2e',
           include: ['test/**/*.e2e-spec.ts'],
           fileParallelism: false,
+          globalSetup: ['test/setup/require-test-database.ts'],
           env: {
             PUBLIC_URL: 'https://csl.test',
             VONAGE_API_KEY: 'test-api-key',
             VONAGE_SIGNATURE_SECRET: 'test-signature-secret-0123456789abcdef',
             WEBHOOK_RATE_LIMIT_PER_MINUTE: '10000',
-            DATABASE_URL:
-              process.env.DATABASE_URL ??
-              'postgresql://app:dev_only_password@localhost:5432/customer_support_logistics',
           },
         },
       },
