@@ -10,7 +10,7 @@ export interface ReportDraft {
 const EMPTY_DRAFT: ReportDraft = { type: null, description: '' };
 
 export function draftKey(orderId: string): string {
-  return `report-draft:${orderId}`;
+  return `csl:report-draft:${orderId}`;
 }
 
 export function loadDraft(orderId: string): ReportDraft {
@@ -40,7 +40,7 @@ export function saveDraft(orderId: string, draft: ReportDraft): void {
       localStorage.setItem(draftKey(orderId), JSON.stringify(draft));
     }
   } catch {
-    // The draft is a convenience: if the storage is full or blocked, the form still works.
+    return;
   }
 }
 
@@ -48,6 +48,6 @@ export function clearDraft(orderId: string): void {
   try {
     localStorage.removeItem(draftKey(orderId));
   } catch {
-    // Same as saveDraft: nothing to do if the storage is not available.
+    return;
   }
 }
