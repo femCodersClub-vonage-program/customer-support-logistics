@@ -2,7 +2,7 @@
 
 How the platform uses each Vonage API, and which webhooks Vonage sends us. Why we chose Vonage is in [ADR 0003](../adr/0003-vonage-as-communications-provider.md). What each user sees and does is in the [user flows](../design/user-flows/README.md); this page covers the technical side only.
 
-`VonageService` in `apps/api` is in place ([#29]): configuration, the SDK client, error handling and a test SMS script are described in the [API README](../../apps/api/README.md#vonage). The webhooks are implemented in `apps/api/src/webhooks` ([#30]) and answer invalid driver replies through `VonageService`. The outbound call to the driver when the agent starts the mediation is in place too ([#39]; see [Starting the mediation](#starting-the-mediation)). The other flows that use it are still _planned_.
+`VonageService` in `apps/api` is in place ([#29]): configuration, the SDK client, error handling and a test SMS script are described in the [API README](../../apps/api/README.md#vonage). The webhooks are implemented in `apps/api/src/webhooks` ([#30]) and answer invalid driver replies through `VonageService`. The outbound call to the driver when the agent starts the mediation is in place too ([#39]; see [Starting the mediation](#starting-the-mediation)), and so are the Client SDK tokens and the customer's call from the PWA ([#36]; see [Joining from the browser](#joining-from-the-browser)). The other flows that use it are still _planned_.
 
 ## One Vonage Application
 
@@ -14,13 +14,13 @@ All APIs use a single **Vonage Application** with a private key and a virtual ph
 
 ## APIs and webhooks
 
-| Vonage API             | What we use it for                                                                                                                       | Called from                                            | Webhooks it sends us                                                                  |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| **Verify v2**          | Customer login: workflow `silent_auth`, then `sms` as fallback                                                                           | `apps/api` auth module ([#31]), through `VonageService` | Verification status                                                                   |
-| **Messages API** (SMS) | Messages to the driver (incident details, "we'll call you in 2 minutes", fallback when they don't answer) and confirmations to the customer and driver when the incident is resolved | `apps/api` incidents module, through `VonageService`   | Delivery receipts (`/webhooks/sms/status`), inbound SMS from the driver (`/webhooks/sms/inbound`) |
-| **Voice API**          | Conversation `inc-<id>`, outbound PSTN call to the driver with an NCCO menu (`talk` + DTMF `input`), inbound calls to the virtual number | `apps/api` incidents module, through `VonageService`   | Answer URL (`/webhooks/voice/answer`), event URL (`/webhooks/voice/event`), DTMF input (`/webhooks/voice/input`) |
-| **Client SDK** (WebRTC) | Customer and agent audio from the browser, in the same conversation as the driver                                                       | `apps/client` (`/call/:id`, [#36]) and `apps/crm` (`/incidents/:id/mediation`, [#39]), with a JWT from `apps/api` | No webhooks of its own: calls from the browser go through the Voice API answer and event URLs |
-| **Video API** (phase 2) | Customer–agent video. The driver still joins by audio only, through SIP to the Voice API                                               | `apps/client`, `apps/crm`                              | Session events                                                                        |
+| Vonage API              | What we use it for                                                                                                                                                                   | Called from                                                                                                       | Webhooks it sends us                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Verify v2**           | Customer login: workflow `silent_auth`, then `sms` as fallback                                                                                                                       | `apps/api` auth module ([#31]), through `VonageService`                                                           | Verification status                                                                                              |
+| **Messages API** (SMS)  | Messages to the driver (incident details, "we'll call you in 2 minutes", fallback when they don't answer) and confirmations to the customer and driver when the incident is resolved | `apps/api` incidents module, through `VonageService`                                                              | Delivery receipts (`/webhooks/sms/status`), inbound SMS from the driver (`/webhooks/sms/inbound`)                |
+| **Voice API**           | Conversation `inc-<id>`, outbound PSTN call to the driver with an NCCO menu (`talk` + DTMF `input`), inbound calls to the virtual number                                             | `apps/api` incidents module, through `VonageService`                                                              | Answer URL (`/webhooks/voice/answer`), event URL (`/webhooks/voice/event`), DTMF input (`/webhooks/voice/input`) |
+| **Client SDK** (WebRTC) | Customer and agent audio from the browser, in the same conversation as the driver                                                                                                    | `apps/client` (`/call/:id`, [#36]) and `apps/crm` (`/incidents/:id/mediation`, [#39]), with a JWT from `apps/api` | No webhooks of its own: calls from the browser go through the Voice API answer and event URLs                    |
+| **Video API** (phase 2) | Customer–agent video. The driver still joins by audio only, through SIP to the Voice API                                                                                             | `apps/client`, `apps/crm`                                                                                         | Session events                                                                                                   |
 
 SMS go through the **Messages API**, not the older SMS API: its webhooks are signed the same way as the Voice API ones, so one guard checks both.
 
@@ -56,7 +56,7 @@ If an SMS delivery receipt says the message wasn't delivered, the CRM alerts the
 
 The agent starts the mediation from the CRM. The customer and the agent join the conversation `inc-<id>` over WebRTC; the API calls the driver over PSTN, and the driver only joins after pressing 1, so a voicemail never joins the call.
 
-The diagram uses incident `1234`, so the conversation is `inc-1234`. Only the status change and the call to the driver are in place ([#39]). The SMS before the call, the Client SDK JWTs, the notice to the customer, and the retries and fallback SMS when the driver doesn't answer are still _planned_.
+The diagram uses incident `1234`, so the conversation is `inc-1234`. The status change, the call to the driver ([#39]), the Client SDK JWTs and the customer's call from the PWA ([#36]) are in place. The SMS before the call, the agent's audio in the CRM, the notice to the customer, and the retries and fallback SMS when the driver doesn't answer are still _planned_.
 
 ```mermaid
 sequenceDiagram
@@ -155,6 +155,29 @@ Each call is stored as an outbound voice `Communication` in `queued`, with the V
 
 Starting the mediation requires the incident to be `notified`, so it follows the "Notify driver" action ([#38]). Automatic retries when the driver doesn't answer are a follow-up of [#39].
 
+### Joining from the browser
+
+The customer (PWA, `/call/:id`) and the agent (CRM) join `inc-<id>` with the Vonage Client SDK for JavaScript (`@vonage/client-sdk`), using a short-lived JWT from the API ([#36]):
+
+| Route                       | Who                  | What it does                                                                                                                                          | Response                                    |
+| --------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `POST /vonage/client-token` | Customers and agents | With `{ incidentId }`: creates the Vonage user if it doesn't exist yet, and signs a JWT for it with the application private key, valid for 15 minutes | `201` with `{ token, userName, expiresAt }` |
+
+- **Users.** Each customer and agent has one Vonage user, named `cust-<id>` or `agent-<id>` (`apps/api/src/vonage/vonage-users.ts`). The API creates it on the first token and treats Vonage's `409` (the name already exists) as success, so nothing is stored in our database.
+- **JWT.** `sub` is the user name. The ACLs are only those needed to start, control and hang up a call, plus conversation events, which `mute` needs (`CLIENT_TOKEN_ACL` in `apps/api/src/vonage/client-token.ts`).
+- **Who gets one.** A customer only gets a token for an incident on one of their orders (`404` otherwise), an agent for any incident, and the incident must be `in_mediation` (`409` otherwise). `502` means Vonage didn't create the user.
+- **The call.** The browser starts the call with `serverCall({ incidentId })`. Vonage asks the answer URL with `endpoint_type: app`, the caller's user name in `from_user` and the context in `custom_data`. The answer URL joins the call to `inc-<id>` only if the incident is `in_mediation` and `from_user` is the customer who owns it or an existing agent. Any other call gets `[]` and hangs up, so a valid token for one incident can't join another incident's conversation.
+
+In the PWA (`apps/client/src/call`):
+
+- The SDK is only loaded on `/call/:id`, with a dynamic `import()`. It is a separate chunk of about 314 kB gzipped, outside the main bundle. The service worker still precaches it, like every other chunk.
+- Before the call, the page explains who is on it and why the browser will ask for the microphone. The microphone is only requested when the customer taps **Join the call**. If the browser blocks it, the page shows how to allow it in Chrome on Android and Safari on iPhone.
+- The call status (connecting, joining, connected, reconnecting, ended) is in a `role="status"` region, so screen readers announce each change. The duration is outside it, so it isn't read every second.
+- The session is refreshed with a new token (`refreshSession`) one minute before the token expires.
+- The screen stays awake during the call with the Wake Lock API, where the browser has it.
+- When the customer hangs up, the page goes back to `/incidents/:id`. When the other side ends the call, it says so and links back to the incident.
+- Audio only for now: no speaker toggle, because Safari on iOS doesn't support `setSinkId` and Chrome on Android only reports the default output.
+
 ### Mediation screen
 
 The CRM page `/incidents/:id/mediation` (`apps/crm/src/app/incidents/[id]/mediation`) shows the incident summary (type, status, order, customer, driver and the driver's last reply) next to the call with the driver. Its Server Actions call the endpoints above through `@csl/api-client`:
@@ -163,7 +186,7 @@ The CRM page `/incidents/:id/mediation` (`apps/crm/src/app/incidents/[id]/mediat
 - The status of the driver's last outbound voice `Communication` is shown as it was when the page loaded. It updates after each action, and without reloading once the live updates of [#40] are in place.
 - A `409` or `502` is shown to the agent as a short message, and they can retry.
 
-The agent's audio, the participants panel and the call controls depend on the Client SDK JWT ([#36]) and are still _planned_.
+The Client SDK JWT is available ([#36], see [Joining from the browser](#joining-from-the-browser)). The agent's audio, the participants panel and the call controls in the CRM are still _planned_.
 
 ### Closing the call
 
@@ -224,6 +247,31 @@ With the tunnel and the application set up, a driver in the database whose phone
 5. **Signature:** send a request with `curl` to any `/webhooks/*` route; expect `401`.
 
 Check as well, since the docs don't say it: that the `GET` answer webhook carries the JWT, that `payload_hash` is hex, and that an empty NCCO (`[]`) hangs up.
+
+### Three-way call from the browser
+
+This is the manual check for [#36]. You need:
+
+- The tunnel and the Vonage application set up as above, with the API and the client running. The microphone needs HTTPS too, so open the client on the phones through its own tunnel (see [testing the PWA on a phone](../pwa.md#testing-on-a-phone)).
+- A customer in the database whose phone you can log in with, an order of theirs on a driver's route with an incident, and the driver's phone.
+- An Android phone with Chrome and an iPhone with Safari. You can repeat the call with each one.
+
+Steps:
+
+1. **Start the mediation** as an agent (see step 3 of the manual end-to-end check) and press `1` on the driver's phone. The incident is now `in_mediation`.
+2. **Customer joins.** Log in on the phone and open `/call/<incident id>`. The page lists who is on the call and explains the microphone, and the browser doesn't ask for it yet. Tap **Join the call** and allow the microphone. The status goes from "Connecting…" to "Joining the call…" and "Connected", and the duration starts. The customer and the driver hear each other.
+3. **Agent joins.** From the CRM, once its call is in place ([#39]), join the same incident. The three of them hear each other. Until then, the customer and the driver are enough to check the call.
+4. **Controls.** **Mute microphone** silences the customer for the others and shows as pressed. Turn the screen off for a minute and back on: the call is still up. While connected, the screen doesn't dim on its own.
+5. **Connection.** Turn Wi-Fi off on the phone while on mobile data, or turn airplane mode on for a few seconds. The status says "Reconnecting…" and then "Connected" again, or the page offers **Try again** if the call drops.
+6. **Token refresh.** Stay on the call for more than 15 minutes. It doesn't drop. With remote debugging (Chrome DevTools or Safari Web Inspector), the network panel shows a second `POST /api/vonage/client-token` about a minute before the first token expires.
+7. **Ended by the other side.** End the call from the CRM, or hang up every other leg. The page says "Support ended the call." and links back to the incident.
+8. **Hang up.** Join again and tap **Hang up**. The page goes back to `/incidents/<id>`, and the browser's back button doesn't return to the call.
+9. **Microphone denied.** Block the microphone for the site and tap **Join the call**, or open the page with it already blocked. The help screen shows the steps for Chrome and Safari, never an empty page. Follow them and tap **Try again**.
+10. **Another incident.** As the same customer, open `/call/<id>` of an incident that isn't theirs. The token request answers `404` and the page says the call isn't available. A call to that incident with a valid token from another user hangs up straight away, because of the answer URL check: the e2e tests in `apps/api/test/webhooks.e2e-spec.ts` cover it, and the API logs a warning when it happens.
+11. **Screen reader.** With TalkBack (Android) or VoiceOver (iPhone), go through steps 2, 4 and 8. Each status change is read out, the buttons have their names, and mute is announced as a toggle.
+12. **Bundle.** Run `pnpm --filter ./apps/client run build`. The SDK is in its own chunk (`assets/client-*.js`), and the main chunk that `index.html` loads doesn't contain it.
+
+Confirm as well, since the SDK and Vonage docs don't say it clearly: that Vonage sends `legStatusUpdate` with `ANSWERED` when the browser joins the conversation (the page relies on it to show "Connected"), that `custom_data` arrives in the `GET` answer webhook as a JSON string, and that creating a user that already exists answers `409`.
 
 [#26]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/26
 [#29]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/29
