@@ -11,7 +11,6 @@ import { ReportForm } from './ReportForm.tsx';
 
 import type { Incident, Locale } from '@csl/shared-types';
 
-// Node's fetch needs an absolute URL, so the tests use a client with one.
 vi.mock('../api.ts', async () => {
   const { createApiClient } = await import('@csl/api-client');
 
@@ -192,6 +191,42 @@ describe('ReportForm', () => {
 
       expect(screen.getByText('Required · 0 / 1000')).toBeInTheDocument();
       expect(description()).toBeRequired();
+    });
+
+    it('clears the type error when a type is chosen', () => {
+      renderForm();
+
+      send();
+      expect(screen.getByRole('alert')).toHaveTextContent('Choose what happened.');
+
+      choose('Damaged');
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('clears the description error when the description changes', () => {
+      renderForm();
+
+      choose('Other');
+      send();
+      expect(description()).toBeInvalid();
+
+      write('Wrong floor');
+
+      expect(description()).toBeValid();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('clears the description error when the type no longer needs one', () => {
+      renderForm();
+
+      choose('Other');
+      send();
+      expect(description()).toBeInvalid();
+
+      choose('Damaged');
+
+      expect(description()).toBeValid();
     });
   });
 
