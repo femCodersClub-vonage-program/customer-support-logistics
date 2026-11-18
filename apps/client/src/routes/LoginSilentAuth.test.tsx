@@ -9,6 +9,8 @@ import { CUSTOMER, apiError, apiUrl, renderApp, sessionOf } from '../test/app.ts
 
 vi.mock('../auth/browser.ts', () => ({ goTo: vi.fn(), isOnWifi: vi.fn(() => false) }));
 
+const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
+const REPORT_PATH = `/report/${ORDER_ID}`;
 const CHECK_URL = 'https://verify.test/silent-auth/req-1';
 const server = setupServer();
 
@@ -50,12 +52,12 @@ const sendPhone = async () => {
 
 describe('Login with silent authentication', () => {
   it('navigates to the check URL and keeps the phone and the way back', async () => {
-    renderApp('/login?next=%2Freport%2F42');
+    renderApp(`/login?next=${encodeURIComponent(REPORT_PATH)}`);
 
     await sendPhone();
 
     await waitFor(() => expect(goTo).toHaveBeenCalledWith(CHECK_URL));
-    expect(readPendingLogin()).toEqual({ phone: '+34600000001', next: '/report/42' });
+    expect(readPendingLogin()).toEqual({ phone: '+34600000001', next: REPORT_PATH });
     expect(smsCalls).toBe(0);
     expect(screen.getByRole('button', { name: 'Send code' })).toBeEnabled();
   });
@@ -105,7 +107,7 @@ describe('Login with silent authentication', () => {
 
   describe('/login/callback', () => {
     beforeEach(() => {
-      savePendingLogin({ phone: '+34600000001', next: '/report/42' });
+      savePendingLogin({ phone: '+34600000001', next: REPORT_PATH });
     });
 
     it('checks the code and request id from the fragment and goes back', async () => {

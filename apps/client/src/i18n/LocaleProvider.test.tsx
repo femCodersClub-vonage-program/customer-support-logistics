@@ -11,6 +11,8 @@ import { LOCALE_KEY } from './locale.ts';
 import { LocaleProvider } from './LocaleProvider.tsx';
 import { LocaleSwitcher } from './LocaleSwitcher.tsx';
 
+const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
+
 const server = setupServer(sessionOf(CUSTOMER));
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
@@ -77,17 +79,17 @@ describe('LocaleProvider', () => {
 
   it('switches language on the current page, updates <html lang> and remembers the choice', async () => {
     setBrowserLanguages(['es-ES']);
-    renderAppAt('/report/123');
+    renderAppAt(`/report/${ORDER_ID}`);
 
     expect(
       await screen.findByRole('heading', { name: 'Reportar una incidencia' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('Pedido 123')).toBeInTheDocument();
+    expect(screen.getByText(`Pedido ${ORDER_ID}`)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Idioma'), { target: { value: 'en' } });
 
     expect(screen.getByRole('heading', { name: 'Report an incident' })).toBeInTheDocument();
-    expect(screen.getByText('Order 123')).toBeInTheDocument();
+    expect(screen.getByText(`Order ${ORDER_ID}`)).toBeInTheDocument();
     expect(screen.getByLabelText('Language')).toHaveValue('en');
     expect(document.documentElement.lang).toBe('en');
     expect(localStorage.getItem(LOCALE_KEY)).toBe('en');

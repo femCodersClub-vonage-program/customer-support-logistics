@@ -4,6 +4,7 @@ import { setupServer } from 'msw/node';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { CUSTOMER, sessionOf } from '../test/app.tsx';
 import { renderWithIntl } from '../test/render.tsx';
 
 import { loadDraft, saveDraft } from './draft.ts';
@@ -33,7 +34,7 @@ const created: Incident = {
   closedAt: null,
 };
 
-const server = setupServer();
+const server = setupServer(sessionOf(CUSTOMER));
 const bodies: unknown[] = [];
 
 function answerWith(respond: () => Response | Promise<Response>) {
