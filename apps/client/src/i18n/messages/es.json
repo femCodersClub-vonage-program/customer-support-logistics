@@ -39,11 +39,31 @@
   },
   "report": {
     "title": "Reportar una incidencia",
-    "order": "Pedido {orderId}"
+    "order": "Pedido {orderId}",
+    "type": "¿Qué ha pasado?",
+    "description": "Describe el problema",
+    "hintOptional": "Opcional · {count} / {max}",
+    "hintRequired": "Obligatorio · {count} / {max}",
+    "submit": "Enviar reporte",
+    "sending": "Enviando… puede tardar un momento.",
+    "errors": {
+      "type": "Elige qué ha pasado.",
+      "descriptionRequired": "Describe el problema.",
+      "descriptionTooLong": "La descripción es demasiado larga. Usa como máximo {max} caracteres.",
+      "orderNotFound": "No hemos encontrado este pedido.",
+      "generic": "No hemos podido enviar el reporte. Inténtalo de nuevo en un momento."
+    }
   },
   "incident": {
     "title": "Incidencia",
-    "reference": "Incidencia {id}"
+    "reference": "Incidencia {id}",
+    "type": {
+      "not_delivered": "No entregado",
+      "delayed": "Retrasado",
+      "damaged": "Dañado",
+      "wrong_item": "Artículo incorrecto",
+      "other": "Otro"
+    }
   },
   "call": {
     "title": "Llamada de mediación",

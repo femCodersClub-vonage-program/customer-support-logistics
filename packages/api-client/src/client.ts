@@ -3,6 +3,7 @@ import { ApiError } from './errors.js';
 import type {
   AgentLoginBody,
   ChangeIncidentStatusBody,
+  CreateIncidentBody,
   ClientTokenResponse,
   CurrentUser,
   CustomerLoginCheckBody,
@@ -38,6 +39,7 @@ export interface ApiClient {
     query?: ListIncidentsQueryInput,
     options?: RequestOptions,
   ): Promise<ListIncidentsResponse>;
+  createIncident(body: CreateIncidentBody, options?: RequestOptions): Promise<Incident>;
   getIncident(incidentId: string, options?: RequestOptions): Promise<IncidentDetail>;
   changeIncidentStatus(
     incidentId: string,
@@ -138,6 +140,8 @@ export function createApiClient({
         method: 'GET',
         signal,
       }),
+    createIncident: (body, { signal } = {}) =>
+      request<Incident>('/incidents', postJson(body, signal)),
     getIncident: (incidentId, { signal } = {}) =>
       request<IncidentDetail>(`/incidents/${encodeURIComponent(incidentId)}`, {
         method: 'GET',

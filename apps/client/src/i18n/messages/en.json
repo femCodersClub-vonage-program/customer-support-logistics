@@ -39,11 +39,31 @@
   },
   "report": {
     "title": "Report an incident",
-    "order": "Order {orderId}"
+    "order": "Order {orderId}",
+    "type": "What happened?",
+    "description": "Describe the problem",
+    "hintOptional": "Optional · {count} / {max}",
+    "hintRequired": "Required · {count} / {max}",
+    "submit": "Send report",
+    "sending": "Sending… this may take a moment.",
+    "errors": {
+      "type": "Choose what happened.",
+      "descriptionRequired": "Describe the problem.",
+      "descriptionTooLong": "The description is too long. Use at most {max} characters.",
+      "orderNotFound": "We could not find this order.",
+      "generic": "We could not send the report. Try again in a moment."
+    }
   },
   "incident": {
     "title": "Incident",
-    "reference": "Incident {id}"
+    "reference": "Incident {id}",
+    "type": {
+      "not_delivered": "Not delivered",
+      "delayed": "Delayed",
+      "damaged": "Damaged",
+      "wrong_item": "Wrong item",
+      "other": "Other"
+    }
   },
   "call": {
     "title": "Mediation call",
