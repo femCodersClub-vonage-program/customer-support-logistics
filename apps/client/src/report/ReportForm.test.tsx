@@ -2,21 +2,16 @@ import { fireEvent, screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { CUSTOMER, sessionOf } from '../test/app.tsx';
+import { SessionProvider } from '../auth/session.tsx';
+import { CUSTOMER, apiUrl, renderApp, sessionOf } from '../test/app.tsx';
 import { renderWithIntl } from '../test/render.tsx';
 
 import { loadDraft, saveDraft } from './draft.ts';
 import { ReportForm } from './ReportForm.tsx';
 
 import type { Incident, Locale } from '@csl/shared-types';
-
-vi.mock('../api.ts', async () => {
-  const { createApiClient } = await import('@csl/api-client');
-
-  return { api: createApiClient({ baseUrl: 'http://localhost/api' }) };
-});
 
 const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
 const INCIDENT_ID = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
@@ -62,11 +57,12 @@ function Destination() {
 function renderForm(locale: Locale = 'en') {
   return renderWithIntl(
     <MemoryRouter initialEntries={[REPORT_PATH]}>
-      <Routes>
-        <Route path="report/:orderId" element={<ReportForm orderId={ORDER_ID} />} />
-        <Route path="incidents/:id" element={<Destination />} />
-        <Route path="login" element={<Destination />} />
-      </Routes>
+      <SessionProvider>
+        <Routes>
+          <Route path="report/:orderId" element={<ReportForm orderId={ORDER_ID} />} />
+          <Route path="incidents/:id" element={<Destination />} />
+        </Routes>
+      </SessionProvider>
     </MemoryRouter>,
     { locale },
   );
@@ -229,6 +225,22 @@ describe('ReportForm', () => {
 
       expect(description()).toBeValid();
     });
+
+    it('keeps the too long error when the type changes', () => {
+      renderForm();
+
+      choose('Damaged');
+      write('a'.repeat(1001));
+      send();
+      expect(description()).toBeInvalid();
+
+      choose('Delayed');
+
+      expect(description()).toBeInvalid();
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'The description is too long. Use at most 1000 characters.',
+      );
+    });
   });
 
   describe('server errors', () => {
@@ -284,13 +296,16 @@ describe('ReportForm', () => {
 
     it('sends the customer to the login when the session has expired', async () => {
       answerWith(failWith(401, { code: 'UNAUTHORIZED', message: 'A valid session is required' }));
-      renderForm();
+      server.use(http.post(apiUrl('/auth/logout'), () => new HttpResponse(null, { status: 204 })));
+      renderApp(REPORT_PATH);
 
+      await screen.findByRole('heading', { name: 'Report an incident' });
       choose('Damaged');
       write('The box was crushed');
       send();
 
-      expect(await screen.findByText('/login')).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'My orders' })).not.toBeInTheDocument();
       expect(loadDraft(ORDER_ID)).toEqual({ type: 'damaged', description: 'The box was crushed' });
     });
   });

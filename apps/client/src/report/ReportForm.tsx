@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router';
 import { useTranslations } from 'use-intl';
 
 import { api } from '../api.ts';
+import { useSession } from '../auth/session-context.ts';
 
 import { clearDraft, loadDraft, saveDraft } from './draft.ts';
 import './report.css';
@@ -48,6 +49,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
   const t = useTranslations('report');
   const tType = useTranslations('incident.type');
   const navigate = useNavigate();
+  const { logOut } = useSession();
   const id = useId();
   const sendingRef = useRef<AbortController | null>(null);
   const [initial] = useState(() => loadDraft(orderId));
@@ -77,6 +79,14 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
   function showErrors(fields: FieldErrors, fallbackKey: FallbackKey) {
     setErrors(fields);
     setFailure(Object.keys(fields).length > 0 ? null : t(fallbackKey));
+  }
+
+  function clearTypeError() {
+    setErrors(({ description: descriptionError }) =>
+      descriptionError === undefined || trimmed.length <= INCIDENT_DESCRIPTION_MAX_LENGTH
+        ? {}
+        : { description: descriptionError },
+    );
   }
 
   function clearDescriptionError() {
@@ -138,7 +148,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
         setSubmitting(false);
 
         if (error instanceof ApiError && error.status === 401) {
-          return navigate('/login');
+          return logOut().catch(() => undefined);
         }
 
         showErrors(
@@ -169,7 +179,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
                 checked={type === value}
                 onChange={() => {
                   setType(value);
-                  setErrors({});
+                  clearTypeError();
                 }}
               />
               <span className="report-type__card">
