@@ -44,7 +44,7 @@ pnpm --filter ./apps/api run db:seed
 - Because existing rows are never updated, changes to the demo data in `src/database/seed-data.ts` don't reach a database that is already seeded. Recreate the database to start over. There are two exceptions:
   - `SEED_AGENT_PASSWORD` (12 characters or more): when it is set, the seeded agents get that password even if they already exist, each with its own salt.
   - `SEED_CUSTOMER_PHONES`: a comma-separated list of E.164 phones that replace, in order, the phones of the seeded customers, so you can log in with Verify on a real phone. Put only your own number, and only in your local `.env`. Seeding again without it gives the customers back their demo phones.
-- The e2e tests empty the tables, so seed again after running them against the same database.
+- The e2e tests never touch this database: they only run against one whose name ends in `_test` (see [Tests](#tests)).
 
 The data is in `src/database/seed-data.ts`, and `seed-data.spec.ts` checks that every incident's event history is a valid path through the state machine.
 
@@ -340,6 +340,26 @@ Outside production, the API serves Swagger UI at [`/docs`](http://localhost:3000
 pnpm --filter ./apps/api run test
 ```
 
-Unit tests (`src/**/*.spec.ts`) don't need a database. End-to-end tests (`test/**/*.e2e-spec.ts`) need a running PostgreSQL with migrations applied, at `DATABASE_URL` or at the default from `.env.example`. They empty the tables before each test, so don't point them at a database you care about. They run one file at a time and set `PUBLIC_URL` and the Vonage webhook variables themselves (see `vitest.config.ts`); `VonageService` is replaced by `FakeVonageService`, so nothing reaches Vonage. To act as someone, a test creates a session with `sessionCookieFor` or `sessionCookiesFor` (`test/fixtures/auth.ts`) and sends it as the `Cookie` header.
+Unit tests (`src/**/*.spec.ts`, and `test/setup/**/*.spec.ts` for the e2e guard) don't need a database. End-to-end tests (`test/**/*.e2e-spec.ts`) empty the tables before each test, so they only run against a database meant for them:
+
+- `DATABASE_URL` must be set in the shell. The e2e tests don't use a default and ignore the one in `apps/api/.env`.
+- The database name must end in `_test`. Otherwise they stop before connecting and say how to fix it. Vitest prints `No test files found` first; the reason is below it, under "Unhandled Error".
+
+To run only the unit tests, add `--project unit`; they don't need `DATABASE_URL`.
+
+### Test database
+
+Create the test database once in the Docker Compose PostgreSQL, and migrate it whenever the schema changes. Use the port where your container listens (`POSTGRES_PORT`, 5432 by default):
+
+```sh
+docker compose exec postgres createdb -U app customer_support_logistics_test
+
+DATABASE_URL=postgresql://app:dev_only_password@localhost:5432/customer_support_logistics_test pnpm --filter ./apps/api run db:migrate
+DATABASE_URL=postgresql://app:dev_only_password@localhost:5432/customer_support_logistics_test pnpm --filter ./apps/api run test
+```
+
+A `DATABASE_URL` set in the shell takes precedence over `apps/api/.env`, both for `db:migrate` and for the tests. That is why the commands above set it only for themselves: if it stays set, `run dev` in the same terminal also uses the test database, and the next e2e run empties it. In PowerShell, use a separate terminal for the tests and set the variable there with `$env:DATABASE_URL='postgresql://…_test'`. CI creates `customer_support_logistics_test` in its PostgreSQL service and migrates it before the tests.
+
+The e2e tests run one file at a time and set `PUBLIC_URL` and the Vonage webhook variables themselves (see `vitest.config.ts`); `VonageService` is replaced by `FakeVonageService`, so nothing reaches Vonage. To act as someone, a test creates a session with `sessionCookieFor` or `sessionCookiesFor` (`test/fixtures/auth.ts`) and sends it as the `Cookie` header.
 
 [#30]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/30
