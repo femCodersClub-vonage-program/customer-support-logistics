@@ -272,6 +272,20 @@ export class IncidentsService {
         throw new NotFoundException(INCIDENT_NOT_FOUND);
       }
 
+      const incident = row.incident;
+
+      if (incident.status === 'resolved') {
+        throw new ConflictException('Resolved incidents cannot be assigned');
+      }
+
+      if (incident.agentId !== null && incident.agentId !== actor.id) {
+        throw new ConflictException('Incident is already assigned to another agent');
+      }
+
+      if (incident.agentId === actor.id) {
+        return toIncident(incident);
+      }
+
       const updated = singleRow(
         await tx
           .update(incidents)
@@ -279,6 +293,15 @@ export class IncidentsService {
           .where(eq(incidents.id, id))
           .returning(),
       );
+
+      await tx.insert(incidentEvents).values({
+        incidentId: id,
+        fromStatus: incident.status,
+        toStatus: incident.status,
+        actor: 'agent',
+        actorId: actor.id,
+        reason: 'Incident assigned to agent',
+      });
 
       return toIncident(updated);
     });

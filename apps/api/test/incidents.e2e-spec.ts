@@ -398,7 +398,7 @@ describe('Incidents (e2e)', () => {
     const assign = (id: string, who: string = cookie.agentA) =>
       http().post(`/incidents/${id}/assign-to-me`).set('Cookie', who);
 
-    it('assigns the incident to the current agent', async () => {
+    it('assigns the incident to the current agent and records an event', async () => {
       const response = await assign(ids.openIncident).expect(201);
 
       expect(incidentSchema.parse(response.body).agentId).toBe(ids.agentA);
@@ -407,12 +407,63 @@ describe('Incidents (e2e)', () => {
         .select()
         .from(incidents)
         .where(eq(incidents.id, ids.openIncident));
-      if (!updated) {
-        throw new Error('Updated incident not found');
-      }
 
-      expect(updated.agentId).toBe(ids.agentA);
-      expect(updated.status).toBe('open');
+      expect(updated).toMatchObject({
+        agentId: ids.agentA,
+        status: 'open',
+      });
+
+      expect(await eventsOf(ids.openIncident)).toContainEqual(
+        expect.objectContaining({
+          fromStatus: 'open',
+          toStatus: 'open',
+          actor: 'agent',
+          actorId: ids.agentA,
+          reason: 'Incident assigned to agent',
+        }),
+      );
+    });
+
+    it('rejects assigning an incident owned by another agent', async () => {
+      const eventsBefore = await eventsOf(ids.escalatedIncident);
+
+      const response = await assign(ids.escalatedIncident).expect(409);
+
+      expectError(response.body, 'CONFLICT');
+
+      const [unchanged] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.escalatedIncident));
+
+      expect(unchanged?.agentId).toBe(ids.agentB);
+      expect(await eventsOf(ids.escalatedIncident)).toEqual(eventsBefore);
+    });
+
+    it('rejects assigning a resolved incident', async () => {
+      const eventsBefore = await eventsOf(ids.resolvedIncident);
+
+      const response = await assign(ids.resolvedIncident).expect(409);
+
+      expectError(response.body, 'CONFLICT');
+
+      const [unchanged] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.resolvedIncident));
+
+      expect(unchanged?.agentId).toBe(ids.agentA);
+      expect(unchanged?.status).toBe('resolved');
+      expect(await eventsOf(ids.resolvedIncident)).toEqual(eventsBefore);
+    });
+
+    it('does not duplicate the assignment event when assigned again by the same agent', async () => {
+      await assign(ids.openIncident).expect(201);
+      const eventsAfterFirstAssignment = await eventsOf(ids.openIncident);
+
+      await assign(ids.openIncident).expect(201);
+
+      expect(await eventsOf(ids.openIncident)).toEqual(eventsAfterFirstAssignment);
     });
 
     it('rejects customers', async () => {
