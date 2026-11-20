@@ -51,7 +51,6 @@ export default defineConfig({
           include: ['test/**/*.e2e-spec.ts'],
           fileParallelism: false,
           env: {
-            DEV_AUTH_ENABLED: 'true',
             PUBLIC_URL: 'https://csl.test',
             VONAGE_API_KEY: 'test-api-key',
             VONAGE_SIGNATURE_SECRET: 'test-signature-secret-0123456789abcdef',

@@ -1,4 +1,5 @@
-import { UNASSIGNED_AGENT } from '@csl/contracts';
+﻿import { UNASSIGNED_AGENT } from '@csl/contracts';
+import { INCIDENT_STATUSES } from '@csl/shared-types';
 import {
   ConflictException,
   ForbiddenException,
@@ -8,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 
-import { requireCustomerId } from '../common/dev-auth/dev-actor.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
   communications,
@@ -19,27 +19,32 @@ import {
   incidents,
   orders,
   routes,
+  webhookEvents,
 } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
 import { incidentNoticeSms } from '../i18n/sms-templates.js';
 import { toOrder } from '../orders/orders.mapper.js';
+import { VonageDisabledError, VonageRequestError } from '../vonage/vonage.errors.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
+import { advancesStatus, fromMessageStatus } from '../webhooks/communication-status.js';
+import { messageStatusSchema } from '../webhooks/vonage-payloads.js';
 
 import { UnauthorizedTransitionError } from './domain/transition.errors.js';
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
 import { persistTransition } from './persist-transition.js';
 
-import type { DevActor } from '../common/dev-auth/dev-actor.js';
-import type { Database } from '../database/database.constants.js';
+import type { AuthActor } from '../auth/auth-actor.js';
+import type { Database, DatabaseTransaction } from '../database/database.constants.js';
 import type { VonageService } from '../vonage/vonage.service.js';
 import type {
   ChangeIncidentStatusBody,
   CreateIncidentBody,
   IncidentDetail,
+  IncidentStatusCounts,
   ListIncidentsQuery,
   ListIncidentsResponse,
 } from '@csl/contracts';
-import type { Incident } from '@csl/shared-types';
+import type { CommunicationStatus, Incident, IncidentStatus } from '@csl/shared-types';
 import type { SQL } from 'drizzle-orm';
 
 const INCIDENT_NOT_FOUND = 'Incident not found';
@@ -48,16 +53,17 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, '\\$&');
 }
 
-function ownedBy(actor: DevActor): SQL | undefined {
+function ownedBy(actor: AuthActor): SQL | undefined {
   return actor.role === 'customer' ? eq(orders.customerId, actor.id) : undefined;
 }
 
-function listFilters(query: ListIncidentsQuery): SQL | undefined {
-  const conditions: (SQL | undefined)[] = [];
+function statusFilter(query: ListIncidentsQuery): SQL | undefined {
+  return query.status === undefined ? undefined : inArray(incidents.status, query.status);
+}
 
-  if (query.status !== undefined) {
-    conditions.push(inArray(incidents.status, query.status));
-  }
+// Every filter except the status one: the counts per status are computed with these.
+function otherFilters(query: ListIncidentsQuery): SQL | undefined {
+  const conditions: (SQL | undefined)[] = [];
 
   if (query.type !== undefined) {
     conditions.push(eq(incidents.type, query.type));
@@ -92,6 +98,18 @@ function listFilters(query: ListIncidentsQuery): SQL | undefined {
   return and(...conditions);
 }
 
+function toStatusCounts(rows: { status: IncidentStatus; total: number }[]): IncidentStatusCounts {
+  const counts = Object.fromEntries(
+    INCIDENT_STATUSES.map((status) => [status, 0]),
+  ) as IncidentStatusCounts;
+
+  for (const { status, total } of rows) {
+    counts[status] = total;
+  }
+
+  return counts;
+}
+
 @Injectable()
 export class IncidentsService {
   constructor(
@@ -99,9 +117,7 @@ export class IncidentsService {
     @Inject(VONAGE_SERVICE) private readonly vonage: VonageService,
   ) {}
 
-  async create(actor: DevActor, body: CreateIncidentBody): Promise<Incident> {
-    const customerId = requireCustomerId(actor);
-
+  async create(customerId: string, body: CreateIncidentBody): Promise<Incident> {
     return this.db.transaction(async (tx) => {
       const [order] = await tx
         .select({ id: orders.id })
@@ -130,37 +146,43 @@ export class IncidentsService {
   }
 
   async list(query: ListIncidentsQuery): Promise<ListIncidentsResponse> {
-    const where = listFilters(query);
+    const filters = otherFilters(query);
     const direction = query.order === 'asc' ? asc : desc;
     const sortColumn = query.sort === 'updatedAt' ? incidents.updatedAt : incidents.createdAt;
 
-    const [rows, totals] = await Promise.all([
+    const [rows, countRows] = await Promise.all([
       this.db
         .select({ incident: incidents, customer: { id: customers.id, name: customers.name } })
         .from(incidents)
         .innerJoin(orders, eq(orders.id, incidents.orderId))
         .innerJoin(customers, eq(customers.id, orders.customerId))
-        .where(where)
+        .where(and(statusFilter(query), filters))
         .orderBy(direction(sortColumn), direction(incidents.id))
         .limit(query.limit)
         .offset(query.offset),
       this.db
-        .select({ total: count() })
+        .select({ status: incidents.status, total: count() })
         .from(incidents)
         .innerJoin(orders, eq(orders.id, incidents.orderId))
         .innerJoin(customers, eq(customers.id, orders.customerId))
-        .where(where),
+        .where(filters)
+        .groupBy(incidents.status),
     ]);
+
+    const statusCounts = toStatusCounts(countRows);
+    const selected = query.status ?? INCIDENT_STATUSES;
+    const total = [...new Set(selected)].reduce((sum, status) => sum + statusCounts[status], 0);
 
     return {
       items: rows.map(({ incident, customer }) => toIncidentListItem(incident, customer)),
-      total: singleRow(totals).total,
+      total,
       limit: query.limit,
       offset: query.offset,
+      statusCounts,
     };
   }
 
-  async findOne(actor: DevActor, id: string): Promise<IncidentDetail> {
+  async findOne(actor: AuthActor, id: string): Promise<IncidentDetail> {
     const [row] = await this.db
       .select({ incident: incidents, order: orders, customer: customers, driver: drivers })
       .from(incidents)
@@ -204,7 +226,7 @@ export class IncidentsService {
   }
 
   async changeStatus(
-    actor: DevActor,
+    actor: AuthActor,
     id: string,
     body: ChangeIncidentStatusBody,
   ): Promise<Incident> {
@@ -212,8 +234,7 @@ export class IncidentsService {
       const [row] = await tx
         .select({ incident: incidents })
         .from(incidents)
-        .innerJoin(orders, eq(orders.id, incidents.orderId))
-        .where(and(eq(incidents.id, id), ownedBy(actor)))
+        .where(eq(incidents.id, id))
         .for('update', { of: incidents });
 
       if (!row) {
@@ -235,7 +256,7 @@ export class IncidentsService {
     });
   }
 
-  async assignToMe(actor: DevActor, id: string): Promise<Incident> {
+  async assignToMe(actor: AuthActor, id: string): Promise<Incident> {
     if (actor.role !== 'agent') {
       throw new ForbiddenException('Only agents can assign incidents');
     }
@@ -263,7 +284,7 @@ export class IncidentsService {
     });
   }
 
-  async notifyDriverAgain(actor: DevActor, id: string, idempotencyKey: string): Promise<Incident> {
+  async notifyDriverAgain(actor: AuthActor, id: string, idempotencyKey: string): Promise<Incident> {
     if (actor.role !== 'agent') {
       throw new ForbiddenException('Only agents can notify drivers');
     }
@@ -272,7 +293,7 @@ export class IncidentsService {
       throw new ConflictException('A valid Idempotency-Key is required');
     }
 
-    return this.db.transaction(async (tx) => {
+    const reservation = await this.db.transaction(async (tx) => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
 
       const [row] = await tx
@@ -303,7 +324,7 @@ export class IncidentsService {
           throw new ConflictException('Idempotency key already used');
         }
 
-        return toIncident(row.incident);
+        return { incident: toIncident(row.incident), existing: true as const };
       }
 
       if (row.incident.status !== 'notified') {
@@ -319,18 +340,61 @@ export class IncidentsService {
         incidentType: row.incident.type,
       });
 
-      const sent = await this.vonage.sendSms(row.driver.phone, message);
+      const [communication] = await tx
+        .insert(communications)
+        .values({
+          incidentId: id,
+          idempotencyKey,
+          channel: 'sms',
+          direction: 'outbound',
+          fromNumber: null,
+          toNumber: row.driver.phone,
+          vonageUuid: null,
+          status: 'pending',
+        })
+        .returning({ id: communications.id });
 
-      await tx.insert(communications).values({
-        incidentId: id,
-        idempotencyKey,
-        channel: 'sms',
-        direction: 'outbound',
-        fromNumber: null,
-        toNumber: row.driver.phone,
-        vonageUuid: sent.messageId,
-        status: 'queued',
-      });
+      return {
+        incident: toIncident(row.incident),
+        communicationId: communication!.id,
+        phone: row.driver.phone,
+        message,
+        existing: false as const,
+      };
+    });
+
+    if (reservation.existing) {
+      return reservation.incident;
+    }
+
+    let sent: Awaited<ReturnType<VonageService['sendSms']>>;
+
+    try {
+      sent = await this.vonage.sendSms(reservation.phone, reservation.message);
+    } catch (error) {
+      const definitelyRejected =
+        error instanceof VonageDisabledError ||
+        (error instanceof VonageRequestError &&
+          error.status !== undefined &&
+          error.status >= 400 &&
+          error.status < 500);
+
+      if (definitelyRejected) {
+        await this.db
+          .update(communications)
+          .set({ status: 'failed' })
+          .where(eq(communications.id, reservation.communicationId));
+      }
+
+      throw error;
+    }
+
+    await this.db.transaction(async (tx) => {
+      await this.attachSmsUuidAndApplyEarlyStatuses(
+        tx,
+        reservation.communicationId,
+        sent.messageId,
+      );
 
       await tx.insert(incidentEvents).values({
         incidentId: id,
@@ -340,17 +404,16 @@ export class IncidentsService {
         actorId: actor.id,
         reason: 'Driver notification resent',
       });
-
-      return toIncident(row.incident);
     });
-  }
 
-  async notifyDriver(actor: DevActor, id: string): Promise<Incident> {
+    return reservation.incident;
+  }
+  async notifyDriver(actor: AuthActor, id: string): Promise<Incident> {
     if (actor.role !== 'agent') {
       throw new ForbiddenException('Only agents can notify drivers');
     }
 
-    return this.db.transaction(async (tx) => {
+    const reservation = await this.db.transaction(async (tx) => {
       const [row] = await tx
         .select({
           incident: incidents,
@@ -376,24 +439,93 @@ export class IncidentsService {
         throw new ConflictException('Incident has no assigned driver');
       }
 
+      const [pendingCommunication] = await tx
+        .select({ id: communications.id })
+        .from(communications)
+        .where(
+          and(
+            eq(communications.incidentId, id),
+            eq(communications.channel, 'sms'),
+            eq(communications.direction, 'outbound'),
+            eq(communications.status, 'pending'),
+          ),
+        )
+        .limit(1);
+
+      if (pendingCommunication) {
+        throw new ConflictException('Driver notification is already pending');
+      }
+
       const message = incidentNoticeSms(row.driver.locale, {
         orderId: row.order.id,
         incidentType: row.incident.type,
       });
 
-      const sent = await this.vonage.sendSms(row.driver.phone, message);
+      const [communication] = await tx
+        .insert(communications)
+        .values({
+          incidentId: id,
+          channel: 'sms',
+          direction: 'outbound',
+          fromNumber: null,
+          toNumber: row.driver.phone,
+          vonageUuid: null,
+          status: 'pending',
+        })
+        .returning({ id: communications.id });
 
-      await tx.insert(communications).values({
-        incidentId: id,
-        channel: 'sms',
-        direction: 'outbound',
-        fromNumber: null,
-        toNumber: row.driver.phone,
-        vonageUuid: sent.messageId,
-        status: 'queued',
-      });
+      return {
+        incident: toIncident(row.incident),
+        communicationId: communication!.id,
+        phone: row.driver.phone,
+        message,
+      };
+    });
 
-      const updated = await persistTransition(tx, row.incident, {
+    let sent: Awaited<ReturnType<VonageService['sendSms']>>;
+
+    try {
+      sent = await this.vonage.sendSms(reservation.phone, reservation.message);
+    } catch (error) {
+      const definitelyRejected =
+        error instanceof VonageDisabledError ||
+        (error instanceof VonageRequestError &&
+          error.status !== undefined &&
+          error.status >= 400 &&
+          error.status < 500);
+
+      if (definitelyRejected) {
+        await this.db
+          .update(communications)
+          .set({ status: 'failed' })
+          .where(eq(communications.id, reservation.communicationId));
+      }
+
+      throw error;
+    }
+
+    return this.db.transaction(async (tx) => {
+      await this.attachSmsUuidAndApplyEarlyStatuses(
+        tx,
+        reservation.communicationId,
+        sent.messageId,
+      );
+
+      const [currentIncident] = await tx
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, id))
+        .for('update');
+
+      if (!currentIncident) {
+        throw new NotFoundException(INCIDENT_NOT_FOUND);
+      }
+
+      if (currentIncident.status !== 'open') {
+        return toIncident(currentIncident);
+      }
+
+      const updated = await persistTransition(tx, currentIncident, {
         to: 'notified',
         actor: 'agent',
         actorId: actor.id,
@@ -403,4 +535,63 @@ export class IncidentsService {
       return toIncident(updated);
     });
   }
+  private async attachSmsUuidAndApplyEarlyStatuses(
+    tx: DatabaseTransaction,
+    communicationId: string,
+    messageId: string,
+  ): Promise<void> {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${messageId}))`);
+
+    await tx
+      .update(communications)
+      .set({ vonageUuid: messageId, status: 'queued' })
+      .where(eq(communications.id, communicationId));
+
+    const earlyEvents = await tx
+      .select({ id: webhookEvents.id, payload: webhookEvents.payload })
+      .from(webhookEvents)
+      .where(
+        and(
+          eq(webhookEvents.source, 'messages_status'),
+          isNull(webhookEvents.communicationId),
+          sql`${webhookEvents.payload}->>'message_uuid' = ${messageId}`,
+        ),
+      )
+      .orderBy(asc(webhookEvents.receivedAt), asc(webhookEvents.id));
+
+    let currentStatus: CommunicationStatus = 'queued';
+
+    for (const event of earlyEvents) {
+      const parsed = messageStatusSchema.safeParse(event.payload);
+      if (!parsed.success) {
+        continue;
+      }
+
+      await tx
+        .update(webhookEvents)
+        .set({ communicationId })
+        .where(eq(webhookEvents.id, event.id));
+
+      const nextStatus = fromMessageStatus(parsed.data.status);
+      if (nextStatus !== null && advancesStatus(currentStatus, nextStatus)) {
+        currentStatus = nextStatus;
+      }
+    }
+
+    if (currentStatus !== 'queued') {
+      await tx
+        .update(communications)
+        .set({ status: currentStatus })
+        .where(eq(communications.id, communicationId));
+    }
+  }
 }
+
+
+
+
+
+
+
+
+

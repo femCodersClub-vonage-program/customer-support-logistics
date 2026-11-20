@@ -133,6 +133,15 @@ export const changeIncidentStatusBodySchema = z
 
 export type ChangeIncidentStatusBody = z.infer<typeof changeIncidentStatusBodySchema>;
 
+export const startMediationResponseSchema = z
+  .object({
+    incident: incidentSchema,
+    call: communicationSchema,
+  })
+  .meta({ id: 'StartMediationResponse' });
+
+export type StartMediationResponse = z.infer<typeof startMediationResponseSchema>;
+
 export const UNASSIGNED_AGENT = 'unassigned';
 
 export const INCIDENT_SORT_FIELDS = ['createdAt', 'updatedAt'] as const;
@@ -171,8 +180,14 @@ export type ListIncidentsQueryInput = z.input<typeof listIncidentsQuerySchema>;
 
 export type ListIncidentsQuery = z.output<typeof listIncidentsQuerySchema>;
 
-export const listIncidentsResponseSchema = paginatedSchema(incidentListItemSchema).meta({
-  id: 'ListIncidentsResponse',
-});
+export const incidentStatusCountsSchema = z
+  .record(incidentStatusSchema, z.number().int().min(0))
+  .meta({ id: 'IncidentStatusCounts' });
+
+export type IncidentStatusCounts = z.infer<typeof incidentStatusCountsSchema>;
+
+export const listIncidentsResponseSchema = paginatedSchema(incidentListItemSchema)
+  .extend({ statusCounts: incidentStatusCountsSchema })
+  .meta({ id: 'ListIncidentsResponse' });
 
 export type ListIncidentsResponse = z.infer<typeof listIncidentsResponseSchema>;

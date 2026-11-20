@@ -1,0 +1,17 @@
+{
+  "name": "@csl/design-tokens",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.css"
+    },
+    "./tokens.css": "./src/tokens.css",
+    "./base.css": "./src/base.css"
+  }
+}

@@ -14,16 +14,14 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
 
-import { CurrentActor } from '../common/dev-auth/current-actor.decorator.js';
-import { DevActorGuard } from '../common/dev-auth/dev-actor.guard.js';
+import { CurrentActor, Roles } from '../auth/auth.decorators.js';
 import { ZodValidationPipe } from '../common/validation/zod-validation.pipe.js';
 
 import { IncidentsService } from './incidents.service.js';
 
-import type { DevActor } from '../common/dev-auth/dev-actor.js';
+import type { AuthActor } from '../auth/auth-actor.js';
 import type {
   ChangeIncidentStatusBody,
   CreateIncidentBody,
@@ -35,19 +33,20 @@ import type {
 import type { Incident } from '@csl/shared-types';
 
 @Controller('incidents')
-@UseGuards(DevActorGuard)
 export class IncidentsController {
   constructor(@Inject(IncidentsService) private readonly incidents: IncidentsService) {}
 
   @Post()
+  @Roles('customer')
   create(
-    @CurrentActor() actor: DevActor,
+    @CurrentActor() actor: AuthActor,
     @Body(new ZodValidationPipe(createIncidentBodySchema)) body: CreateIncidentBody,
   ): Promise<Incident> {
-    return this.incidents.create(actor, body);
+    return this.incidents.create(actor.id, body);
   }
 
   @Get()
+  @Roles('agent')
   list(
     @Query(new ZodValidationPipe(listIncidentsQuerySchema)) query: ListIncidentsQuery,
   ): Promise<ListIncidentsResponse> {
@@ -56,15 +55,16 @@ export class IncidentsController {
 
   @Get(':id')
   findOne(
-    @CurrentActor() actor: DevActor,
+    @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
   ): Promise<IncidentDetail> {
     return this.incidents.findOne(actor, params.id);
   }
 
   @Patch(':id/status')
+  @Roles('agent')
   changeStatus(
-    @CurrentActor() actor: DevActor,
+    @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
     @Body(new ZodValidationPipe(changeIncidentStatusBodySchema)) body: ChangeIncidentStatusBody,
   ): Promise<Incident> {
@@ -72,24 +72,27 @@ export class IncidentsController {
   }
 
   @Post(':id/assign-to-me')
+  @Roles('agent')
   assignToMe(
-    @CurrentActor() actor: DevActor,
+    @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
   ): Promise<Incident> {
     return this.incidents.assignToMe(actor, params.id);
   }
 
   @Post(':id/notify-driver')
+  @Roles('agent')
   notifyDriver(
-    @CurrentActor() actor: DevActor,
+    @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
   ): Promise<Incident> {
     return this.incidents.notifyDriver(actor, params.id);
   }
 
   @Post(':id/notify-driver/again')
+  @Roles('agent')
   notifyDriverAgain(
-    @CurrentActor() actor: DevActor,
+    @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
     @Headers('Idempotency-Key') idempotencyKey: string,
   ): Promise<Incident> {

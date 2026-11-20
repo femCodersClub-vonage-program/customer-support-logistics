@@ -8,26 +8,26 @@ Components must use the semantic tokens below, never raw hex values.
 
 ### Brand and actions
 
-| Token                   | Value     | Usage                                              |
-| ----------------------- | --------- | -------------------------------------------------- |
-| `--color-primary`       | `#871eff` | Buttons, links                                     |
-| `--color-primary-hover` | `#6405d1` | Hover state of actions                             |
-| `--color-primary-soft`  | `#f5f0fd` | Selected item backgrounds                          |
-| `--color-secondary`     | `#d6219c` | Secondary brand colour (magenta)                   |
-| `--color-accent`        | `#fa7454` | Decorative accent (orange). Not for text on white  |
+| Token                   | Value     | Usage                                             |
+| ----------------------- | --------- | ------------------------------------------------- |
+| `--color-primary`       | `#871eff` | Buttons, links                                    |
+| `--color-primary-hover` | `#6405d1` | Hover state of actions                            |
+| `--color-primary-soft`  | `#f5f0fd` | Selected item backgrounds                         |
+| `--color-secondary`     | `#d6219c` | Secondary brand colour (magenta)                  |
+| `--color-accent`        | `#fa7454` | Decorative accent (orange). Not for text on white |
 
 ### Surfaces and text
 
-| Token                             | Value     | Usage                                |
-| --------------------------------- | --------- | ------------------------------------ |
-| `--color-bg`                      | `#f2f2f2` | App background                       |
-| `--color-surface`                 | `#ffffff` | Cards                                |
-| `--color-text`                    | `#0d0d0d` | Main text                            |
-| `--color-text-muted`              | `#666666` | Secondary text (5.74:1 contrast)     |
-| `--color-border`                  | `#cccccc` | Dividers                             |
-| `--color-border-input`            | `#757575` | Form field borders (at least 3:1)    |
-| `--color-border-card`             | `#e6e6e6` | Card borders                         |
-| `--color-border-button-secondary` | `#929292` | Secondary button borders             |
+| Token                             | Value     | Usage                             |
+| --------------------------------- | --------- | --------------------------------- |
+| `--color-bg`                      | `#f2f2f2` | App background                    |
+| `--color-surface`                 | `#ffffff` | Cards                             |
+| `--color-text`                    | `#0d0d0d` | Main text                         |
+| `--color-text-muted`              | `#666666` | Secondary text (5.74:1 contrast)  |
+| `--color-border`                  | `#cccccc` | Dividers                          |
+| `--color-border-input`            | `#757575` | Form field borders (at least 3:1) |
+| `--color-border-card`             | `#e6e6e6` | Card borders                      |
+| `--color-border-button-secondary` | `#929292` | Secondary button borders          |
 
 ### Feedback (semantic)
 
@@ -50,9 +50,9 @@ Components must use the semantic tokens below, never raw hex values.
 
 ### Alert
 
-| Token           | Value     | Usage                          |
-| --------------- | --------- | ------------------------------ |
-| `--color-alert` | `#cd0d0d` | High priority, hang-up button  |
+| Token           | Value     | Usage                         |
+| --------------- | --------- | ----------------------------- |
+| `--color-alert` | `#cd0d0d` | High priority, hang-up button |
 
 ### Dark surfaces
 
@@ -66,44 +66,7 @@ Used for the in-call screen and the CRM header.
 
 ### CSS definition
 
-```css
-:root {
-  --color-primary: #871eff;
-  --color-primary-hover: #6405d1;
-  --color-primary-soft: #f5f0fd;
-  --color-secondary: #d6219c;
-  --color-accent: #fa7454;
-
-  --color-bg: #f2f2f2;
-  --color-surface: #ffffff;
-  --color-text: #0d0d0d;
-  --color-text-muted: #666666;
-  --color-border: #cccccc;
-  --color-border-input: #757575;
-  --color-border-card: #e6e6e6;
-  --color-border-button-secondary: #929292;
-
-  --color-success: #1c8731;
-  --color-warning: #be5702;
-  --color-error: #cd0d0d;
-  --color-info: #0276d5;
-
-  --status-open: #a64c03;
-  --status-open-bg: #fdf5d4;
-  --status-notified: #0e65c2;
-  --status-notified-bg: #e8f4fb;
-  --status-in-mediation: #871eff;
-  --status-resolved: #167629;
-  --status-resolved-bg: #e1f8e5;
-  --status-escalated: #cd0d0d;
-
-  --color-alert: #cd0d0d;
-
-  --color-dark-bg: #191828;
-  --color-dark-surface: #31304f;
-  --color-dark-accent: #cba1fa;
-}
-```
+The canonical CSS tokens are maintained in [`packages/design-tokens/src/tokens.css`](../../packages/design-tokens/src/tokens.css).
 
 ## 2. Typography
 
@@ -155,6 +118,7 @@ The Customer PWA (`apps/client`) and Agent CRM (`apps/crm`) will share:
 - Typography and text styles.
 - Semantic colours for success, warning, error and information.
 - Consistent component styling and interaction states.
+- Source of truth for design tokens: `packages/design-tokens/src/tokens.css`.
 
 ## 5. Dark mode
 

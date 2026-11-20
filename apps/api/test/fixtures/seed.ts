@@ -1,4 +1,5 @@
 import {
+  agents,
   communications,
   customers,
   drivers,
@@ -8,6 +9,7 @@ import {
   routes,
 } from '../../src/database/schema/index.js';
 
+import type { AuthActor } from '../../src/auth/auth-actor.js';
 import type { Database } from '../../src/database/database.constants.js';
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`;
@@ -34,11 +36,11 @@ export const ids = {
 } as const;
 
 export const actor = {
-  ana: `customer:${ids.ana}`,
-  bruno: `customer:${ids.bruno}`,
-  stranger: `customer:${ids.stranger}`,
-  agentA: `agent:${ids.agentA}`,
-} as const;
+  ana: { role: 'customer', id: ids.ana },
+  bruno: { role: 'customer', id: ids.bruno },
+  stranger: { role: 'customer', id: ids.stranger },
+  agentA: { role: 'agent', id: ids.agentA },
+} as const satisfies Record<string, AuthActor>;
 
 export const times = {
   openCreated: at('10:00'),
@@ -52,9 +54,15 @@ export const times = {
 } as const;
 
 export async function seed(db: Database): Promise<void> {
+  await db.insert(agents).values([
+    { id: ids.agentA, email: 'agent.a@example.com', name: 'Agent A' },
+    { id: ids.agentB, email: 'agent.b@example.com', name: 'Agent B' },
+  ]);
+
   await db.insert(customers).values([
     { id: ids.ana, name: 'Ana García', phone: '+34600000001' },
     { id: ids.bruno, name: 'Bruno Díaz', phone: '+34600000002', locale: 'en' },
+    { id: ids.stranger, name: 'Sara Sin Pedidos', phone: '+34600000003' },
   ]);
 
   await db.insert(drivers).values({ id: ids.driver, name: 'Diego Ruiz', phone: '+34600000009' });

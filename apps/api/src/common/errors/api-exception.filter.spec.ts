@@ -9,10 +9,16 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
+import { CustomerLoginError } from '../../auth/customer-login.errors.js';
 import {
   InvalidTransitionError,
   UnauthorizedTransitionError,
 } from '../../incidents/domain/transition.errors.js';
+import {
+  VonageDisabledError,
+  VonageRequestError,
+  VonageTimeoutError,
+} from '../../vonage/vonage.errors.js';
 
 import { ApiExceptionFilter, toApiErrorReply } from './api-exception.filter.js';
 import { RequestValidationError } from './request-validation.error.js';
@@ -68,12 +74,41 @@ describe('toApiErrorReply', () => {
     [new NotFoundException('Incident not found'), 404, 'NOT_FOUND'],
     [new HttpException('Conflict', 409), 409, 'CONFLICT'],
     [new HttpException('Slow down', 429), 429, 'RATE_LIMITED'],
+    [new HttpException('Upstream down', 502), 502, 'BAD_GATEWAY'],
     [new HttpException('Teapot', 418), 418, 'HTTP_ERROR'],
     [new ServiceUnavailableException('Down'), 503, 'HTTP_ERROR'],
   ])('maps %s to its status and code', (exception, status, code) => {
     expect(toApiErrorReply(exception)).toEqual({
       status,
       body: { error: { code, message: exception.message } },
+    });
+  });
+
+  it.each([
+    ['wrong_code', 401, 'INVALID_CODE'],
+    ['expired', 410, 'VERIFICATION_EXPIRED'],
+    ['too_many_attempts', 410, 'TOO_MANY_ATTEMPTS'],
+    ['blocked', 429, 'RATE_LIMITED'],
+  ] as const)('maps the customer login failure %s to %i %s', (failure, status, code) => {
+    expect(toApiErrorReply(new CustomerLoginError(failure))).toMatchObject({
+      status,
+      body: { error: { code } },
+    });
+  });
+
+  it.each([
+    new VonageRequestError('createCall', { status: 401, reason: 'Unauthorized' }),
+    new VonageTimeoutError('createCall', 5000),
+    new VonageDisabledError('createCall'),
+  ])('maps %s to 502 without leaking its details', (error) => {
+    expect(toApiErrorReply(error)).toEqual({
+      status: 502,
+      body: {
+        error: {
+          code: 'BAD_GATEWAY',
+          message: 'Vonage could not complete "createCall", try again',
+        },
+      },
     });
   });
 

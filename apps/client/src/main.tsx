@@ -3,14 +3,14 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 
 import { App } from './App.tsx';
+import { SessionProvider } from './auth/session.tsx';
 import { LocaleProvider } from './i18n/LocaleProvider.tsx';
 import { LocaleSwitcher } from './i18n/LocaleSwitcher.tsx';
 import { listenForInstallPrompt } from './pwa/installPrompt.ts';
 import { InterruptionsProvider } from './pwa/InterruptionsProvider.tsx';
 import { OfflineBanner } from './pwa/OfflineBanner.tsx';
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx';
-import './styles/tokens.css';
-import './styles/global.css';
+import '@csl/design-tokens';
 
 const container = document.getElementById('root');
 
@@ -27,7 +27,9 @@ createRoot(container).render(
         <OfflineBanner />
         <LocaleSwitcher />
         <BrowserRouter>
-          <App />
+          <SessionProvider>
+            <App />
+          </SessionProvider>
         </BrowserRouter>
         <UpdatePrompt />
       </InterruptionsProvider>

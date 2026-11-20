@@ -1,6 +1,6 @@
 # 0008. Authentication and sessions
 
-- **Status:** proposed
+- **Status:** accepted
 - **Date:** 2026-11-11
 
 ## Context
@@ -79,11 +79,11 @@ To show Vonage working with real phones, `db:seed` accepts an optional `SEED_CUS
 
 ### Guards
 
-- `AuthGuard` is global (`APP_GUARD`): every route needs a session unless it is marked `@Public()`. `/health`, `/webhooks/*` (checked by signature, [#30][i30]) and `/auth/*` are public. A new route is protected from the start.
+- `AuthGuard` is global (`APP_GUARD`): every route needs a session unless it is marked `@Public()`. `/health`, `/webhooks/*` (checked by signature, [#30][i30]) and the `/auth/*` routes that log in or out are public; `GET /auth/me` needs a session. A new route is protected from the start.
 - The guard turns the cookie into `{ role: 'customer' | 'agent', id }`, the same shape `DevActor` has today, so the services keep working as they are.
 - `@Roles('customer')` and `@Roles('agent')` on each endpoint. No session gives `401`, and the wrong role gives `403`.
 - Ownership stays in the services: a customer who asks for another customer's incident gets `404`, as today.
-- `DevActorGuard`, the `x-dev-actor` header and `DEV_AUTH_ENABLED` are removed.
+- `DevActorGuard`, the `x-dev-actor` header and `DEV_AUTH_ENABLED` are removed. _Superseded by [ADR 0010](0010-keep-x-dev-actor-until-both-logins-exist.md): the header stays inside `AuthGuard` until both logins exist._
 
 ### Rate limiting
 
@@ -123,7 +123,7 @@ These points come from Vonage's documentation or from browser behaviour, and are
 - e2e tests create sessions directly in the database with a helper, and the tests that use `x-dev-actor` move to it.
 - A new environment variable holds the public URL of the PWA, for the silent auth `redirect_url`. If the Playground needs its own Vonage Application, Verify gets its own application id and private key.
 - In development, cookies are not separated by port: the client and the CRM on `localhost` share `csl_session`. To be logged in as a customer and as an agent at the same time (for example, to test a mediation), open one of the apps on `127.0.0.1`.
-- Rate limits live in each instance's memory, as for the webhooks: with more than one instance they move to Redis, and Express `trust proxy` must be set when the hosting is decided.
+- Rate limits live in each instance's memory, as for the webhooks: with more than one instance they move to Redis. Behind Railway, the client IP comes from `X-Real-IP` through `CLIENT_IP_HEADER`, not from `trust proxy` ([ADR 0009](0009-hosting-on-railway.md)).
 - The `sessions` table stores ids and hashes, not phone numbers. Auth events are logged as structured JSON without phones or emails (`maskPhone`), and expected failures (wrong code, blocked number, wrong password) are logged apart from system errors (Vonage or the database unavailable).
 - We would revisit this decision if the query per request became a bottleneck (sessions cached in Redis) or if agents needed single sign-on.
 

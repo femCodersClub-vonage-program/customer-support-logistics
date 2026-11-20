@@ -33,13 +33,22 @@ describe('OpenAPI (e2e)', () => {
 
     expect(document.openapi).toBe('3.1.0');
     expect(Object.keys(document.paths)).toEqual([
+      '/auth/agent/login',
+      '/auth/customer/start',
+      '/auth/customer/sms',
+      '/auth/customer/check',
+      '/auth/logout',
+      '/auth/me',
       '/incidents',
       '/incidents/{id}',
       '/incidents/{id}/status',
+      '/incidents/{id}/mediation',
+      '/incidents/{id}/mediation/driver-call',
       '/orders',
     ]);
     expect(Object.keys(document.paths['/incidents'] ?? {})).toEqual(['post', 'get']);
     expect(document.components.schemas).toHaveProperty('ApiErrorResponse');
     expect(document.components.schemas).toHaveProperty('IncidentStatus');
+    expect(document.components.schemas).toHaveProperty('StartMediationResponse');
   });
 });
