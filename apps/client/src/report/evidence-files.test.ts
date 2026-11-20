@@ -1,0 +1,106 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  addFiles,
+  EVIDENCE_MAX_FILES,
+  EVIDENCE_MAX_IMAGE_BYTES,
+  EVIDENCE_MAX_VIDEO_BYTES,
+} from './evidence-files.ts';
+
+function fileOf(name: string, type: string, size = 1024): File {
+  const file = new File(['x'], name, { type });
+
+  Object.defineProperty(file, 'size', { value: size });
+
+  return file;
+}
+
+describe('addFiles', () => {
+  it.each([
+    ['photo.jpg', 'image/jpeg'],
+    ['photo.png', 'image/png'],
+    ['photo.webp', 'image/webp'],
+    ['photo.heic', 'image/heic'],
+    ['video.mp4', 'video/mp4'],
+    ['video.mov', 'video/quicktime'],
+  ])('accepts %s', (name, type) => {
+    const file = fileOf(name, type);
+
+    expect(addFiles([], [file])).toEqual({ files: [file], rejected: [] });
+  });
+
+  it('keeps the files already chosen and adds the new ones after them', () => {
+    const first = fileOf('a.jpg', 'image/jpeg');
+    const second = fileOf('b.jpg', 'image/jpeg');
+
+    expect(addFiles([first], [second]).files).toEqual([first, second]);
+  });
+
+  it('does not change the list it receives', () => {
+    const current = [fileOf('a.jpg', 'image/jpeg')];
+
+    addFiles(current, [fileOf('b.jpg', 'image/jpeg')]);
+
+    expect(current).toHaveLength(1);
+  });
+
+  it.each([
+    ['animation.gif', 'image/gif'],
+    ['clip.webm', 'video/webm'],
+    ['notes.pdf', 'application/pdf'],
+    ['unknown', ''],
+  ])('rejects %s because of its type', (name, type) => {
+    expect(addFiles([], [fileOf(name, type)])).toEqual({
+      files: [],
+      rejected: [{ name, reason: 'type' }],
+    });
+  });
+
+  it('accepts a photo of exactly the size limit and rejects one byte more', () => {
+    const exact = fileOf('exact.jpg', 'image/jpeg', EVIDENCE_MAX_IMAGE_BYTES);
+    const over = fileOf('over.jpg', 'image/jpeg', EVIDENCE_MAX_IMAGE_BYTES + 1);
+
+    expect(addFiles([], [exact]).rejected).toEqual([]);
+    expect(addFiles([], [over]).rejected).toEqual([{ name: 'over.jpg', reason: 'size' }]);
+  });
+
+  it('allows a video bigger than a photo, up to its own limit', () => {
+    const video = fileOf('clip.mp4', 'video/mp4', EVIDENCE_MAX_IMAGE_BYTES + 1);
+    const tooBig = fileOf('long.mp4', 'video/mp4', EVIDENCE_MAX_VIDEO_BYTES + 1);
+
+    expect(addFiles([], [video]).rejected).toEqual([]);
+    expect(addFiles([], [tooBig]).rejected).toEqual([{ name: 'long.mp4', reason: 'size' }]);
+  });
+
+  it('accepts files up to the maximum and rejects the rest in order', () => {
+    const incoming = Array.from({ length: EVIDENCE_MAX_FILES + 2 }, (_, index) =>
+      fileOf(`${String(index)}.jpg`, 'image/jpeg'),
+    );
+    const { files, rejected } = addFiles([], incoming);
+
+    expect(files).toHaveLength(EVIDENCE_MAX_FILES);
+    expect(rejected).toEqual([
+      { name: `${String(EVIDENCE_MAX_FILES)}.jpg`, reason: 'tooMany' },
+      { name: `${String(EVIDENCE_MAX_FILES + 1)}.jpg`, reason: 'tooMany' },
+    ]);
+  });
+
+  it('counts the files already chosen towards the maximum', () => {
+    const current = Array.from({ length: EVIDENCE_MAX_FILES }, (_, index) =>
+      fileOf(`${String(index)}.jpg`, 'image/jpeg'),
+    );
+
+    expect(addFiles(current, [fileOf('extra.jpg', 'image/jpeg')]).rejected).toEqual([
+      { name: 'extra.jpg', reason: 'tooMany' },
+    ]);
+  });
+
+  it('keeps accepting valid files after a rejected one in the same batch', () => {
+    const bad = fileOf('animation.gif', 'image/gif');
+    const good = fileOf('photo.jpg', 'image/jpeg');
+    const { files, rejected } = addFiles([], [bad, good]);
+
+    expect(files).toEqual([good]);
+    expect(rejected).toEqual([{ name: 'animation.gif', reason: 'type' }]);
+  });
+});
