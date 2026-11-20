@@ -58,7 +58,7 @@ export const communicationSchema = z
     vonageUuid: z.string().nullable(),
     status: z.enum(COMMUNICATION_STATUSES),
     durationSeconds: z.number().int().min(0).nullable(),
-    createdAt: z.string().datetime(),
+    createdAt: isoDateTimeSchema,
   })
   .meta({ id: 'Communication' }) satisfies z.ZodType<Communication>;
 
