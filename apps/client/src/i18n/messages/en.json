@@ -54,10 +54,10 @@
       "generic": "We could not send the report. Try again in a moment."
     },
     "evidence": {
-      "title": "Photos or video",
+      "title": "Photos and videos",
+      "hint": "Up to {maxFiles} files. Photos up to {imageMb} MB, videos up to {videoMb} MB.",
       "camera": "Take a photo or video",
       "gallery": "Choose from gallery",
-      "hint": "Up to {maxFiles} files. Photos up to {imageMb} MB, videos up to {videoMb} MB.",
       "suggestPhoto": "A photo of the problem helps us solve it faster.",
       "selected": "Selected files",
       "remove": "Remove",
