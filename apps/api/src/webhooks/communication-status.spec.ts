@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 
 import { advancesStatus, fromMessageStatus, fromVoiceStatus } from './communication-status.js';
 
@@ -40,6 +40,12 @@ describe('fromVoiceStatus', () => {
 
 describe('advancesStatus', () => {
   it.each([
+    ['pending', 'queued', true],
+    ['pending', 'in_progress', true],
+    ['pending', 'completed', true],
+    ['pending', 'failed', true],
+    ['queued', 'pending', false],
+    ['in_progress', 'pending', false],
     ['queued', 'in_progress', true],
     ['queued', 'failed', true],
     ['in_progress', 'completed', true],
@@ -47,7 +53,7 @@ describe('advancesStatus', () => {
     ['completed', 'failed', false],
     ['failed', 'completed', false],
     ['completed', 'completed', false],
-  ] as const)('%s → %s advances: %s', (current, next, expected) => {
+  ] as const)('%s advances to %s: %s', (current, next, expected) => {
     expect(advancesStatus(current, next)).toBe(expected);
   });
 });
