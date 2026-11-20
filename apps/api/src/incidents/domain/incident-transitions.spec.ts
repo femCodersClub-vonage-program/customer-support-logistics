@@ -39,6 +39,10 @@ describe('canTransition', () => {
     expect(canTransition('escalated', 'resolved', 'agent')).toBe(true);
   });
 
+  it('rejects open to notified for an agent', () => {
+    expect(canTransition('open', 'notified', 'agent')).toBe(false);
+  });
+
   it('rejects a valid transition for an actor without permission', () => {
     expect(canTransition('escalated', 'resolved', 'system')).toBe(false);
   });

@@ -508,7 +508,7 @@ describe('Incidents (e2e)', () => {
         expect.objectContaining({
           fromStatus: 'open',
           toStatus: 'notified',
-          actor: 'agent',
+          actor: 'system',
           actorId: ids.agentA,
           reason: 'Driver notified by SMS',
         }),

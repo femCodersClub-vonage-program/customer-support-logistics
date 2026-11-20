@@ -19,7 +19,7 @@ const VALID_TRANSITIONS: ReadonlyArray<[IncidentStatus, IncidentStatus]> = [
 
 const ALLOWED_ACTORS: Readonly<Record<IncidentStatus, readonly Actor[]>> = {
   open: [],
-  notified: ['system', 'agent'],
+  notified: ['system'],
   in_mediation: ['system', 'agent', 'driver'],
   resolved: ['agent'],
   escalated: ['agent', 'system'],

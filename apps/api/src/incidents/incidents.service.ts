@@ -435,7 +435,7 @@ export class IncidentsService {
 
       const updated = await persistTransition(tx, currentIncident, {
         to: 'notified',
-        actor: 'agent',
+        actor: 'system',
         actorId: actor.id,
         reason: 'Driver notified by SMS',
       });
