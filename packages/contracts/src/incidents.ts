@@ -55,7 +55,7 @@ export const communicationSchema = z
     direction: z.enum(COMMUNICATION_DIRECTIONS),
     fromNumber: z.string().nullable(),
     toNumber: z.string().nullable(),
-    vonageUuid: z.string(),
+    vonageUuid: z.string().nullable(),
     status: z.enum(COMMUNICATION_STATUSES),
     durationSeconds: z.number().int().min(0).nullable(),
     createdAt: z.string().datetime(),
