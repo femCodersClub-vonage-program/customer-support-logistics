@@ -9,6 +9,7 @@ import {
   customerLoginStartBodySchema,
   customerLoginStartResponseSchema,
   incidentDetailSchema,
+  idempotencyKeyHeaderSchema,
   incidentIdParamsSchema,
   incidentSchema,
   listIncidentsQuerySchema,
@@ -16,6 +17,7 @@ import {
   listOrdersResponseSchema,
   startMediationResponseSchema,
 } from '@csl/contracts';
+import { z } from 'zod';
 import { createDocument } from 'zod-openapi';
 
 import {
@@ -28,7 +30,6 @@ import { VERIFICATION_TTL_MS } from '../auth/pending-verifications.js';
 import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../auth/session-cookie.js';
 import { APP_VERSION } from '../version.js';
 
-import type { z } from 'zod';
 import type { ZodOpenApiResponseObject, ZodOpenApiResponsesObject } from 'zod-openapi';
 
 const json = (description: string, schema: z.ZodType): ZodOpenApiResponseObject => ({
@@ -230,6 +231,50 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             ...incidentErrors,
             '403': forbiddenFor('customers'),
             '409': error('The transition is not allowed from the current status or for the actor'),
+          },
+        },
+      },
+      '/incidents/{id}/assign-to-me': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Assign the incident to the current agent',
+          requestParams: { path: incidentIdParamsSchema },
+          responses: {
+            '201': json('The assigned incident', incidentSchema),
+            ...incidentErrors,
+            '403': forbiddenFor('customers'),
+            '409': error('The incident is resolved or already assigned to another agent'),
+          },
+        },
+      },
+      '/incidents/{id}/notify-driver': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Notify the assigned driver by SMS',
+          requestParams: { path: incidentIdParamsSchema },
+          responses: {
+            '201': json('The incident after notifying the driver', incidentSchema),
+            ...incidentErrors,
+            '403': forbiddenFor('customers'),
+            '409': error('The incident is not open, has no assigned driver, or a notification is already pending'),
+            '502': error('Vonage could not send the SMS'),
+          },
+        },
+      },
+      '/incidents/{id}/notify-driver/again': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Notify the driver again using an idempotency key',
+          requestParams: {
+            path: incidentIdParamsSchema,
+            header: z.object({ 'Idempotency-Key': idempotencyKeyHeaderSchema }),
+          },
+          responses: {
+            '201': json('The incident after notifying the driver again', incidentSchema),
+            ...incidentErrors,
+            '403': forbiddenFor('customers'),
+            '409': error('The incident is not notified or the idempotency key was already used'),
+            '502': error('Vonage could not send the SMS'),
           },
         },
       },
