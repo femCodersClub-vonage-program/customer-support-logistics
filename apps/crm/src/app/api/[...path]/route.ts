@@ -1,6 +1,6 @@
-﻿import type { NextRequest } from 'next/server';
+﻿import { API_URL } from '../../../lib/api-config';
 
-const API_URL = process.env.API_URL ?? 'http://localhost:3000';
+import type { NextRequest } from 'next/server';
 
 const REQUEST_HEADERS = [
   'accept',

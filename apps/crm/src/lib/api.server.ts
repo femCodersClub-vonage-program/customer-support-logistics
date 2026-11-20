@@ -1,7 +1,8 @@
-import { createApiClient } from '@csl/api-client';
+﻿import { createApiClient } from '@csl/api-client';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import { API_URL } from './api-config';
 import { CURRENT_PATH_HEADER, SESSION_EXPIRED_PATH } from './session';
 
 async function sessionExpiredPath(): Promise<string> {
@@ -13,7 +14,7 @@ async function sessionExpiredPath(): Promise<string> {
 }
 
 export const serverApi = createApiClient({
-  baseUrl: process.env.API_URL ?? 'http://localhost:3000',
+  baseUrl: API_URL,
   fetch: async (input, init) => {
     const requestHeaders = new Headers(init?.headers);
     const incoming = (await cookies()).toString();
