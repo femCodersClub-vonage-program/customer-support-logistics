@@ -703,13 +703,23 @@ describe('Incidents (e2e)', () => {
   });
 
   describe('POST /incidents/:id/notify-driver/again', () => {
-    it('requires an idempotency key', async () => {
-      const response = await http()
+    it.each([
+      { label: 'missing', key: undefined },
+      { label: 'empty', key: '' },
+      { label: 'whitespace-only', key: '   ' },
+      { label: 'oversized', key: 'x'.repeat(256) },
+    ])('returns 400 for a $label idempotency key', async ({ key }) => {
+      let request = http()
         .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
-        .set('Cookie', cookie.agentA)
-        .expect(409);
+        .set('Cookie', cookie.agentA);
 
-      expect(response.body).toBeDefined();
+      if (key !== undefined) {
+        request = request.set('Idempotency-Key', key);
+      }
+
+      const response = await request.expect(400);
+
+      expectError(response.body, 'VALIDATION_FAILED');
       expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
     });
 

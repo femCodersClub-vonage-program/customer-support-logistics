@@ -1,4 +1,4 @@
-﻿import { UNASSIGNED_AGENT } from '@csl/contracts';
+import { UNASSIGNED_AGENT } from '@csl/contracts';
 import { INCIDENT_STATUSES } from '@csl/shared-types';
 import {
   ConflictException,
@@ -310,10 +310,6 @@ export class IncidentsService {
   async notifyDriverAgain(actor: AuthActor, id: string, idempotencyKey: string): Promise<Incident> {
     if (actor.role !== 'agent') {
       throw new ForbiddenException('Only agents can notify drivers');
-    }
-
-    if (!idempotencyKey?.trim() || idempotencyKey.length > 255) {
-      throw new ConflictException('A valid Idempotency-Key is required');
     }
 
     const reservation = await this.db.transaction(async (tx) => {

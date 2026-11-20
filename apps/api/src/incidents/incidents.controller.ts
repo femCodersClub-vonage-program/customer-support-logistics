@@ -2,13 +2,13 @@ import {
   changeIncidentStatusBodySchema,
   createIncidentBodySchema,
   incidentIdParamsSchema,
+  idempotencyKeyHeaderSchema,
   listIncidentsQuerySchema,
 } from '@csl/contracts';
 import {
   Body,
   Controller,
   Get,
-  Headers,
   Inject,
   Param,
   Patch,
@@ -19,6 +19,7 @@ import {
 import { CurrentActor, Roles } from '../auth/auth.decorators.js';
 import { ZodValidationPipe } from '../common/validation/zod-validation.pipe.js';
 
+import { IdempotencyKey } from './idempotency-key.decorator.js';
 import { IncidentsService } from './incidents.service.js';
 
 import type { AuthActor } from '../auth/auth-actor.js';
@@ -94,7 +95,7 @@ export class IncidentsController {
   notifyDriverAgain(
     @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
-    @Headers('Idempotency-Key') idempotencyKey: string,
+    @IdempotencyKey(undefined, new ZodValidationPipe(idempotencyKeyHeaderSchema)) idempotencyKey: string,
   ): Promise<Incident> {
     return this.incidents.notifyDriverAgain(actor, params.id, idempotencyKey);
   }

@@ -113,6 +113,15 @@ export type IncidentDetail = z.infer<typeof incidentDetailSchema>;
 
 export const incidentIdParamsSchema = z.object({ id: uuidSchema });
 
+export const idempotencyKeyHeaderSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .refine((value) => value.trim().length > 0, {
+    message: 'Idempotency-Key must not be empty',
+  })
+  .meta({ id: 'IdempotencyKeyHeader' });
+
 export type IncidentIdParams = z.infer<typeof incidentIdParamsSchema>;
 
 export const createIncidentBodySchema = z
