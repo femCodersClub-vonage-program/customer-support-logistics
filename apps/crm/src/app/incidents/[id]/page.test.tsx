@@ -18,6 +18,11 @@ vi.mock('next-intl/server', () => ({
   getTranslations: mockGetTranslations,
 }));
 
+vi.mock('next/headers', () => ({
+  cookies: () => Promise.resolve({ toString: () => 'csl_session=test-session' }),
+  headers: () => Promise.resolve({ get: () => null }),
+}));
+
 vi.mock('../../../components/IncidentActions', () => ({
   IncidentActions: () => <div>Actions</div>,
 }));
@@ -65,7 +70,7 @@ const incident: IncidentDetail = {
 };
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' });
+  server.listen({ onUnhandledFrame: 'error' });
 });
 
 afterEach(() => {
@@ -79,7 +84,7 @@ afterAll(() => {
 
 describe('IncidentPage', () => {
   it('loads the incident through the API and renders its details', async () => {
-    let requestActor: string | null = null;
+    let requestCookie: string | null = null;
 
     mockGetLocale.mockResolvedValue('en');
     mockGetTranslations.mockResolvedValue((key: string, values?: { id?: string }) => {
@@ -105,10 +110,17 @@ describe('IncidentPage', () => {
     server.use(
       http.get('http://localhost:3000/incidents/:id', ({ request, params }) => {
         expect(params.id).toBe(incidentId);
-        requestActor = request.headers.get('x-dev-actor');
+        requestCookie = request.headers.get('cookie');
 
         return HttpResponse.json(incident);
       }),
+      http.get('http://localhost:3000/auth/me', () =>
+        HttpResponse.json({
+          role: 'agent',
+          id: '5eed0000-0000-4000-8000-0000000000a1',
+          name: 'Marta Vidal',
+        }),
+      ),
     );
 
     const page = await IncidentPage({
@@ -122,6 +134,6 @@ describe('IncidentPage', () => {
     expect(getByText('Test Customer')).toBeTruthy();
     expect(getByText('Main Street 10')).toBeTruthy();
     expect(getByText(/Incident created/)).toBeTruthy();
-    expect(requestActor).toMatch(/^agent:/);
+    expect(requestCookie).toBe('csl_session=test-session');
   });
 });

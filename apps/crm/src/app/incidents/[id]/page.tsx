@@ -6,7 +6,7 @@ import { ContactLanguage } from '../../../components/ContactLanguage';
 import { IncidentActions } from '../../../components/IncidentActions';
 import { PhoneReveal } from '../../../components/PhoneReveal';
 import { StatusBadge } from '../../../components/StatusBadge';
-import { CURRENT_AGENT_ID, serverApi } from '../../../lib/api.server';
+import { currentAgentId, serverApi } from '../../../lib/api.server';
 
 import type { Incident } from '@csl/shared-types';
 
@@ -30,6 +30,8 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
 
     throw error;
   }
+
+  const agentId = await currentAgentId();
 
   const timeline = [
     ...incident.events.map((event) => ({
@@ -77,7 +79,7 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
         incidentId={incident.id}
         status={incident.status}
         agentId={incident.agentId}
-        currentAgentId={CURRENT_AGENT_ID}
+        currentAgentId={agentId}
         hasDriver={Boolean(incident.driver)}
       />
       <section aria-labelledby="order-heading">
