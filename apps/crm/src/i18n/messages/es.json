@@ -139,6 +139,7 @@
         "voice": "Llamada"
       },
       "status": {
+        "pending": "Pendiente",
         "queued": "En cola",
         "in_progress": "En curso",
         "completed": "Completada",
@@ -176,6 +177,7 @@
       "status": "Estado de la llamada",
       "noCall": "Aún no se ha llamado",
       "callStatus": {
+        "pending": "Pendiente",
         "queued": "Llamando",
         "in_progress": "En curso",
         "completed": "Terminada",

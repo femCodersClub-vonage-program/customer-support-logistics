@@ -1,4 +1,4 @@
-﻿import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '../lib/api';
@@ -171,6 +171,35 @@ describe('IncidentActions additional coverage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('The action could not be completed');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
     expect(api.notifyDriverAgain).toHaveBeenCalledTimes(1);
+
+    consoleError.mockRestore();
+  });
+
+  it('reuses the same idempotency key when a repeated notification is retried', async () => {
+    const { ApiError } = await import('@csl/api-client');
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    vi.mocked(api.notifyDriverAgain)
+      .mockReset()
+      .mockRejectedValueOnce(new ApiError('Conflict', 409, {}));
+
+    renderWithIntl(<IncidentActions {...defaultProps} status="notified" agentId="agent-123" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Notify driver again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The action could not be completed');
+
+    const firstIdempotencyKey = vi.mocked(api.notifyDriverAgain).mock.calls[0]?.[1];
+    expect(firstIdempotencyKey).toEqual(expect.any(String));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => {
+      expect(api.notifyDriverAgain).toHaveBeenCalledTimes(2);
+    });
+
+    expect(vi.mocked(api.notifyDriverAgain).mock.calls[1]?.[1]).toBe(firstIdempotencyKey);
 
     consoleError.mockRestore();
   });

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { ApiError } from '@csl/api-client';
 import { useRouter } from 'next/navigation';
@@ -30,6 +30,7 @@ export function IncidentActions({
   const router = useRouter();
 
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [notifyAgainIdempotencyKey, setNotifyAgainIdempotencyKey] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -57,7 +58,7 @@ export function IncidentActions({
           break;
 
         case 'notifyAgain':
-          await api.notifyDriverAgain(incidentId, globalThis.crypto.randomUUID());
+          await api.notifyDriverAgain(incidentId, notifyAgainIdempotencyKey!);
           break;
 
         case 'mediation':
@@ -143,7 +144,14 @@ export function IncidentActions({
       )}
 
       {status === 'notified' && hasDriver && (
-        <button type="button" onClick={() => setPendingAction('notifyAgain')} disabled={loading}>
+        <button
+          type="button"
+          onClick={() => {
+            setNotifyAgainIdempotencyKey(globalThis.crypto.randomUUID());
+            setPendingAction('notifyAgain');
+          }}
+          disabled={loading}
+        >
           {t('notifyAgain')}
         </button>
       )}
@@ -174,7 +182,14 @@ export function IncidentActions({
             {loading ? t('sending') : t('submit')}
           </button>
 
-          <button type="button" onClick={() => setPendingAction(null)} disabled={loading}>
+          <button
+            type="button"
+            onClick={() => {
+              setPendingAction(null);
+              setNotifyAgainIdempotencyKey(null);
+            }}
+            disabled={loading}
+          >
             {t('cancel')}
           </button>
         </div>
@@ -219,7 +234,14 @@ export function IncidentActions({
             {loading ? t('sending') : t('submit')}
           </button>
 
-          <button type="button" onClick={() => setPendingAction(null)} disabled={loading}>
+          <button
+            type="button"
+            onClick={() => {
+              setPendingAction(null);
+              setNotifyAgainIdempotencyKey(null);
+            }}
+            disabled={loading}
+          >
             {t('cancel')}
           </button>
         </div>
