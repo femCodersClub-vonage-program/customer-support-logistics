@@ -724,6 +724,11 @@ describe('Incidents (e2e)', () => {
     });
 
     it('resends an SMS and records the communication and event', async () => {
+      const [incidentBefore] = await testApp.db
+        .select({ updatedAt: incidents.updatedAt })
+        .from(incidents)
+        .where(eq(incidents.id, ids.notifiedIncident));
+
       const response = await http()
         .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
         .set('Cookie', cookie.agentA)
@@ -737,6 +742,15 @@ describe('Incidents (e2e)', () => {
         text: expect.stringContaining('incidencia en el pedido'),
       });
 
+      const [incidentAfter] = await testApp.db
+        .select({ status: incidents.status, updatedAt: incidents.updatedAt })
+        .from(incidents)
+        .where(eq(incidents.id, ids.notifiedIncident));
+
+      expect(incidentAfter?.status).toBe('notified');
+      expect(incidentAfter?.updatedAt.getTime()).toBeGreaterThan(
+        incidentBefore!.updatedAt.getTime(),
+      );
       const events = await eventsOf(ids.notifiedIncident);
       expect(events).toContainEqual(
         expect.objectContaining({

@@ -31,7 +31,7 @@ import { messageStatusSchema } from '../webhooks/vonage-payloads.js';
 
 import { UnauthorizedTransitionError } from './domain/transition.errors.js';
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
-import { persistTransition } from './persist-transition.js';
+import { persistIncidentActivity, persistTransition } from './persist-transition.js';
 
 import type { AuthActor } from '../auth/auth-actor.js';
 import type { Database, DatabaseTransaction } from '../database/database.constants.js';
@@ -315,22 +315,7 @@ export class IncidentsService {
     const reservation = await this.db.transaction(async (tx) => {
       await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
 
-      const [row] = await tx
-        .select({
-          incident: incidents,
-          order: orders,
-          driver: drivers,
-        })
-        .from(incidents)
-        .innerJoin(orders, eq(orders.id, incidents.orderId))
-        .leftJoin(routes, eq(routes.id, orders.routeId))
-        .leftJoin(drivers, eq(drivers.id, routes.driverId))
-        .where(eq(incidents.id, id))
-        .for('update', { of: incidents });
-
-      if (!row) {
-        throw new NotFoundException(INCIDENT_NOT_FOUND);
-      }
+      const row = await this.selectIncidentWithDriver(tx, id);
 
       const [existingCommunication] = await tx
         .select()
@@ -350,34 +335,8 @@ export class IncidentsService {
         throw new ConflictException('Incident is not notified');
       }
 
-      if (!row.driver) {
-        throw new ConflictException('Incident has no assigned driver');
-      }
-
-      const message = incidentNoticeSms(row.driver.locale, {
-        orderId: row.order.id,
-        incidentType: row.incident.type,
-      });
-
-      const [communication] = await tx
-        .insert(communications)
-        .values({
-          incidentId: id,
-          idempotencyKey,
-          channel: 'sms',
-          direction: 'outbound',
-          fromNumber: null,
-          toNumber: row.driver.phone,
-          vonageUuid: null,
-          status: 'pending',
-        })
-        .returning({ id: communications.id });
-
       return {
-        incident: toIncident(row.incident),
-        communicationId: communication!.id,
-        phone: row.driver.phone,
-        message,
+        ...(await this.reserveDriverCommunication(tx, id, row, idempotencyKey)),
         existing: false as const,
       };
     });
@@ -386,69 +345,42 @@ export class IncidentsService {
       return reservation.incident;
     }
 
-    let sent: Awaited<ReturnType<VonageService['sendSms']>>;
+    const sent = await this.sendDriverSms(reservation);
 
-    try {
-      sent = await this.vonage.sendSms(reservation.phone, reservation.message);
-    } catch (error) {
-      const definitelyRejected =
-        error instanceof VonageDisabledError ||
-        (error instanceof VonageRequestError &&
-          error.status !== undefined &&
-          error.status >= 400 &&
-          error.status < 500);
-
-      if (definitelyRejected) {
-        await this.db
-          .update(communications)
-          .set({ status: 'failed' })
-          .where(eq(communications.id, reservation.communicationId));
-      }
-
-      throw error;
-    }
-
-    await this.db.transaction(async (tx) => {
+    return this.db.transaction(async (tx) => {
       await this.attachSmsUuidAndApplyEarlyStatuses(
         tx,
         reservation.communicationId,
         sent.messageId,
       );
 
-      await tx.insert(incidentEvents).values({
-        incidentId: id,
-        fromStatus: 'notified',
-        toStatus: 'notified',
+      const [currentIncident] = await tx
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, id))
+        .for('update');
+
+      if (!currentIncident) {
+        throw new NotFoundException(INCIDENT_NOT_FOUND);
+      }
+
+      const updated = await persistIncidentActivity(tx, currentIncident, {
         actor: 'agent',
         actorId: actor.id,
         reason: 'Driver notification resent',
       });
-    });
 
-    return reservation.incident;
+      return toIncident(updated);
+    });
   }
+
   async notifyDriver(actor: AuthActor, id: string): Promise<Incident> {
     if (actor.role !== 'agent') {
       throw new ForbiddenException('Only agents can notify drivers');
     }
 
     const reservation = await this.db.transaction(async (tx) => {
-      const [row] = await tx
-        .select({
-          incident: incidents,
-          order: orders,
-          driver: drivers,
-        })
-        .from(incidents)
-        .innerJoin(orders, eq(orders.id, incidents.orderId))
-        .leftJoin(routes, eq(routes.id, orders.routeId))
-        .leftJoin(drivers, eq(drivers.id, routes.driverId))
-        .where(eq(incidents.id, id))
-        .for('update', { of: incidents });
-
-      if (!row) {
-        throw new NotFoundException(INCIDENT_NOT_FOUND);
-      }
+      const row = await this.selectIncidentWithDriver(tx, id);
 
       if (row.incident.status !== 'open') {
         throw new ConflictException('Incident is not open');
@@ -475,53 +407,10 @@ export class IncidentsService {
         throw new ConflictException('Driver notification is already pending');
       }
 
-      const message = incidentNoticeSms(row.driver.locale, {
-        orderId: row.order.id,
-        incidentType: row.incident.type,
-      });
-
-      const [communication] = await tx
-        .insert(communications)
-        .values({
-          incidentId: id,
-          channel: 'sms',
-          direction: 'outbound',
-          fromNumber: null,
-          toNumber: row.driver.phone,
-          vonageUuid: null,
-          status: 'pending',
-        })
-        .returning({ id: communications.id });
-
-      return {
-        incident: toIncident(row.incident),
-        communicationId: communication!.id,
-        phone: row.driver.phone,
-        message,
-      };
+      return this.reserveDriverCommunication(tx, id, row);
     });
 
-    let sent: Awaited<ReturnType<VonageService['sendSms']>>;
-
-    try {
-      sent = await this.vonage.sendSms(reservation.phone, reservation.message);
-    } catch (error) {
-      const definitelyRejected =
-        error instanceof VonageDisabledError ||
-        (error instanceof VonageRequestError &&
-          error.status !== undefined &&
-          error.status >= 400 &&
-          error.status < 500);
-
-      if (definitelyRejected) {
-        await this.db
-          .update(communications)
-          .set({ status: 'failed' })
-          .where(eq(communications.id, reservation.communicationId));
-      }
-
-      throw error;
-    }
+    const sent = await this.sendDriverSms(reservation);
 
     return this.db.transaction(async (tx) => {
       await this.attachSmsUuidAndApplyEarlyStatuses(
@@ -554,6 +443,109 @@ export class IncidentsService {
       return toIncident(updated);
     });
   }
+
+  private async selectIncidentWithDriver(
+    tx: DatabaseTransaction,
+    id: string,
+  ): Promise<{
+    incident: typeof incidents.$inferSelect;
+    order: typeof orders.$inferSelect;
+    driver: typeof drivers.$inferSelect | null;
+  }> {
+    const [row] = await tx
+      .select({
+        incident: incidents,
+        order: orders,
+        driver: drivers,
+      })
+      .from(incidents)
+      .innerJoin(orders, eq(orders.id, incidents.orderId))
+      .leftJoin(routes, eq(routes.id, orders.routeId))
+      .leftJoin(drivers, eq(drivers.id, routes.driverId))
+      .where(eq(incidents.id, id))
+      .for('update', { of: incidents });
+
+    if (!row) {
+      throw new NotFoundException(INCIDENT_NOT_FOUND);
+    }
+
+    return row;
+  }
+
+  private async reserveDriverCommunication(
+    tx: DatabaseTransaction,
+    id: string,
+    row: {
+      incident: typeof incidents.$inferSelect;
+      order: typeof orders.$inferSelect;
+      driver: typeof drivers.$inferSelect | null;
+    },
+    idempotencyKey?: string,
+  ): Promise<{
+    incident: Incident;
+    communicationId: string;
+    phone: string;
+    message: string;
+  }> {
+    if (!row.driver) {
+      throw new ConflictException('Incident has no assigned driver');
+    }
+
+    const message = incidentNoticeSms(row.driver.locale, {
+      orderId: row.order.id,
+      incidentType: row.incident.type,
+    });
+
+    const [communication] = await tx
+      .insert(communications)
+      .values({
+        incidentId: id,
+        ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+        channel: 'sms',
+        direction: 'outbound',
+        fromNumber: null,
+        toNumber: row.driver.phone,
+        vonageUuid: null,
+        status: 'pending',
+      })
+      .returning({ id: communications.id });
+
+    return {
+      incident: toIncident(row.incident),
+      communicationId: communication!.id,
+      phone: row.driver.phone,
+      message,
+    };
+  }
+
+  private async sendDriverSms(
+    reservation: {
+      communicationId: string;
+      phone: string;
+      message: string;
+    },
+  ): Promise<Awaited<ReturnType<VonageService['sendSms']>>> {
+    try {
+      return await this.vonage.sendSms(reservation.phone, reservation.message);
+    } catch (error) {
+      const definitelyRejected =
+        error instanceof VonageDisabledError ||
+        (error instanceof VonageRequestError &&
+          error.status !== undefined &&
+          error.status >= 400 &&
+          error.status < 500);
+
+      if (definitelyRejected) {
+        await this.db
+          .update(communications)
+          .set({ status: 'failed' })
+          .where(eq(communications.id, reservation.communicationId));
+      }
+
+      throw error;
+    }
+  }
+
   private async attachSmsUuidAndApplyEarlyStatuses(
     tx: DatabaseTransaction,
     communicationId: string,
