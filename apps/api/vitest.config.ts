@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+﻿import { existsSync } from 'node:fs';
 
 import { defineConfig } from 'vitest/config';
 
@@ -7,22 +7,22 @@ if (existsSync('.env')) {
 }
 
 const configuredDatabaseUrl = process.env.DATABASE_URL;
+let e2eDatabaseUrl = configuredDatabaseUrl;
 
-if (!configuredDatabaseUrl) {
-  throw new Error('DATABASE_URL must be configured to run API tests');
+if (configuredDatabaseUrl && process.env.CI !== 'true') {
+  const localDatabaseUrl = new URL(configuredDatabaseUrl);
+
+  if (
+    !['/customer_support_logistics', '/customer_support_logistics_test'].includes(
+      localDatabaseUrl.pathname,
+    )
+  ) {
+    throw new Error('Local API e2e tests must use the dedicated test database');
+  }
+
+  localDatabaseUrl.pathname = '/customer_support_logistics_test';
+  e2eDatabaseUrl = localDatabaseUrl.toString();
 }
-
-const testDatabaseUrl = new URL(configuredDatabaseUrl);
-
-if (
-  !['/customer_support_logistics', '/customer_support_logistics_test'].includes(
-    testDatabaseUrl.pathname,
-  )
-) {
-  throw new Error('API tests must use the dedicated test database');
-}
-
-testDatabaseUrl.pathname = '/customer_support_logistics_test';
 
 export default defineConfig({
   test: {
@@ -55,7 +55,7 @@ export default defineConfig({
             VONAGE_API_KEY: 'test-api-key',
             VONAGE_SIGNATURE_SECRET: 'test-signature-secret-0123456789abcdef',
             WEBHOOK_RATE_LIMIT_PER_MINUTE: '10000',
-            DATABASE_URL: testDatabaseUrl.toString(),
+            ...(e2eDatabaseUrl ? { DATABASE_URL: e2eDatabaseUrl } : {}),
           },
         },
       },
