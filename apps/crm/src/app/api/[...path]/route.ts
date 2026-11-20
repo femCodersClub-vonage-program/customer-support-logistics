@@ -1,7 +1,27 @@
 ﻿import type { NextRequest } from 'next/server';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:3000';
-const CURRENT_AGENT_ID = process.env.DEV_AGENT_ID ?? '5eed0000-0000-4000-8000-0000000000a1';
+
+const REQUEST_HEADERS = [
+  'accept',
+  'authorization',
+  'content-type',
+  'cookie',
+  'idempotency-key',
+] as const;
+
+const HOP_BY_HOP_HEADERS = new Set([
+  'connection',
+  'content-encoding',
+  'content-length',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+]);
 
 async function proxyRequest(request: NextRequest): Promise<Response> {
   const apiPath = request.nextUrl.pathname.replace(/^\/api/, '');
@@ -9,16 +29,12 @@ async function proxyRequest(request: NextRequest): Promise<Response> {
 
   const headers = new Headers();
 
-  for (const name of ['accept', 'authorization', 'content-type', 'idempotency-key']) {
+  for (const name of REQUEST_HEADERS) {
     const value = request.headers.get(name);
 
     if (value) {
       headers.set(name, value);
     }
-  }
-
-  if (process.env.NODE_ENV === 'development') {
-    headers.set('x-dev-actor', `agent:${CURRENT_AGENT_ID}`);
   }
 
   const init: RequestInit = {
@@ -33,10 +49,15 @@ async function proxyRequest(request: NextRequest): Promise<Response> {
 
   const apiResponse = await fetch(targetUrl, init);
   const responseHeaders = new Headers();
-  const contentType = apiResponse.headers.get('content-type');
 
-  if (contentType) {
-    responseHeaders.set('content-type', contentType);
+  for (const [name, value] of apiResponse.headers) {
+    if (name !== 'set-cookie' && !HOP_BY_HOP_HEADERS.has(name)) {
+      responseHeaders.set(name, value);
+    }
+  }
+
+  for (const cookie of apiResponse.headers.getSetCookie()) {
+    responseHeaders.append('set-cookie', cookie);
   }
 
   return new Response(await apiResponse.arrayBuffer(), {
