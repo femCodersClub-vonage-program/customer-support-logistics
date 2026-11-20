@@ -52,6 +52,21 @@
       "descriptionTooLong": "The description is too long. Use at most {max} characters.",
       "orderNotFound": "We could not find this order.",
       "generic": "We could not send the report. Try again in a moment."
+    },
+    "evidence": {
+      "title": "Photos and videos",
+      "hint": "Up to {maxFiles} files. Photos up to {imageMb} MB, videos up to {videoMb} MB.",
+      "camera": "Take a photo or video",
+      "gallery": "Choose from gallery",
+      "suggestPhoto": "A photo of the problem helps us solve it faster.",
+      "selected": "Selected files",
+      "remove": "Remove",
+      "removeFile": "Remove {name}",
+      "rejected": {
+        "type": "{name} was not added. Only photos (JPEG, PNG, WebP, HEIC) and videos (MP4, MOV) can be attached.",
+        "size": "{name} was not added because it is too big. Photos can be up to {imageMb} MB and videos up to {videoMb} MB.",
+        "tooMany": "{name} was not added. You can attach up to {maxFiles} files."
+      }
     }
   },
   "incident": {

@@ -52,6 +52,21 @@
       "descriptionTooLong": "La descripción es demasiado larga. Usa como máximo {max} caracteres.",
       "orderNotFound": "No hemos encontrado este pedido.",
       "generic": "No hemos podido enviar el reporte. Inténtalo de nuevo en un momento."
+    },
+    "evidence": {
+      "title": "Fotos o vídeo",
+      "camera": "Hacer una foto o vídeo",
+      "gallery": "Elegir de la galería",
+      "hint": "Hasta {maxFiles} archivos. Fotos de hasta {imageMb} MB y vídeos de hasta {videoMb} MB.",
+      "suggestPhoto": "Una foto del problema nos ayuda a resolverlo más rápido.",
+      "selected": "Archivos seleccionados",
+      "remove": "Quitar",
+      "removeFile": "Quitar {name}",
+      "rejected": {
+        "type": "{name} no se ha añadido. Solo se pueden adjuntar fotos (JPEG, PNG, WebP, HEIC) y vídeos (MP4, MOV).",
+        "size": "{name} no se ha añadido porque pesa demasiado. Las fotos pueden pesar hasta {imageMb} MB y los vídeos hasta {videoMb} MB.",
+        "tooMany": "{name} no se ha añadido. Puedes adjuntar hasta {maxFiles} archivos."
+      }
     }
   },
   "incident": {
