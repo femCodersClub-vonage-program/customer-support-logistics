@@ -1,4 +1,4 @@
-﻿import { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { POST } from './route';
@@ -82,4 +82,3 @@ describe('API route proxy', () => {
     ]);
   });
 });
-
