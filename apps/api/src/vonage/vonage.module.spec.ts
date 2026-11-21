@@ -13,6 +13,15 @@ import type { Env } from '../config/env.schema.js';
 
 const DATABASE_URL = 'postgresql://app:password@localhost:5432/customer_support_logistics';
 
+const STORAGE_ENV = {
+  STORAGE_ENDPOINT: 'http://localhost:8333',
+  STORAGE_REGION: 'us-east-1',
+  STORAGE_BUCKET: 'evidence',
+  STORAGE_ACCESS_KEY: 'admin',
+  STORAGE_SECRET_KEY: 'secret',
+  STORAGE_FORCE_PATH_STYLE: 'true',
+};
+
 const PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n';
 
 const VONAGE_ENV = {
@@ -26,7 +35,7 @@ const VONAGE_ENV = {
 };
 
 function configFor(env: Record<string, string>) {
-  return new ConfigService<Env, true>(validateEnv({ DATABASE_URL, ...env }));
+  return new ConfigService<Env, true>(validateEnv({ DATABASE_URL, ...STORAGE_ENV, ...env }));
 }
 
 describe('createVonageService', () => {

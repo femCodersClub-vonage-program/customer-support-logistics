@@ -9,6 +9,15 @@ import {
 
 const DATABASE_URL = 'postgresql://app:password@localhost:5432/customer_support_logistics';
 
+const STORAGE_ENV = {
+  STORAGE_ENDPOINT: 'http://localhost:8333',
+  STORAGE_REGION: 'us-east-1',
+  STORAGE_BUCKET: 'evidence',
+  STORAGE_ACCESS_KEY: 'admin',
+  STORAGE_SECRET_KEY: 'secret',
+  STORAGE_FORCE_PATH_STYLE: 'true',
+};
+
 const PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n';
 
 const VONAGE_ENV = {
@@ -21,7 +30,7 @@ const VONAGE_ENV = {
   VONAGE_SIGNATURE_SECRET: 'signature',
 };
 
-const DISABLED = { DATABASE_URL, VONAGE_ENABLED: 'false' };
+const DISABLED = { DATABASE_URL, VONAGE_ENABLED: 'false', ...STORAGE_ENV };
 
 describe('validateEnv', () => {
   it('applies defaults when optional variables are missing', () => {
@@ -29,7 +38,18 @@ describe('validateEnv', () => {
       NODE_ENV: 'development',
       PORT: 3000,
       DATABASE_URL,
+      ...Object.fromEntries(
+        Object.entries(STORAGE_ENV).map(([key, value]) => [
+          key,
+          key === 'STORAGE_FORCE_PATH_STYLE' ? true : value,
+        ]),
+      ),
       VONAGE_ENABLED: false,
+      EVIDENCE_IMAGE_MAX_BYTES: 10 * 1024 * 1024,
+      EVIDENCE_VIDEO_MAX_BYTES: 50 * 1024 * 1024,
+      EVIDENCE_MAX_FILES_PER_INCIDENT: 5,
+      EVIDENCE_UPLOAD_URL_TTL_SECONDS: 15 * 60,
+      EVIDENCE_DOWNLOAD_URL_TTL_SECONDS: 5 * 60,
       WEBHOOK_RATE_LIMIT_PER_MINUTE: 120,
     });
   });
@@ -81,9 +101,9 @@ describe('validateEnv', () => {
     });
 
     it('throws while Vonage is enabled, where it would be ignored', () => {
-      expect(() => validateEnv({ DATABASE_URL, ...VONAGE_ENV, DEV_VERIFY_CODE: '123456' })).toThrow(
-        /DEV_VERIFY_CODE only works while Vonage is disabled/,
-      );
+      expect(() =>
+        validateEnv({ DATABASE_URL, ...STORAGE_ENV, ...VONAGE_ENV, DEV_VERIFY_CODE: '123456' }),
+      ).toThrow(/DEV_VERIFY_CODE only works while Vonage is disabled/);
     });
   });
 
@@ -109,6 +129,13 @@ describe('validateEnv', () => {
     });
   });
 
+  it('requires storage configuration', () => {
+    const env: Record<string, string> = { ...DISABLED };
+    delete env.STORAGE_ENDPOINT;
+
+    expect(() => validateEnv(env)).toThrow(/STORAGE_ENDPOINT/);
+  });
+
   it('coerces WEBHOOK_RATE_LIMIT_PER_MINUTE to a positive integer', () => {
     expect(validateEnv({ ...DISABLED, WEBHOOK_RATE_LIMIT_PER_MINUTE: '5' })).toMatchObject({
       WEBHOOK_RATE_LIMIT_PER_MINUTE: 5,
@@ -126,7 +153,7 @@ describe('validateEnv', () => {
 
   describe('Vonage', () => {
     it('accepts the full Vonage configuration', () => {
-      expect(validateEnv({ DATABASE_URL, ...VONAGE_ENV })).toMatchObject({
+      expect(validateEnv({ DATABASE_URL, ...STORAGE_ENV, ...VONAGE_ENV })).toMatchObject({
         VONAGE_ENABLED: true,
         ...VONAGE_ENV,
       });
@@ -136,7 +163,7 @@ describe('validateEnv', () => {
       expect.assertions(VONAGE_REQUIRED_VARIABLES.length);
 
       for (const variable of VONAGE_REQUIRED_VARIABLES) {
-        const env: Record<string, string> = { DATABASE_URL, ...VONAGE_ENV };
+        const env: Record<string, string> = { DATABASE_URL, ...STORAGE_ENV, ...VONAGE_ENV };
         delete env[variable];
 
         expect(() => validateEnv(env)).toThrow(
@@ -146,7 +173,7 @@ describe('validateEnv', () => {
     });
 
     it('lists every missing Vonage variable at once', () => {
-      expect(() => validateEnv({ DATABASE_URL })).toThrow(
+      expect(() => validateEnv({ DATABASE_URL, ...STORAGE_ENV })).toThrow(
         /VONAGE_API_KEY[\s\S]*VONAGE_SIGNATURE_SECRET[\s\S]*PUBLIC_URL/,
       );
     });
@@ -156,7 +183,7 @@ describe('validateEnv', () => {
     });
 
     it('does not require Vonage variables when NODE_ENV is test', () => {
-      expect(validateEnv({ DATABASE_URL, NODE_ENV: 'test' })).toMatchObject({
+      expect(validateEnv({ DATABASE_URL, ...STORAGE_ENV, NODE_ENV: 'test' })).toMatchObject({
         VONAGE_ENABLED: true,
       });
     });
@@ -183,7 +210,12 @@ describe('validateEnv', () => {
 
     it('throws when VONAGE_VIRTUAL_NUMBER is not E.164', () => {
       expect(() =>
-        validateEnv({ DATABASE_URL, ...VONAGE_ENV, VONAGE_VIRTUAL_NUMBER: '34600000000' }),
+        validateEnv({
+          DATABASE_URL,
+          ...STORAGE_ENV,
+          ...VONAGE_ENV,
+          VONAGE_VIRTUAL_NUMBER: '34600000000',
+        }),
       ).toThrow(/VONAGE_VIRTUAL_NUMBER/);
     });
   });

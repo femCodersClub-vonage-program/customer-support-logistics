@@ -60,6 +60,7 @@ Accepted ADRs are not edited, except to change their status. To change a decisio
 | [0008](0008-authentication-and-sessions.md)              | Authentication and sessions                                 | accepted | 2026-11-11 |
 | [0009](0009-hosting-on-railway.md)                       | Hosting on Railway                                          | proposed | 2026-11-12 |
 | [0010](0010-keep-x-dev-actor-until-both-logins-exist.md) | Keep `x-dev-actor` until both logins exist                  | proposed | 2026-11-16 |
+| [0011](0011-evidence-activity-events.md)                 | Evidence activity events                                    | proposed | 2026-11-16 |
 
 ### Pending decisions
 

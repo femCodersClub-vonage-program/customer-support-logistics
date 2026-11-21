@@ -135,13 +135,37 @@ export const changeIncidentStatusBodySchema = z
 
 export type ChangeIncidentStatusBody = z.infer<typeof changeIncidentStatusBodySchema>;
 
-export const startMediationResponseSchema = z
-  .object({
-    incident: incidentSchema,
-    call: communicationSchema,
-  })
-  .meta({ id: 'StartMediationResponse' });
+export const evidenceIdParamsSchema = incidentIdParamsSchema.extend({ evidenceId: uuidSchema });
 
+export type EvidenceIdParams = z.infer<typeof evidenceIdParamsSchema>;
+
+export const requestEvidenceUploadBodySchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  mimeType: z.string().trim().min(1).max(127),
+  sizeBytes: z.number().int().positive(),
+});
+
+export type RequestEvidenceUploadBody = z.infer<typeof requestEvidenceUploadBodySchema>;
+
+export const evidenceUploadUrlSchema = z.object({
+  evidenceId: uuidSchema,
+  uploadUrl: z.url(),
+  expiresAt: isoDateTimeSchema,
+});
+
+export type EvidenceUploadUrl = z.infer<typeof evidenceUploadUrlSchema>;
+
+export const evidenceDownloadSchema = z.object({
+  id: uuidSchema,
+  mimeType: z.string(),
+  sizeBytes: z.number().int().positive(),
+  createdAt: isoDateTimeSchema,
+  downloadUrl: z.url(),
+});
+
+export type EvidenceDownload = z.infer<typeof evidenceDownloadSchema>;
+
+export const startMediationResponseSchema = z.object({ incident: incidentSchema, call: communicationSchema }).meta({ id: 'StartMediationResponse' });
 export type StartMediationResponse = z.infer<typeof startMediationResponseSchema>;
 
 export const UNASSIGNED_AGENT = 'unassigned';
@@ -182,14 +206,10 @@ export type ListIncidentsQueryInput = z.input<typeof listIncidentsQuerySchema>;
 
 export type ListIncidentsQuery = z.output<typeof listIncidentsQuerySchema>;
 
-export const incidentStatusCountsSchema = z
-  .record(incidentStatusSchema, z.number().int().min(0))
-  .meta({ id: 'IncidentStatusCounts' });
-
+export const incidentStatusCountsSchema = z.record(incidentStatusSchema, z.number().int().min(0)).meta({ id: 'IncidentStatusCounts' });
 export type IncidentStatusCounts = z.infer<typeof incidentStatusCountsSchema>;
-
-export const listIncidentsResponseSchema = paginatedSchema(incidentListItemSchema)
-  .extend({ statusCounts: incidentStatusCountsSchema })
-  .meta({ id: 'ListIncidentsResponse' });
+export const listIncidentsResponseSchema = paginatedSchema(incidentListItemSchema).extend({ statusCounts: incidentStatusCountsSchema }).meta({
+  id: 'ListIncidentsResponse',
+});
 
 export type ListIncidentsResponse = z.infer<typeof listIncidentsResponseSchema>;

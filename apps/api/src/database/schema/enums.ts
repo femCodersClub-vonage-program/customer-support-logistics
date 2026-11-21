@@ -4,6 +4,7 @@ import {
   COMMUNICATION_CHANNELS,
   COMMUNICATION_DIRECTIONS,
   COMMUNICATION_STATUSES,
+  EVIDENCE_STATUSES,
   INCIDENT_STATUSES,
   INCIDENT_TYPES,
   ORDER_STATUSES,
@@ -28,6 +29,8 @@ export const communicationChannel = pgEnum('communication_channel', COMMUNICATIO
 export const communicationDirection = pgEnum('communication_direction', COMMUNICATION_DIRECTIONS);
 
 export const communicationStatus = pgEnum('communication_status', COMMUNICATION_STATUSES);
+
+export const evidenceStatus = pgEnum('evidence_status', EVIDENCE_STATUSES);
 
 export const WEBHOOK_EVENT_SOURCES = [
   'messages_inbound',
