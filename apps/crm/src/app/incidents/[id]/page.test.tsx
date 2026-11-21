@@ -39,6 +39,7 @@ const incident: IncidentDetail = {
   createdAt: '2026-11-15T10:00:00.000Z',
   updatedAt: '2026-11-15T10:30:00.000Z',
   closedAt: null,
+  description: null,
   order: {
     id: '22222222-2222-4222-8222-222222222222',
     customerId: '44444444-4444-4444-8444-444444444444',
