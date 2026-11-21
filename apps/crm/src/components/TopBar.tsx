@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
 
+import { ConnectionStatus } from './ConnectionStatus';
 import { LocaleSwitcher } from './LocaleSwitcher';
 import { LogoutButton } from './LogoutButton';
 import styles from './TopBar.module.css';
@@ -14,6 +15,7 @@ export function TopBar() {
           accent: (chunks) => <span className={styles.accent}>{chunks}</span>,
         })}
       </p>
+      <ConnectionStatus />
       <LocaleSwitcher />
       <LogoutButton />
     </header>

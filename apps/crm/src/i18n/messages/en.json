@@ -6,7 +6,12 @@
   "topBar": {
     "brand": "CSL <accent>Support</accent>",
     "logOut": "Log out",
-    "logOutFailed": "Couldn't log out. Check the connection and try again."
+    "logOutFailed": "Couldn't log out. Check the connection and try again.",
+    "connection": {
+      "connecting": "Connecting…",
+      "connected": "Live",
+      "reconnecting": "Reconnecting…"
+    }
   },
   "login": {
     "title": "Log in",
