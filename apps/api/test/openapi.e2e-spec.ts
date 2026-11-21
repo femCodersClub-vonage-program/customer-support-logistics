@@ -48,6 +48,7 @@ describe('OpenAPI (e2e)', () => {
       '/incidents/{id}/mediation',
       '/incidents/{id}/mediation/driver-call',
       '/orders',
+      '/vonage/client-token',
     ]);
     expect(Object.keys(document.paths['/incidents'] ?? {})).toEqual(['post', 'get']);
     expect(Object.keys(document.paths['/incidents/{id}/assign-to-me'] ?? {})).toEqual([
@@ -62,5 +63,6 @@ describe('OpenAPI (e2e)', () => {
     expect(document.components.schemas).toHaveProperty('ApiErrorResponse');
     expect(document.components.schemas).toHaveProperty('IncidentStatus');
     expect(document.components.schemas).toHaveProperty('StartMediationResponse');
+    expect(document.components.schemas).toHaveProperty('ClientTokenResponse');
   });
 });

@@ -6,6 +6,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { RESEND_AFTER_SECONDS } from '../auth/CodeStep.tsx';
 import { CUSTOMER, apiError, apiUrl, renderApp, sessionOf } from '../test/app.tsx';
 
+const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
+const REPORT_PATH = `/report/${ORDER_ID}`;
+
 const server = setupServer();
 
 let startBodies: unknown[] = [];
@@ -47,7 +50,7 @@ const sendCode = async (code: string) => {
 
 describe('LoginPage', () => {
   it('sends the code to the phone in E.164 and goes to the page the customer came from', async () => {
-    renderApp('/login?next=%2Freport%2F42');
+    renderApp(`/login?next=${encodeURIComponent(REPORT_PATH)}`);
 
     await sendPhone('600 000 001');
 
@@ -60,7 +63,7 @@ describe('LoginPage', () => {
     await sendCode('123456');
 
     expect(await screen.findByRole('heading', { name: 'Report an incident' })).toBeInTheDocument();
-    expect(screen.getByText('Order 42')).toBeInTheDocument();
+    expect(screen.getByText(`Order ${ORDER_ID}`)).toBeInTheDocument();
   });
 
   it('checks the phone before calling the API', async () => {
@@ -146,13 +149,13 @@ describe('LoginPage', () => {
   });
 
   it('comes back to the protected page the customer asked for', async () => {
-    renderApp('/report/42?from=sms');
+    renderApp(`${REPORT_PATH}?from=sms`);
 
     await sendPhone('600 000 001');
     await sendCode('123456');
 
     expect(await screen.findByRole('heading', { name: 'Report an incident' })).toBeInTheDocument();
-    expect(screen.getByText('Order 42')).toBeInTheDocument();
+    expect(screen.getByText(`Order ${ORDER_ID}`)).toBeInTheDocument();
   });
 
   it('goes back to the phone to change the number', async () => {

@@ -100,6 +100,7 @@ export type IncidentListItem = z.infer<typeof incidentListItemSchema>;
 
 export const incidentDetailSchema = incidentSchema
   .extend({
+    description: z.string().nullable(),
     order: orderSchema,
     customer: incidentCustomerSchema,
     driver: incidentDriverSchema.nullable(),
@@ -124,10 +125,23 @@ export const idempotencyKeyHeaderSchema = z
 
 export type IncidentIdParams = z.infer<typeof incidentIdParamsSchema>;
 
+export const INCIDENT_DESCRIPTION_MAX_LENGTH = 1000;
+
 export const createIncidentBodySchema = z
   .object({
     orderId: uuidSchema,
     type: incidentTypeSchema,
+    description: z
+      .string()
+      .trim()
+      .min(1)
+      .max(INCIDENT_DESCRIPTION_MAX_LENGTH)
+      .meta({ description: 'Required when type is other' })
+      .optional(),
+  })
+  .refine(({ type, description }) => type !== 'other' || description !== undefined, {
+    path: ['description'],
+    message: 'description is required when type is other',
   })
   .meta({ id: 'CreateIncidentBody' });
 

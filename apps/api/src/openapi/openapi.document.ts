@@ -2,7 +2,9 @@ import {
   agentLoginBodySchema,
   apiErrorResponseSchema,
   changeIncidentStatusBodySchema,
+  clientTokenResponseSchema,
   communicationSchema,
+  createClientTokenBodySchema,
   createIncidentBodySchema,
   currentUserSchema,
   customerLoginCheckBodySchema,
@@ -29,6 +31,7 @@ import {
 import { VERIFICATION_TTL_MS } from '../auth/pending-verifications.js';
 import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../auth/session-cookie.js';
 import { APP_VERSION } from '../version.js';
+import { CLIENT_TOKEN_TTL_SECONDS } from '../vonage/client-token.js';
 
 import type { ZodOpenApiResponseObject, ZodOpenApiResponsesObject } from 'zod-openapi';
 
@@ -319,6 +322,25 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             '200': json('The customer’s orders', listOrdersResponseSchema),
             '401': unauthorized,
             '403': forbiddenFor('agents'),
+          },
+        },
+      },
+      '/vonage/client-token': {
+        post: {
+          tags: ['vonage'],
+          summary: 'Get a Vonage Client SDK token to join the mediation call',
+          description: `Creates the Vonage user of the customer (\`cust-<id>\`) or agent (\`agent-<id>\`) if it does not exist yet, and returns a JWT for it that expires after ${CLIENT_TOKEN_TTL_SECONDS / 60} minutes, with only the ACLs needed to make and control a call. The client starts the call with \`serverCall({ incidentId })\`, and the answer webhook only joins the conversation \`inc-<id>\` if the user belongs to that incident.`,
+          requestBody: {
+            content: { 'application/json': { schema: createClientTokenBodySchema } },
+          },
+          responses: {
+            '201': json(
+              'The token, the Vonage user name and when the token expires',
+              clientTokenResponseSchema,
+            ),
+            ...incidentErrors,
+            '409': error('The incident is not in mediation'),
+            '502': error('Vonage could not create the user; try again'),
           },
         },
       },

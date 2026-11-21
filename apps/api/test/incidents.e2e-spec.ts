@@ -77,6 +77,78 @@ describe('Incidents (e2e)', () => {
       ]);
     });
 
+    it('stores the trimmed description and returns it in the detail', async () => {
+      const created = await http()
+        .post('/incidents')
+        .set('Cookie', cookie.ana)
+        .send({ orderId: ids.anaOrder, type: 'damaged', description: '  The box was crushed  ' })
+        .expect(201);
+
+      const detail = await http()
+        .get(`/incidents/${incidentSchema.parse(created.body).id}`)
+        .set('Cookie', cookie.ana)
+        .expect(200);
+
+      expect(incidentDetailSchema.parse(detail.body).description).toBe('The box was crushed');
+    });
+
+    it('returns a null description when none is sent', async () => {
+      const created = await http()
+        .post('/incidents')
+        .set('Cookie', cookie.ana)
+        .send({ orderId: ids.anaOrder, type: 'damaged' })
+        .expect(201);
+
+      const detail = await http()
+        .get(`/incidents/${incidentSchema.parse(created.body).id}`)
+        .set('Cookie', cookie.ana)
+        .expect(200);
+
+      expect(incidentDetailSchema.parse(detail.body).description).toBeNull();
+    });
+
+    it('accepts the type other when it has a description', async () => {
+      await http()
+        .post('/incidents')
+        .set('Cookie', cookie.ana)
+        .send({ orderId: ids.anaOrder, type: 'other', description: 'Wrong floor' })
+        .expect(201);
+    });
+
+    it.each([
+      ['no description', {}],
+      ['a blank description', { description: '   ' }],
+    ])('returns 400 for the type other with %s', async (_name, extra) => {
+      const response = await http()
+        .post('/incidents')
+        .set('Cookie', cookie.ana)
+        .send({ orderId: ids.anaOrder, type: 'other', ...extra })
+        .expect(400);
+
+      expectError(response.body, 'VALIDATION_FAILED');
+      expect((response.body as ApiErrorResponse).error.details?.map(({ path }) => path)).toEqual([
+        'description',
+      ]);
+    });
+
+    it.each([
+      ['exactly 1000 characters', 'a'.repeat(1000)],
+      ['1000 characters with spaces around them', `  ${'a'.repeat(1000)}  `],
+    ])('accepts a description of %s', async (_name, description) => {
+      const created = await http()
+        .post('/incidents')
+        .set('Cookie', cookie.ana)
+        .send({ orderId: ids.anaOrder, type: 'damaged', description })
+        .expect(201);
+
+      const detail = await http()
+        .get(`/incidents/${incidentSchema.parse(created.body).id}`)
+        .set('Cookie', cookie.ana)
+        .expect(200);
+
+      expect(incidentDetailSchema.parse(detail.body).description).toBe('a'.repeat(1000));
+    });
+
     it('returns 404 for another customer’s order, without leaking that it exists', async () => {
       const response = await http()
         .post('/incidents')

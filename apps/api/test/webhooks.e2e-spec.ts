@@ -345,13 +345,53 @@ describe('Webhooks (e2e)', () => {
       expect(response.body).toHaveLength(2);
     });
 
-    it('joins a browser call to the conversation of an incident in mediation', async () => {
+    it('joins the customer who owns the incident to its conversation', async () => {
       const response = await signedGet(
         '/webhooks/voice/answer',
         vonageFixture('voice-answer-app'),
       ).expect(200);
 
       expect(response.body).toEqual(joinNcco(ids.mediationIncident));
+    });
+
+    it('joins an agent to the conversation of any incident in mediation', async () => {
+      const response = await signedGet(
+        '/webhooks/voice/answer',
+        vonageFixture('voice-answer-app', { from_user: `agent-${ids.agentA}` }),
+      ).expect(200);
+
+      expect(response.body).toEqual(joinNcco(ids.mediationIncident));
+    });
+
+    it('accepts the incident id as an object in a POST answer webhook', async () => {
+      const response = await signedPost(
+        '/webhooks/voice/answer',
+        vonageFixture('voice-answer-app', { custom_data: { incidentId: ids.mediationIncident } }),
+      ).expect(200);
+
+      expect(response.body).toEqual(joinNcco(ids.mediationIncident));
+    });
+
+    it.each([
+      ['a customer who does not own the incident', `cust-${ids.bruno}`],
+      ['an agent who does not exist', `agent-${ids.missing}`],
+      ['a user with an unknown name', `driver-${ids.driver}`],
+      ['a user with a name that is not ours', 'alice'],
+    ])('hangs up a browser call from %s', async (_caller, fromUser) => {
+      const response = await signedGet(
+        '/webhooks/voice/answer',
+        vonageFixture('voice-answer-app', { from_user: fromUser }),
+      ).expect(200);
+
+      expect(response.body).toEqual([]);
+    });
+
+    it('hangs up a browser call without a user', async () => {
+      const { from_user: _fromUser, ...withoutUser } = vonageFixture('voice-answer-app');
+
+      const response = await signedGet('/webhooks/voice/answer', withoutUser).expect(200);
+
+      expect(response.body).toEqual([]);
     });
 
     it('hangs up a browser call for an incident that is not in mediation', async () => {

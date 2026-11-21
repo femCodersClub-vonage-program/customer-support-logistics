@@ -1,2 +1,0 @@
-ALTER TABLE "communications" DROP CONSTRAINT "communications_idempotency_key_unique";--> statement-breakpoint
-CREATE UNIQUE INDEX "communications_idempotency_key_unique" ON "communications" USING btree ("idempotency_key");

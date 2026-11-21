@@ -3,6 +3,8 @@ import { ApiError } from './errors.js';
 import type {
   AgentLoginBody,
   ChangeIncidentStatusBody,
+  CreateIncidentBody,
+  ClientTokenResponse,
   CurrentUser,
   CustomerLoginCheckBody,
   CustomerLoginStartBody,
@@ -37,6 +39,7 @@ export interface ApiClient {
     query?: ListIncidentsQueryInput,
     options?: RequestOptions,
   ): Promise<ListIncidentsResponse>;
+  createIncident(body: CreateIncidentBody, options?: RequestOptions): Promise<Incident>;
   getIncident(id: string, options?: RequestOptions): Promise<IncidentDetail>;
   assignIncidentToMe(id: string, options?: RequestOptions): Promise<Incident>;
   notifyDriver(id: string, options?: RequestOptions): Promise<Incident>;
@@ -52,6 +55,7 @@ export interface ApiClient {
   ): Promise<Incident>;
   startMediation(incidentId: string, options?: RequestOptions): Promise<StartMediationResponse>;
   callDriver(incidentId: string, options?: RequestOptions): Promise<Communication>;
+  createClientToken(incidentId: string, options?: RequestOptions): Promise<ClientTokenResponse>;
   getCurrentUser(options?: RequestOptions): Promise<CurrentUser>;
   agentLogin(body: AgentLoginBody, options?: RequestOptions): Promise<CurrentUser>;
   startCustomerLogin(
@@ -143,6 +147,8 @@ export function createApiClient({
         method: 'GET',
         signal,
       }),
+    createIncident: (body, { signal } = {}) =>
+      request<Incident>('/incidents', postJson(body, signal)),
     getIncident: (id, { signal } = {}) =>
       request<IncidentDetail>(`/incidents/${encodeURIComponent(id)}`, {
         method: 'GET',
@@ -181,6 +187,8 @@ export function createApiClient({
         method: 'POST',
         signal,
       }),
+    createClientToken: (incidentId, { signal } = {}) =>
+      request<ClientTokenResponse>('/vonage/client-token', postJson({ incidentId }, signal)),
     getCurrentUser: ({ signal } = {}) =>
       request<CurrentUser>('/auth/me', { method: 'GET', signal }),
     agentLogin: (body, { signal } = {}) =>

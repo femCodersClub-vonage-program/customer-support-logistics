@@ -36,7 +36,7 @@ jobs:
       postgres:
         image: postgres:17
         env:
-          POSTGRES_DB: customer_support_logistics
+          POSTGRES_DB: customer_support_logistics_test
           POSTGRES_USER: app
           POSTGRES_PASSWORD: ci_only_password
         ports:
@@ -47,7 +47,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql://app:ci_only_password@localhost:5432/customer_support_logistics
+      DATABASE_URL: postgresql://app:ci_only_password@localhost:5432/customer_support_logistics_test
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
