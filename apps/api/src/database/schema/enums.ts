@@ -5,6 +5,7 @@ import {
   COMMUNICATION_DIRECTIONS,
   COMMUNICATION_STATUSES,
   EVIDENCE_STATUSES,
+  INCIDENT_EVENT_KINDS,
   INCIDENT_STATUSES,
   INCIDENT_TYPES,
   ORDER_STATUSES,
@@ -19,6 +20,8 @@ export const orderStatus = pgEnum('order_status', ORDER_STATUSES);
 export const incidentStatus = pgEnum('incident_status', INCIDENT_STATUSES);
 
 export const incidentType = pgEnum('incident_type', INCIDENT_TYPES);
+
+export const incidentEventKind = pgEnum('incident_event_kind', INCIDENT_EVENT_KINDS);
 
 export const actor = pgEnum('actor', ACTORS);
 

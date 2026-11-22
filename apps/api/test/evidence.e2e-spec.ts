@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { evidence } from '../src/database/schema/index.js';
+import { evidence, incidentEvents } from '../src/database/schema/index.js';
 import { STORAGE_SERVICE } from '../src/storage/storage.service.js';
 
 import { createTestApp, resetDatabase } from './fixtures/app.js';
@@ -102,6 +102,13 @@ describe('Evidence uploads (e2e)', () => {
       .post(`/incidents/${ids.openIncident}/evidence/${body.evidenceId}/complete`)
       .set('Cookie', cookie.ana)
       .expect(201);
+    const events = await testApp.db
+      .select()
+      .from(incidentEvents)
+      .where(eq(incidentEvents.incidentId, ids.openIncident));
+    expect(events).toContainEqual(
+      expect.objectContaining({ kind: 'evidence_uploaded', reason: 'Evidence uploaded' }),
+    );
     const response = await http()
       .get(`/incidents/${ids.openIncident}/evidence`)
       .set('Cookie', cookie.agentA)

@@ -227,6 +227,7 @@ export class IncidentsService {
       await tx.update(evidence).set({ status: 'ready' }).where(eq(evidence.id, evidenceId));
       await tx.insert(incidentEvents).values({
         incidentId,
+        kind: 'evidence_uploaded',
         fromStatus: row.incident.status,
         toStatus: row.incident.status,
         actor: actor.role,

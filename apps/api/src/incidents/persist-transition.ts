@@ -32,6 +32,7 @@ export async function persistTransition(
   await tx.insert(incidentEvents).values({
     id: event.id,
     incidentId: event.incidentId,
+    kind: event.kind,
     fromStatus: event.fromStatus,
     toStatus: event.toStatus,
     actor: event.actor,
