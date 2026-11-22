@@ -33,6 +33,11 @@ const baseEnvSchema = z.object({
     .int()
     .positive()
     .default(15 * 60),
+  EVIDENCE_PENDING_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60),
   EVIDENCE_DOWNLOAD_URL_TTL_SECONDS: z.coerce
     .number()
     .int()

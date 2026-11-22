@@ -1,4 +1,9 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import type { S3Client } from '@aws-sdk/client-s3';
@@ -13,6 +18,7 @@ export interface StorageObject {
 export interface StorageService {
   createUploadUrl(key: string, contentType: string, expiresInSeconds: number): Promise<string>;
   createDownloadUrl(key: string, expiresInSeconds: number): Promise<string>;
+  deleteObject(key: string): Promise<void>;
   headObject(key: string): Promise<StorageObject | undefined>;
   readPrefix(key: string, length: number): Promise<Uint8Array | undefined>;
 }
@@ -35,6 +41,10 @@ export class S3StorageService implements StorageService {
     return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
       expiresIn: expiresInSeconds,
     });
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
   async headObject(key: string): Promise<StorageObject | undefined> {

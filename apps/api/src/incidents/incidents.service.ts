@@ -170,6 +170,7 @@ export class IncidentsService {
       .innerJoin(orders, eq(orders.id, incidents.orderId))
       .where(and(eq(incidents.id, incidentId), eq(orders.customerId, customerId)));
     if (!row) throw new NotFoundException(INCIDENT_NOT_FOUND);
+    await this.removeExpiredPendingEvidence(incidentId);
     const countRows = await this.db
       .select({ total: count() })
       .from(evidence)
@@ -194,6 +195,26 @@ export class IncidentsService {
       uploadUrl: await this.storage.createUploadUrl(storageKey, body.mimeType, ttl),
       expiresAt,
     };
+  }
+
+  private async removeExpiredPendingEvidence(incidentId: string): Promise<void> {
+    const ttl = this.config.get('EVIDENCE_PENDING_TTL_SECONDS', { infer: true });
+    const expiresBefore = new Date(Date.now() - ttl * 1000);
+    const expired = await this.db
+      .select({ id: evidence.id, storageKey: evidence.storageKey })
+      .from(evidence)
+      .where(
+        and(
+          eq(evidence.incidentId, incidentId),
+          eq(evidence.status, 'pending'),
+          lte(evidence.createdAt, expiresBefore),
+        ),
+      );
+
+    for (const item of expired) {
+      await this.storage.deleteObject(item.storageKey);
+      await this.db.delete(evidence).where(eq(evidence.id, item.id));
+    }
   }
 
   async completeEvidenceUpload(

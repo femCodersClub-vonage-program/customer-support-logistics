@@ -151,6 +151,36 @@ describe('Evidence uploads (e2e)', () => {
       .expect(409);
   });
 
+  it('removes expired pending evidence before allocating a new upload slot', async () => {
+    const { body } = await http()
+      .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
+      .set('Cookie', cookie.ana)
+      .send({ fileName: 'expired.jpg', mimeType: 'image/jpeg', sizeBytes: 4 })
+      .expect(201);
+    const [expired] = await testApp.db
+      .select()
+      .from(evidence)
+      .where(eq(evidence.id, body.evidenceId));
+    storage.objects.set(expired!.storageKey, { contentType: 'image/jpeg', sizeBytes: 4 });
+    storage.prefixes.set(expired!.storageKey, jpeg);
+    await testApp.db
+      .update(evidence)
+      .set({ createdAt: new Date(Date.now() - 60 * 60 * 1000 - 1) })
+      .where(eq(evidence.id, body.evidenceId));
+
+    const response = await http()
+      .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
+      .set('Cookie', cookie.ana)
+      .send({ fileName: 'replacement.jpg', mimeType: 'image/jpeg', sizeBytes: 4 })
+      .expect(201);
+
+    expect(response.body.evidenceId).not.toBe(body.evidenceId);
+    expect(storage.objects.has(expired!.storageKey)).toBe(false);
+    expect(
+      await testApp.db.select().from(evidence).where(eq(evidence.id, body.evidenceId)),
+    ).toEqual([]);
+  });
+
   it('does not list evidence for another customer incident', async () => {
     await http()
       .get(`/incidents/${ids.openIncident}/evidence`)

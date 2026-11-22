@@ -10,6 +10,10 @@ export class FakeStorageService implements StorageService {
   async createDownloadUrl(key: string): Promise<string> {
     return `https://storage.test/download/${key}`;
   }
+  async deleteObject(key: string): Promise<void> {
+    this.objects.delete(key);
+    this.prefixes.delete(key);
+  }
   async headObject(key: string): Promise<StorageObject | undefined> {
     return this.objects.get(key);
   }
