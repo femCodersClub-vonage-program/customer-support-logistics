@@ -60,6 +60,9 @@ services:
       AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_KEY:-dev_only_seaweedfs_secret}
       AWS_DEFAULT_REGION: ${STORAGE_REGION:-us-east-1}
       STORAGE_BUCKET: ${STORAGE_BUCKET:-evidence}
+      # Comma-separated browser origins allowed to use presigned evidence URLs.
+      # Add the HTTPS tunnel origin here when testing the PWA on a phone.
+      STORAGE_CORS_ALLOWED_ORIGINS: ${STORAGE_CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
     entrypoint: /bin/sh
     command:
       - -c
@@ -69,6 +72,24 @@ services:
         done
         aws --endpoint-url http://seaweedfs:8333 s3api head-bucket --bucket "$${STORAGE_BUCKET}" \
           || aws --endpoint-url http://seaweedfs:8333 s3api create-bucket --bucket "$${STORAGE_BUCKET}"
+        origins_json=''
+        old_ifs="$$IFS"
+        IFS=,
+        set -- $$STORAGE_CORS_ALLOWED_ORIGINS
+        IFS="$$old_ifs"
+        for origin; do
+          case "$$origin" in
+            http://*|https://*) ;;
+            *) echo "Invalid STORAGE_CORS_ALLOWED_ORIGINS entry: $$origin" >&2; exit 1 ;;
+          esac
+          if [ -n "$$origins_json" ]; then origins_json="$$origins_json,"; fi
+          origins_json="$$origins_json\"$$origin\""
+        done
+        test -n "$$origins_json"
+        aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-cors \
+          --bucket "$$STORAGE_BUCKET" \
+          --cors-configuration "{\"CORSRules\":[{\"ID\":\"pwa-presigned-evidence\",\"AllowedOrigins\":[$$origins_json],\"AllowedMethods\":[\"GET\",\"HEAD\",\"PUT\"],\"AllowedHeaders\":[\"*\"],\"ExposeHeaders\":[\"ETag\"],\"MaxAgeSeconds\":3600}]}"
+        aws --endpoint-url http://seaweedfs:8333 s3api get-bucket-cors --bucket "$$STORAGE_BUCKET"
 
 volumes:
   postgres-data:
