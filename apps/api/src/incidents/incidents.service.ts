@@ -283,6 +283,7 @@ export class IncidentsService {
 
       await tx.insert(incidentEvents).values({
         incidentId: incident.id,
+        kind: 'status_changed',
         fromStatus: null,
         toStatus: incident.status,
         actor: 'customer',

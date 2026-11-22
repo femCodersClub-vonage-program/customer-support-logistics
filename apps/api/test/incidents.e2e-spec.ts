@@ -65,6 +65,7 @@ describe('Incidents (e2e)', () => {
       });
       expect(await eventsOf(incident.id)).toEqual([
         expect.objectContaining({
+          kind: 'status_changed',
           fromStatus: null,
           toStatus: 'open',
           actor: 'customer',
