@@ -28,6 +28,10 @@ export class DisabledVonageService implements VonageService {
     throw this.reject('transferCall');
   }
 
+  async hangupCall(): Promise<void> {
+    throw this.reject('hangupCall');
+  }
+
   async startVerification(): Promise<StartedVerification> {
     throw this.reject('startVerification');
   }
