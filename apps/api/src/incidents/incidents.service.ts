@@ -14,6 +14,7 @@ import {
   routes,
 } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
+import { publishIncidentChange } from '../events/publish-incident-event.js';
 import { toOrder } from '../orders/orders.mapper.js';
 
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
@@ -125,6 +126,8 @@ export class IncidentsService {
         actorId: customerId,
         occurredAt: incident.createdAt,
       });
+
+      await publishIncidentChange(tx, 'incident.created', incident);
 
       return toIncident(incident);
     });

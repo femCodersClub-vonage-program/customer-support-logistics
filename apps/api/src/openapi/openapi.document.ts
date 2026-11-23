@@ -13,6 +13,7 @@ import {
   incidentDetailSchema,
   incidentIdParamsSchema,
   incidentSchema,
+  incidentStreamEventSchema,
   listIncidentsQuerySchema,
   listIncidentsResponseSchema,
   listOrdersResponseSchema,
@@ -28,6 +29,7 @@ import {
 } from '../auth/auth.controller.js';
 import { VERIFICATION_TTL_MS } from '../auth/pending-verifications.js';
 import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../auth/session-cookie.js';
+import { HEARTBEAT_INTERVAL_MS } from '../events/sse-messages.js';
 import { APP_VERSION } from '../version.js';
 import { CLIENT_TOKEN_TTL_SECONDS } from '../vonage/client-token.js';
 
@@ -181,6 +183,27 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           responses: {
             '200': json('The current user', currentUserSchema),
             '401': unauthorized,
+          },
+        },
+      },
+      '/events/stream': {
+        get: {
+          tags: ['events'],
+          summary: 'Server-Sent Events stream of incident changes for the CRM',
+          description: [
+            'Each event is an unnamed message with an `id` and a small JSON `data` that says which incident changed; the CRM fetches what it needs.',
+            `A \`: heartbeat\` comment is sent every ${HEARTBEAT_INTERVAL_MS / 1000} seconds so that proxies keep the connection open.`,
+            'Events are not replayed and `Last-Event-ID` is ignored: after reconnecting, fetch the data again.',
+            'The stream ends when the API stops listening to the database, so that the client reconnects and fetches again.',
+          ].join(' '),
+          responses: {
+            '200': {
+              description: 'The stream of incident changes',
+              content: { 'text/event-stream': { schema: incidentStreamEventSchema } },
+            },
+            '401': unauthorized,
+            '403': forbiddenFor('customers'),
+            '503': error('The API is not listening to incident changes right now; try again'),
           },
         },
       },
