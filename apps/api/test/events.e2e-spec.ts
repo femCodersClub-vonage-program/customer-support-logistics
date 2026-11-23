@@ -1,6 +1,10 @@
 import { get } from 'node:http';
 
-import { incidentSchema, incidentStreamEventSchema } from '@csl/contracts';
+import {
+  incidentSchema,
+  incidentStreamEventSchema,
+  startMediationResponseSchema,
+} from '@csl/contracts';
 import request from 'supertest';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -9,6 +13,8 @@ import { IncidentEventsListener } from '../src/events/incident-events.listener.j
 import { createTestApp, resetDatabase } from './fixtures/app.js';
 import { sessionCookieFor, sessionCookiesFor } from './fixtures/auth.js';
 import { actor, ids, seed } from './fixtures/seed.js';
+import { vonageFixture } from './fixtures/vonage/index.js';
+import { signVonageJwt } from './fixtures/vonage/sign.js';
 
 import type { TestApp } from './fixtures/app.js';
 import type { IncidentStreamEvent } from '@csl/shared-types';
@@ -239,6 +245,68 @@ describe('Events stream (e2e)', () => {
       .expect(200);
 
     expect((await stream.next()).data.incidentId).toBe(ids.openIncident);
+  });
+
+  it('sends the status change, the assignment and the call when a mediation starts', async () => {
+    const stream = await open();
+
+    const response = await http()
+      .post(`/incidents/${ids.notifiedIncident}/mediation`)
+      .set('Cookie', cookie.agentA)
+      .expect(201);
+    const { incident } = startMediationResponseSchema.parse(response.body);
+
+    const messages = [await stream.next(), await stream.next(), await stream.next()];
+
+    expect(messages.map(({ data }) => data)).toEqual([
+      {
+        type: 'incident.status_changed',
+        incidentId: ids.notifiedIncident,
+        status: 'in_mediation',
+        updatedAt: expect.any(String),
+      },
+      {
+        type: 'incident.assigned',
+        incidentId: ids.notifiedIncident,
+        status: 'in_mediation',
+        updatedAt: incident.updatedAt,
+      },
+      {
+        type: 'incident.communication_added',
+        incidentId: ids.notifiedIncident,
+        updatedAt: expect.any(String),
+      },
+    ]);
+  });
+
+  it('sends the new call and its status changes from the voice webhooks', async () => {
+    const stream = await open();
+    const signedVoiceEvent = (payload: unknown) => {
+      const body = JSON.stringify(payload);
+
+      return http()
+        .post('/webhooks/voice/event')
+        .set('Content-Type', 'application/json')
+        .set('Authorization', `Bearer ${signVonageJwt({ body })}`)
+        .send(body)
+        .expect(204);
+    };
+
+    await signedVoiceEvent(vonageFixture('voice-event-answered'));
+
+    expect((await stream.next()).data).toEqual({
+      type: 'incident.communication_added',
+      incidentId: ids.notifiedIncident,
+      updatedAt: expect.any(String),
+    });
+
+    await signedVoiceEvent(vonageFixture('voice-event-completed'));
+
+    expect((await stream.next()).data).toEqual({
+      type: 'incident.communication_updated',
+      incidentId: ids.notifiedIncident,
+      updatedAt: expect.any(String),
+    });
   });
 
   describe('when the API stops listening to the database', () => {
