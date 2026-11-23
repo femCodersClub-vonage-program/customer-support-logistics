@@ -18,6 +18,7 @@ function createClient() {
     voice: {
       createOutboundCall: vi.fn().mockResolvedValue({ uuid: 'call-1' }),
       transferCallWithNCCO: vi.fn().mockResolvedValue(undefined),
+      hangupCall: vi.fn().mockResolvedValue(undefined),
     },
     verify2: {
       newRequest: vi.fn().mockResolvedValue({ requestId: 'req-1' }),
@@ -114,6 +115,34 @@ describe('SdkVonageService', () => {
       await service.transferCall('call-1', NCCO);
 
       expect(client.voice.transferCallWithNCCO).toHaveBeenCalledWith('call-1', NCCO);
+    });
+  });
+
+  describe('hangupCall', () => {
+    it('hangs up the call', async () => {
+      const { client, service } = createService();
+
+      await service.hangupCall('call-1');
+
+      expect(client.voice.hangupCall).toHaveBeenCalledWith('call-1');
+    });
+
+    it('accepts a call that is already over (404)', async () => {
+      const { client, service } = createService();
+      client.voice.hangupCall.mockRejectedValue(httpError(404, { title: 'Call not found' }));
+
+      await expect(service.hangupCall('call-1')).resolves.toBeUndefined();
+    });
+
+    it('fails for any other error', async () => {
+      const { client, service } = createService();
+      client.voice.hangupCall.mockRejectedValue(httpError(401, { title: 'Unauthorized' }));
+
+      await expect(service.hangupCall('call-1')).rejects.toMatchObject({
+        name: 'VonageRequestError',
+        operation: 'hangupCall',
+        status: 401,
+      });
     });
   });
 

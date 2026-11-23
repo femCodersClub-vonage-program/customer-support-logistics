@@ -98,6 +98,7 @@ describe('DevVerifyVonageService', () => {
     await expect(service.sendSms()).rejects.toThrow(/"sendSms"/);
     await expect(service.createCall()).rejects.toThrow(/"createCall"/);
     await expect(service.transferCall()).rejects.toThrow(/"transferCall"/);
+    await expect(service.hangupCall()).rejects.toThrow(/"hangupCall"/);
     await expect(service.ensureUser()).rejects.toThrow(/"ensureUser"/);
     await expect(service.createClientToken()).rejects.toThrow(/"createClientToken"/);
   });
@@ -110,6 +111,7 @@ describe('DisabledVonageService', () => {
     await expect(service.sendSms()).rejects.toThrow(/Vonage is disabled, so "sendSms"/);
     await expect(service.createCall()).rejects.toThrow(/"createCall"/);
     await expect(service.transferCall()).rejects.toThrow(/"transferCall"/);
+    await expect(service.hangupCall()).rejects.toThrow(/"hangupCall"/);
     await expect(service.startVerification()).rejects.toThrow(/"startVerification"/);
     await expect(service.checkVerification()).rejects.toThrow(/"checkVerification"/);
     await expect(service.ensureUser()).rejects.toThrow(/"ensureUser"/);
