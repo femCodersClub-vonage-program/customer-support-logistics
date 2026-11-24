@@ -14,6 +14,12 @@ Any PostgreSQL 17 works. The easiest way is the one in the root `docker-compose.
 docker compose up -d postgres
 ```
 
+## Evidence upload lifecycle
+
+Evidence records are created as `pending` before the browser uploads directly with a presigned URL. A pending record that is older than `EVIDENCE_PENDING_TTL_SECONDS` (one hour by default) is removed, together with its object, when the customer requests another upload URL for that incident. This returns abandoned upload slots to the incident quota; ready evidence is never removed by this mechanism.
+
+Upload URLs are signed for the declared content length. Completion copies the uploaded object to a separate key, validates that copy and serves only the copy. Temporary keys use the `evidence-pending/` prefix. Local Compose installs a one-day expiration rule and starts the SeaweedFS administrator and lifecycle worker. Production storage must be configured separately with an equivalent lifecycle rule and an operational lifecycle worker. The pending TTL must exceed the signed URL lifetime by at least one minute and cannot exceed 12 hours, leaving a safety margin before storage lifecycle expiration. Lifecycle processing is asynchronous, so deletion is not immediate.
+
 ## Database
 
 The schema is defined with [Drizzle ORM](https://orm.drizzle.team) in `src/database/schema/`, and SQL migrations live in `drizzle/`. Why Drizzle, and the schema conventions, are in [ADR 0005](../../docs/adr/0005-orm-and-migrations.md).

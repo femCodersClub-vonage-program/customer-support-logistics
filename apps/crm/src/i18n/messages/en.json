@@ -70,6 +70,11 @@
   "incident": {
     "title": "Incident",
     "reference": "Incident {id}",
+    "evidence": {
+      "title": "Evidence",
+      "empty": "No evidence uploaded.",
+      "imageAlt": "Incident evidence"
+    },
     "status": {
       "open": "Open",
       "notified": "Notified",

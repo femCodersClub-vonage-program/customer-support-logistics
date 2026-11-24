@@ -10,6 +10,10 @@ pnpm --filter ./apps/client dev
 
 It runs at http://localhost:5173. Vite's dev server forwards `/api/*` to the API, so the browser sees the API on the same origin ([ADR 0008](../../docs/adr/0008-authentication-and-sessions.md)).
 
+Evidence uploads use a presigned URL directly against the S3-compatible storage service. `docker compose up seaweedfs seaweedfs-init` configures the `evidence` bucket to allow browser requests from `http://localhost:5173` and `http://127.0.0.1:5173`. When testing from a phone through an HTTPS tunnel, set `STORAGE_CORS_ALLOWED_ORIGINS` to the tunnel origin before starting the compose services.
+
+Adding the PWA origin to CORS is not enough for phone testing: `STORAGE_ENDPOINT` is also used to create signed URLs. Its default `http://localhost:8333` points to the phone itself and cannot be used from an HTTPS PWA. The uploader follow-up must provide a browser-reachable HTTPS signing endpoint (and configure the API to reach the storage service), then verify the complete flow on a phone.
+
 | Variable  | What it is                                                                                                            |
 | --------- | --------------------------------------------------------------------------------------------------------------------- |
 | `API_URL` | Where `/api/*` goes, in development and in the deployed container (`http://localhost:3000` by default in development) |
