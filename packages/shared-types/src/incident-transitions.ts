@@ -3,7 +3,7 @@ import type { IncidentStatus } from './incident.js';
 
 export const INCIDENT_TRANSITIONS: Readonly<Record<IncidentStatus, readonly IncidentStatus[]>> = {
   open: ['notified', 'escalated'],
-  notified: ['in_mediation', 'escalated'],
+  notified: ['in_mediation', 'resolved', 'escalated'],
   in_mediation: ['resolved', 'escalated'],
   escalated: ['resolved'],
   resolved: [],

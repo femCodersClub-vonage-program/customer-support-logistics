@@ -168,9 +168,8 @@
       "lastDriverReply": "Última respuesta del conductor",
       "noDriverReply": "Aún no ha respondido",
       "driverReply": {
-        "delivered": "Dice que lo entregó",
-        "address_not_found": "No encuentra la dirección",
-        "customer_not_home": "El cliente no está en casa",
+        "resolve_with_store": "Lo resuelve con la tienda",
+        "request_mediation": "Pide una llamada a tres",
         "accepted_call": "Aceptó la llamada"
       }
     },

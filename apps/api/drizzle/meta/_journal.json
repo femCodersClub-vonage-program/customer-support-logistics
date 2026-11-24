@@ -71,6 +71,13 @@
       "when": 1795555862852,
       "tag": "0009_communications_idempotency_pending",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795559351903,
+      "tag": "0010_driver_replied_event_kind",
+      "breakpoints": true
     }
   ]
 }

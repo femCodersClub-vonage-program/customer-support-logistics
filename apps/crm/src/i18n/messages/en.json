@@ -168,9 +168,8 @@
       "lastDriverReply": "Last driver reply",
       "noDriverReply": "No reply yet",
       "driverReply": {
-        "delivered": "Says it was delivered",
-        "address_not_found": "Can't find the address",
-        "customer_not_home": "Customer not home",
+        "resolve_with_store": "Solving it with the store",
+        "request_mediation": "Asks for a three-way call",
         "accepted_call": "Accepted the call"
       }
     },

@@ -38,7 +38,7 @@ SMS go through the **Messages API**, not the older SMS API: its webhooks are sig
 
 **Idempotency.** Each event is stored in `webhook_events` with a unique `(source, event_key)` before anything else, in the same transaction as its effects. A repeated event answers `2xx` and does nothing; a failed one rolls back, so Vonage's retry processes it again. The input webhook answers a repeated event with the same NCCO.
 
-**Speed.** The work is a few queries per event. The only slow step, sending the "please reply 1, 2 or 3" SMS, runs after the response (`BackgroundTasks`).
+**Speed.** The work is a few queries per event. The only slow step, sending the "please reply 1 or 2" SMS, runs after the response (`BackgroundTasks`).
 
 **Rate limit.** `WEBHOOK_RATE_LIMIT_PER_MINUTE` per client IP and route (see [cross-cutting concerns](README.md#cross-cutting-concerns)).
 
@@ -48,7 +48,15 @@ SMS go through the **Messages API**, not the older SMS API: its webhooks are sig
 
 ### Driver SMS replies
 
-The driver can reply to an incident SMS with a short option, for example `1` delivered, `2` can't find the address, `3` customer not home. The inbound SMS webhook finds the incident by the sender's number, records the reply as a `Communication` and, when relevant, changes the incident status. If the incident is `notified`, `1`, `2` or `3` move it to `in_mediation` with `actor: driver` and the option as reason (`delivered`, `address_not_found`, `customer_not_home`). Any other reply gets a short "please answer 1, 2 or 3" and changes nothing. Once the incident is in mediation, messages are only recorded.
+The driver replies to the incident SMS with one of the options of the [driver flow](../design/user-flows/driver.md): `1` resolves it with the store, `2` asks for a three-way mediation. The inbound SMS webhook finds the incident by the sender's number and records the reply as a `Communication`. If the incident is `notified`:
+
+| Reply | Reason               | Effect                                                                                                                                         |
+| ----- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `1`   | `resolve_with_store` | `IncidentEvent` with `kind: driver_replied` and `actor: driver`; the incident stays `notified` and the agent records the outcome (`resolved`). |
+| `2`   | `request_mediation`  | `IncidentEvent` with `kind: status_changed`: `notified` → `in_mediation`, `actor: driver`. The agent starts the call from there.               |
+| other | —                    | A short "please reply 1 or 2" SMS; nothing changes.                                                                                            |
+
+Once the incident is in mediation, messages are only recorded.
 
 If an SMS delivery receipt says the message wasn't delivered, the CRM alerts the agent.
 
@@ -240,8 +248,8 @@ In the [Vonage dashboard](https://dashboard.nexmo.com):
 
 With the tunnel and the application set up, a driver in the database whose phone you have, and an order on their route with an incident in `notified`:
 
-1. **SMS reply:** text `2` from the driver's phone to the virtual number. Expect `204` in the API logs, the incident in `in_mediation` and an `IncidentEvent` with `actor: driver` and reason `address_not_found`.
-2. **Invalid reply:** set another incident to `notified` and text `hola`. Expect the "please answer 1, 2 or 3" SMS on the driver's phone.
+1. **SMS reply:** text `2` from the driver's phone to the virtual number. Expect `204` in the API logs, the incident in `in_mediation` and an `IncidentEvent` with `actor: driver` and reason `request_mediation`. Text `1` for another `notified` incident: it stays `notified`, with a `driver_replied` event and reason `resolve_with_store`.
+2. **Invalid reply:** set another incident to `notified` and text `hola`. Expect the "please reply 1 or 2" SMS on the driver's phone.
 3. **Call and DTMF:** set another incident to `notified` and send `POST /incidents/<id>/mediation` as an agent, with the session cookie (see [logging in locally as an agent](../../apps/api/README.md#logging-in-locally-as-an-agent)), or start it from the CRM. Expect `201`, the incident in `in_mediation` and assigned to the agent, and a call to the driver's phone with the prompt in their language. Pressing `1` joins `inc-<id>`; another key plays the short message and hangs up. Then `POST /incidents/<id>/mediation/driver-call` calls again once the first call has ended.
 4. **Call back:** call the virtual number from the driver's phone while their incident is in mediation; the call joins `inc-<id>`.
 5. **Signature:** send a request with `curl` to any `/webhooks/*` route; expect `401`.

@@ -11,6 +11,7 @@ const VALID_TRANSITIONS: ReadonlyArray<[IncidentStatus, IncidentStatus]> = [
   ['open', 'notified'],
   ['open', 'escalated'],
   ['notified', 'in_mediation'],
+  ['notified', 'resolved'],
   ['notified', 'escalated'],
   ['in_mediation', 'resolved'],
   ['in_mediation', 'escalated'],

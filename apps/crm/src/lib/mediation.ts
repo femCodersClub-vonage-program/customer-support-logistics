@@ -1,5 +1,6 @@
 import { ApiError } from '@csl/api-client';
 import { apiErrorResponseSchema } from '@csl/contracts';
+import { DRIVER_REPLIES } from '@csl/shared-types';
 
 import type { ChangeIncidentStatusBody, IncidentDetail } from '@csl/contracts';
 import type { IncidentEvent } from '@csl/shared-types';
@@ -10,12 +11,7 @@ export type MediationOutcome = (typeof MEDIATION_OUTCOMES)[number];
 
 export const MEDIATION_NOTE_MAX_LENGTH = 900;
 
-export const DRIVER_REPLY_REASONS = [
-  'delivered',
-  'address_not_found',
-  'customer_not_home',
-  'accepted_call',
-] as const;
+export const DRIVER_REPLY_REASONS = [...Object.values(DRIVER_REPLIES), 'accepted_call'] as const;
 
 export type DriverReplyReason = (typeof DRIVER_REPLY_REASONS)[number];
 
