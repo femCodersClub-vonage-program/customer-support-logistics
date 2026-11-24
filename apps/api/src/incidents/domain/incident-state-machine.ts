@@ -57,6 +57,7 @@ export function transition(
     event: {
       id: deps.generateId(),
       incidentId: incident.id,
+      kind: 'status_changed',
       fromStatus: from,
       toStatus: to,
       actor,

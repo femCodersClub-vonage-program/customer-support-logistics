@@ -19,7 +19,8 @@ export const TRANSITION_ACTORS: Readonly<Record<IncidentStatus, readonly Actor[]
 
 export function allowedTransitions(from: IncidentStatus, actor?: Actor): readonly IncidentStatus[] {
   return INCIDENT_TRANSITIONS[from].filter(
-    (to) => actor === undefined || TRANSITION_ACTORS[to].includes(actor),
+    (to) =>
+      actor === undefined || TRANSITION_ACTORS[to].includes(actor),
   );
 }
 

@@ -3,6 +3,8 @@ import {
   COMMUNICATION_CHANNELS,
   COMMUNICATION_DIRECTIONS,
   COMMUNICATION_STATUSES,
+  EVIDENCE_STATUSES,
+  INCIDENT_EVENT_KINDS,
   INCIDENT_STATUSES,
   INCIDENT_TYPES,
   SUPPORTED_LOCALES,
@@ -12,13 +14,17 @@ import { z } from 'zod';
 import { isoDateTimeSchema, paginatedSchema, paginationQuerySchema, uuidSchema } from './common.js';
 import { orderSchema } from './orders.js';
 
-import type { Communication, Incident, IncidentEvent } from '@csl/shared-types';
+import type { Communication, Evidence, Incident, IncidentEvent } from '@csl/shared-types';
 
 export const incidentStatusSchema = z.enum(INCIDENT_STATUSES).meta({ id: 'IncidentStatus' });
 
 export const incidentTypeSchema = z.enum(INCIDENT_TYPES).meta({ id: 'IncidentType' });
 
 export const actorSchema = z.enum(ACTORS).meta({ id: 'Actor' });
+
+export const incidentEventKindSchema = z
+  .enum(INCIDENT_EVENT_KINDS)
+  .meta({ id: 'IncidentEventKind' });
 
 export const incidentSchema = z
   .object({
@@ -38,6 +44,7 @@ export const incidentEventSchema = z
   .object({
     id: uuidSchema,
     incidentId: uuidSchema,
+    kind: incidentEventKindSchema,
     fromStatus: incidentStatusSchema.nullable(),
     toStatus: incidentStatusSchema,
     actor: actorSchema,
@@ -55,12 +62,24 @@ export const communicationSchema = z
     direction: z.enum(COMMUNICATION_DIRECTIONS),
     fromNumber: z.string().nullable(),
     toNumber: z.string().nullable(),
-    vonageUuid: z.string(),
+    vonageUuid: z.string().nullable(),
     status: z.enum(COMMUNICATION_STATUSES),
     durationSeconds: z.number().int().min(0).nullable(),
+    createdAt: isoDateTimeSchema,
   })
   .meta({ id: 'Communication' }) satisfies z.ZodType<Communication>;
 
+export const evidenceSchema = z
+  .object({
+    id: uuidSchema,
+    incidentId: uuidSchema,
+    storageKey: z.string(),
+    mimeType: z.string(),
+    sizeBytes: z.number().int().nonnegative(),
+    status: z.enum(EVIDENCE_STATUSES),
+    createdAt: isoDateTimeSchema,
+  })
+  .meta({ id: 'Evidence' }) satisfies z.ZodType<Evidence>;
 export const incidentCustomerSchema = z
   .object({
     id: uuidSchema,
@@ -95,12 +114,22 @@ export const incidentDetailSchema = incidentSchema
     driver: incidentDriverSchema.nullable(),
     events: z.array(incidentEventSchema),
     communications: z.array(communicationSchema),
+    evidence: z.array(evidenceSchema),
   })
   .meta({ id: 'IncidentDetail' });
 
 export type IncidentDetail = z.infer<typeof incidentDetailSchema>;
 
 export const incidentIdParamsSchema = z.object({ id: uuidSchema });
+
+export const idempotencyKeyHeaderSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .refine((value) => value.trim().length > 0, {
+    message: 'Idempotency-Key must not be empty',
+  })
+  .meta({ id: 'IdempotencyKeyHeader' });
 
 export type IncidentIdParams = z.infer<typeof incidentIdParamsSchema>;
 
@@ -135,13 +164,39 @@ export const changeIncidentStatusBodySchema = z
 
 export type ChangeIncidentStatusBody = z.infer<typeof changeIncidentStatusBodySchema>;
 
-export const startMediationResponseSchema = z
-  .object({
-    incident: incidentSchema,
-    call: communicationSchema,
-  })
-  .meta({ id: 'StartMediationResponse' });
+export const evidenceIdParamsSchema = incidentIdParamsSchema.extend({ evidenceId: uuidSchema });
 
+export type EvidenceIdParams = z.infer<typeof evidenceIdParamsSchema>;
+
+export const requestEvidenceUploadBodySchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  mimeType: z.string().trim().min(1).max(127),
+  sizeBytes: z.number().int().positive(),
+});
+
+export type RequestEvidenceUploadBody = z.infer<typeof requestEvidenceUploadBodySchema>;
+
+export const evidenceUploadUrlSchema = z.object({
+  evidenceId: uuidSchema,
+  uploadUrl: z.url(),
+  expiresAt: isoDateTimeSchema,
+});
+
+export type EvidenceUploadUrl = z.infer<typeof evidenceUploadUrlSchema>;
+
+export const evidenceDownloadSchema = z.object({
+  id: uuidSchema,
+  mimeType: z.string(),
+  sizeBytes: z.number().int().positive(),
+  createdAt: isoDateTimeSchema,
+  downloadUrl: z.url(),
+});
+
+export type EvidenceDownload = z.infer<typeof evidenceDownloadSchema>;
+
+export const startMediationResponseSchema = z
+  .object({ incident: incidentSchema, call: communicationSchema })
+  .meta({ id: 'StartMediationResponse' });
 export type StartMediationResponse = z.infer<typeof startMediationResponseSchema>;
 
 export const UNASSIGNED_AGENT = 'unassigned';
@@ -185,11 +240,11 @@ export type ListIncidentsQuery = z.output<typeof listIncidentsQuerySchema>;
 export const incidentStatusCountsSchema = z
   .record(incidentStatusSchema, z.number().int().min(0))
   .meta({ id: 'IncidentStatusCounts' });
-
 export type IncidentStatusCounts = z.infer<typeof incidentStatusCountsSchema>;
-
 export const listIncidentsResponseSchema = paginatedSchema(incidentListItemSchema)
   .extend({ statusCounts: incidentStatusCountsSchema })
-  .meta({ id: 'ListIncidentsResponse' });
+  .meta({
+    id: 'ListIncidentsResponse',
+  });
 
 export type ListIncidentsResponse = z.infer<typeof listIncidentsResponseSchema>;

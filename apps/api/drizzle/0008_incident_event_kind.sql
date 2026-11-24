@@ -1,0 +1,2 @@
+CREATE TYPE "public"."incident_event_kind" AS ENUM('status_changed', 'evidence_uploaded', 'assigned', 'driver_notification_resent');--> statement-breakpoint
+ALTER TABLE "incident_events" ADD COLUMN "kind" "incident_event_kind" DEFAULT 'status_changed' NOT NULL;

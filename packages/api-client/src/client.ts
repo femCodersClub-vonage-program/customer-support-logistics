@@ -9,11 +9,14 @@ import type {
   CustomerLoginCheckBody,
   CustomerLoginStartBody,
   CustomerLoginStartResponse,
+  EvidenceDownload,
+  EvidenceUploadUrl,
   IncidentDetail,
   ListIncidentsQueryInput,
   ListIncidentsResponse,
   ListOrdersResponse,
   StartMediationResponse,
+  RequestEvidenceUploadBody,
 } from '@csl/contracts';
 import type { Communication, HealthResponse, Incident } from '@csl/shared-types';
 
@@ -42,9 +45,16 @@ export interface ApiClient {
     options?: RequestOptions,
   ): Promise<ListIncidentsResponse>;
   createIncident(body: CreateIncidentBody, options?: RequestOptions): Promise<Incident>;
-  getIncident(incidentId: string, options?: RequestOptions): Promise<IncidentDetail>;
+  getIncident(id: string, options?: RequestOptions): Promise<IncidentDetail>;
+  assignIncidentToMe(id: string, options?: RequestOptions): Promise<Incident>;
+  notifyDriver(id: string, options?: RequestOptions): Promise<Incident>;
+  notifyDriverAgain(
+    id: string,
+    idempotencyKey: string,
+    options?: RequestOptions,
+  ): Promise<Incident>;
   changeIncidentStatus(
-    incidentId: string,
+    id: string,
     body: ChangeIncidentStatusBody,
     options?: RequestOptions,
   ): Promise<Incident>;
@@ -60,6 +70,17 @@ export interface ApiClient {
   moveCustomerLoginToSms(options?: RequestOptions): Promise<void>;
   checkCustomerLogin(body: CustomerLoginCheckBody, options?: RequestOptions): Promise<CurrentUser>;
   logout(options?: RequestOptions): Promise<void>;
+  requestEvidenceUpload(
+    incidentId: string,
+    body: RequestEvidenceUploadBody,
+    options?: RequestOptions,
+  ): Promise<EvidenceUploadUrl>;
+  completeEvidenceUpload(
+    incidentId: string,
+    evidenceId: string,
+    options?: RequestOptions,
+  ): Promise<void>;
+  listEvidence(incidentId: string, options?: RequestOptions): Promise<EvidenceDownload[]>;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -149,13 +170,29 @@ export function createApiClient({
       }),
     createIncident: (body, { signal } = {}) =>
       request<Incident>('/incidents', postJson(body, signal)),
-    getIncident: (incidentId, { signal } = {}) =>
-      request<IncidentDetail>(`/incidents/${encodeURIComponent(incidentId)}`, {
+    getIncident: (id, { signal } = {}) =>
+      request<IncidentDetail>(`/incidents/${encodeURIComponent(id)}`, {
         method: 'GET',
         signal,
       }),
-    changeIncidentStatus: (incidentId, body, { signal } = {}) =>
-      request<Incident>(`/incidents/${encodeURIComponent(incidentId)}/status`, {
+    assignIncidentToMe: (id, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/assign-to-me`, {
+        method: 'POST',
+        signal,
+      }),
+    notifyDriver: (id, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/notify-driver`, {
+        method: 'POST',
+        signal,
+      }),
+    notifyDriverAgain: (id, idempotencyKey, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/notify-driver/again`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        signal,
+      }),
+    changeIncidentStatus: (id, body, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -184,5 +221,20 @@ export function createApiClient({
     checkCustomerLogin: (body, { signal } = {}) =>
       request<CurrentUser>('/auth/customer/check', postJson(body, signal)),
     logout: ({ signal } = {}) => request<void>('/auth/logout', { method: 'POST', signal }),
+    requestEvidenceUpload: (incidentId, body, { signal } = {}) =>
+      request<EvidenceUploadUrl>(
+        `/incidents/${encodeURIComponent(incidentId)}/evidence/upload-url`,
+        postJson(body, signal),
+      ),
+    completeEvidenceUpload: (incidentId, evidenceId, { signal } = {}) =>
+      request<void>(
+        `/incidents/${encodeURIComponent(incidentId)}/evidence/${encodeURIComponent(evidenceId)}/complete`,
+        { method: 'POST', signal },
+      ),
+    listEvidence: (incidentId, { signal } = {}) =>
+      request<EvidenceDownload[]>(`/incidents/${encodeURIComponent(incidentId)}/evidence`, {
+        method: 'GET',
+        signal,
+      }),
   };
 }

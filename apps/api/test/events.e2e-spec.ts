@@ -5,13 +5,17 @@ import {
   incidentStreamEventSchema,
   startMediationResponseSchema,
 } from '@csl/contracts';
+import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { evidence } from '../src/database/schema/index.js';
 import { IncidentEventsListener } from '../src/events/incident-events.listener.js';
+import { STORAGE_SERVICE } from '../src/storage/storage.service.js';
 
 import { createTestApp, resetDatabase } from './fixtures/app.js';
 import { sessionCookieFor, sessionCookiesFor } from './fixtures/auth.js';
+import { FakeStorageService } from './fixtures/fake-storage.service.js';
 import { actor, ids, seed } from './fixtures/seed.js';
 import { vonageFixture } from './fixtures/vonage/index.js';
 import { signVonageJwt } from './fixtures/vonage/sign.js';
@@ -131,6 +135,7 @@ describe('Events stream (e2e)', () => {
   let testApp: TestApp;
   let cookie: Record<keyof typeof actor, string>;
   const streams: OpenStream[] = [];
+  const storage = new FakeStorageService();
 
   const http = () => request(testApp.app.getHttpServer());
 
@@ -141,10 +146,14 @@ describe('Events stream (e2e)', () => {
   };
 
   beforeAll(async () => {
-    testApp = await createTestApp();
+    testApp = await createTestApp((builder) =>
+      builder.overrideProvider(STORAGE_SERVICE).useValue(storage),
+    );
   });
 
   beforeEach(async () => {
+    storage.objects.clear();
+    storage.prefixes.clear();
     await resetDatabase(testApp.db);
     await seed(testApp.db);
     cookie = await sessionCookiesFor(testApp, actor);
@@ -227,6 +236,28 @@ describe('Events stream (e2e)', () => {
       incidentId: incident.id,
       status: 'open',
       updatedAt: incident.updatedAt,
+    });
+  });
+
+  it('sends an evidence event after a customer completes an upload', async () => {
+    const stream = await open();
+    const { body } = await http()
+      .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
+      .set('Cookie', cookie.ana)
+      .send({ fileName: 'photo.jpg', mimeType: 'image/jpeg', sizeBytes: 4 })
+      .expect(201);
+    const [row] = await testApp.db.select().from(evidence).where(eq(evidence.id, body.evidenceId));
+    storage.objects.set(row!.storageKey, { contentType: 'image/jpeg', sizeBytes: 4 });
+    storage.prefixes.set(row!.storageKey, new Uint8Array([0xff, 0xd8, 0xff, 0xe0]));
+    await http()
+      .post(`/incidents/${ids.openIncident}/evidence/${body.evidenceId}/complete`)
+      .set('Cookie', cookie.ana)
+      .expect(201);
+    expect((await stream.next()).data).toEqual({
+      type: 'incident.evidence_added',
+      incidentId: ids.openIncident,
+      status: 'open',
+      updatedAt: expect.any(String),
     });
   });
 
