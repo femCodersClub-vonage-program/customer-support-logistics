@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 
-import type { Actor, Incident, IncidentEvent } from '@csl/shared-types';
+import type { Actor, Incident, IncidentEvent, IncidentEventKind } from '@csl/shared-types';
 
 export interface IncidentActivityCommand {
+  kind: Exclude<IncidentEventKind, 'status_changed'>;
   actor: Actor;
   actorId?: string;
   reason?: string;
@@ -23,11 +24,12 @@ export function createIncidentActivity(
   command: IncidentActivityCommand,
   deps: IncidentActivityDeps = defaultDeps,
 ): IncidentEvent {
-  const { actor, actorId = null, reason = null } = command;
+  const { kind, actor, actorId = null, reason = null } = command;
 
   return {
     id: deps.generateId(),
     incidentId: incident.id,
+    kind,
     fromStatus: incident.status,
     toStatus: incident.status,
     actor,

@@ -1,5 +1,5 @@
 {
-  "id": "d794e5a2-2539-46df-a8fc-0465e3a8855d",
+  "id": "488c2b94-1f62-4429-9771-33ee72184945",
   "prevId": "5240df73-cf9b-4c70-abcd-16956454d57d",
   "version": "7",
   "dialect": "postgresql",
@@ -127,13 +127,7 @@
           "name": "vonage_uuid",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "status": {
           "name": "status",
@@ -175,21 +169,6 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "communications_idempotency_key_unique": {
-          "name": "communications_idempotency_key_unique",
-          "columns": [
-            {
-              "expression": "idempotency_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -410,6 +389,14 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "evidence_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
         },
         "created_at": {
           "name": "created_at",
@@ -1179,11 +1166,18 @@
       "name": "communication_status",
       "schema": "public",
       "values": [
-        "pending",
         "queued",
         "in_progress",
         "completed",
         "failed"
+      ]
+    },
+    "public.evidence_status": {
+      "name": "evidence_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "ready"
       ]
     },
     "public.incident_status": {

@@ -78,13 +78,15 @@
       "order": "Order",
       "customer": "Customer",
       "driver": "Driver",
-      "evidence": "Evidence",
       "timeline": "Timeline"
     },
-    "emptyEvidence": "No evidence available",
-    "bytes": "bytes",
     "emptyTimeline": "No timeline events",
     "notAvailable": "Not available",
+    "evidence": {
+      "title": "Evidence",
+      "empty": "No evidence uploaded.",
+      "imageAlt": "Incident evidence"
+    },
     "status": {
       "open": "Open",
       "notified": "Notified",

@@ -1,8 +1,9 @@
-﻿import { ApiError } from '@csl/api-client';
+import { ApiError } from '@csl/api-client';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { ContactLanguage } from '../../../components/ContactLanguage';
+import { EvidenceGallery } from '../../../components/EvidenceGallery';
 import { IncidentActions } from '../../../components/IncidentActions';
 import { PhoneReveal } from '../../../components/PhoneReveal';
 import { StatusBadge } from '../../../components/StatusBadge';
@@ -31,7 +32,7 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
     throw error;
   }
 
-  const agentId = await currentAgentId();
+  const [agentId, evidence] = await Promise.all([currentAgentId(), serverApi.listEvidence(id)]);
 
   const timeline = [
     ...incident.events.map((event) => ({
@@ -102,26 +103,7 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
         {incident.driver ? <p>{incident.driver.name}</p> : <p>{t('notAvailable')}</p>}
       </section>
 
-      <section aria-labelledby="evidence-heading">
-        <h2 id="evidence-heading">{t('sections.evidence')}</h2>
-        {incident.evidence.length === 0 ? (
-          <p>{t('emptyEvidence')}</p>
-        ) : (
-          <ul>
-            {incident.evidence.map((item) => (
-              <li key={item.id}>
-                <p>{item.mimeType}</p>
-                <p>
-                  {item.sizeBytes} {t('bytes')}
-                </p>
-                <time dateTime={item.createdAt}>
-                  {new Date(item.createdAt).toLocaleString(locale)}
-                </time>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <EvidenceGallery evidence={evidence} />
 
       <section aria-labelledby="timeline-heading">
         <h2 id="timeline-heading">{t('sections.timeline')}</h2>

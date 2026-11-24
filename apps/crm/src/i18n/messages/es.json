@@ -78,13 +78,15 @@
       "order": "Pedido",
       "customer": "Cliente",
       "driver": "Repartidor",
-      "evidence": "Pruebas",
       "timeline": "Línea temporal"
     },
-    "emptyEvidence": "No hay pruebas disponibles",
-    "bytes": "bytes",
     "emptyTimeline": "No hay eventos en la línea temporal",
     "notAvailable": "No disponible",
+    "evidence": {
+      "title": "Evidencias",
+      "empty": "No se han adjuntado evidencias.",
+      "imageAlt": "Evidencia de la incidencia"
+    },
     "status": {
       "open": "Abierta",
       "notified": "Notificada",

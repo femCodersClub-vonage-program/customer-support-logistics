@@ -9,10 +9,13 @@ import type {
   CustomerLoginCheckBody,
   CustomerLoginStartBody,
   CustomerLoginStartResponse,
+  EvidenceDownload,
+  EvidenceUploadUrl,
   IncidentDetail,
   ListIncidentsQueryInput,
   ListIncidentsResponse,
   StartMediationResponse,
+  RequestEvidenceUploadBody,
 } from '@csl/contracts';
 import type { Communication, HealthResponse, Incident } from '@csl/shared-types';
 
@@ -65,6 +68,17 @@ export interface ApiClient {
   moveCustomerLoginToSms(options?: RequestOptions): Promise<void>;
   checkCustomerLogin(body: CustomerLoginCheckBody, options?: RequestOptions): Promise<CurrentUser>;
   logout(options?: RequestOptions): Promise<void>;
+  requestEvidenceUpload(
+    incidentId: string,
+    body: RequestEvidenceUploadBody,
+    options?: RequestOptions,
+  ): Promise<EvidenceUploadUrl>;
+  completeEvidenceUpload(
+    incidentId: string,
+    evidenceId: string,
+    options?: RequestOptions,
+  ): Promise<void>;
+  listEvidence(incidentId: string, options?: RequestOptions): Promise<EvidenceDownload[]>;
 }
 
 async function parseBody(response: Response): Promise<unknown> {
@@ -200,5 +214,20 @@ export function createApiClient({
     checkCustomerLogin: (body, { signal } = {}) =>
       request<CurrentUser>('/auth/customer/check', postJson(body, signal)),
     logout: ({ signal } = {}) => request<void>('/auth/logout', { method: 'POST', signal }),
+    requestEvidenceUpload: (incidentId, body, { signal } = {}) =>
+      request<EvidenceUploadUrl>(
+        `/incidents/${encodeURIComponent(incidentId)}/evidence/upload-url`,
+        postJson(body, signal),
+      ),
+    completeEvidenceUpload: (incidentId, evidenceId, { signal } = {}) =>
+      request<void>(
+        `/incidents/${encodeURIComponent(incidentId)}/evidence/${encodeURIComponent(evidenceId)}/complete`,
+        { method: 'POST', signal },
+      ),
+    listEvidence: (incidentId, { signal } = {}) =>
+      request<EvidenceDownload[]>(`/incidents/${encodeURIComponent(incidentId)}/evidence`, {
+        method: 'GET',
+        signal,
+      }),
   };
 }

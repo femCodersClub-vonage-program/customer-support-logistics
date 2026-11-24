@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 
 import { incidentEvents, incidents } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
+import { publishIncidentChange } from '../events/publish-incident-event.js';
 
 import { createIncidentActivity } from './domain/incident-activity.js';
 import { transition } from './domain/incident-state-machine.js';
@@ -34,6 +35,7 @@ export async function persistTransition(
   await tx.insert(incidentEvents).values({
     id: event.id,
     incidentId: event.incidentId,
+    kind: event.kind,
     fromStatus: event.fromStatus,
     toStatus: event.toStatus,
     actor: event.actor,
@@ -41,6 +43,8 @@ export async function persistTransition(
     reason: event.reason,
     occurredAt: new Date(event.occurredAt),
   });
+
+  await publishIncidentChange(tx, 'incident.status_changed', updated);
 
   return updated;
 }
@@ -64,6 +68,7 @@ export async function persistIncidentActivity(
   await tx.insert(incidentEvents).values({
     id: event.id,
     incidentId: event.incidentId,
+    kind: event.kind,
     fromStatus: event.fromStatus,
     toStatus: event.toStatus,
     actor: event.actor,

@@ -6,9 +6,11 @@ import { AuthModule } from './auth/auth.module.js';
 import { ApiExceptionFilter } from './common/errors/api-exception.filter.js';
 import { validateEnv } from './config/env.schema.js';
 import { DatabaseModule } from './database/database.module.js';
+import { EventsModule } from './events/events.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IncidentsModule } from './incidents/incidents.module.js';
 import { OrdersModule } from './orders/orders.module.js';
+import { StorageModule } from './storage/storage.module.js';
 import { VonageModule } from './vonage/vonage.module.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
 
@@ -21,9 +23,11 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     }),
     AuthModule,
     DatabaseModule,
+    EventsModule,
     HealthModule,
     IncidentsModule,
     OrdersModule,
+    StorageModule,
     VonageModule,
     WebhooksModule,
   ],

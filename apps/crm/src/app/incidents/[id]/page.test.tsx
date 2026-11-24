@@ -58,6 +58,7 @@ const incident: IncidentDetail = {
     {
       id: '55555555-5555-4555-8555-555555555555',
       incidentId,
+      kind: 'status_changed',
       fromStatus: null,
       toStatus: 'open',
       actor: 'system',
@@ -115,6 +116,7 @@ describe('IncidentPage', () => {
 
         return HttpResponse.json(incident);
       }),
+      http.get('http://localhost:3000/incidents/:id/evidence', () => HttpResponse.json([])),
       http.get('http://localhost:3000/auth/me', () =>
         HttpResponse.json({
           role: 'agent',

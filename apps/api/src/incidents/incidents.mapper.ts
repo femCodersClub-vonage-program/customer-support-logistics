@@ -45,6 +45,7 @@ export function toIncidentEvent(row: IncidentEventRow): IncidentEvent {
   return {
     id: row.id,
     incidentId: row.incidentId,
+    kind: row.kind,
     fromStatus: row.fromStatus,
     toStatus: row.toStatus,
     actor: row.actor,
@@ -76,6 +77,7 @@ export function toEvidence(row: EvidenceRow): Evidence {
     storageKey: row.storageKey,
     mimeType: row.mimeType,
     sizeBytes: row.sizeBytes,
+    status: row.status,
     createdAt: row.createdAt.toISOString(),
   };
 }

@@ -7,6 +7,7 @@ export function buildEvent(overrides: Partial<IncidentEvent> = {}): IncidentEven
   return {
     id: '1a2b3c4d-0000-4000-8000-000000000001',
     incidentId: INCIDENT_ID,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'notified',
     actor: 'system',

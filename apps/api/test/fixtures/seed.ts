@@ -139,6 +139,7 @@ export async function seed(db: Database): Promise<void> {
   await db.insert(incidentEvents).values([
     {
       incidentId: ids.mediationIncident,
+      kind: 'status_changed',
       fromStatus: 'notified',
       toStatus: 'in_mediation',
       actor: 'agent',
@@ -148,6 +149,7 @@ export async function seed(db: Database): Promise<void> {
     },
     {
       incidentId: ids.mediationIncident,
+      kind: 'status_changed',
       fromStatus: null,
       toStatus: 'open',
       actor: 'customer',
@@ -156,6 +158,7 @@ export async function seed(db: Database): Promise<void> {
     },
     {
       incidentId: ids.mediationIncident,
+      kind: 'status_changed',
       fromStatus: 'open',
       toStatus: 'notified',
       actor: 'system',
