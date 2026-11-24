@@ -8,7 +8,7 @@ import { SessionProvider } from '../auth/session.tsx';
 import { renderWithIntl } from './render.tsx';
 
 import type { CurrentUser } from '@csl/contracts';
-import type { Locale } from '@csl/shared-types';
+import type { Locale, Order } from '@csl/shared-types';
 
 export const CUSTOMER: CurrentUser = {
   role: 'customer',
@@ -25,6 +25,9 @@ export const sessionOf = (user: CurrentUser | null) =>
   http.get(apiUrl('/auth/me'), () =>
     user === null ? apiError(401, 'UNAUTHORIZED') : HttpResponse.json(user),
   );
+
+export const ordersOf = (orders: Order[] = []) =>
+  http.get(apiUrl('/orders'), () => HttpResponse.json({ items: orders }));
 
 export function renderApp(path: string, locale: Locale = 'en') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
