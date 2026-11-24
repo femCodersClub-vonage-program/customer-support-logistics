@@ -4,12 +4,12 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RESEND_AFTER_SECONDS } from '../auth/CodeStep.tsx';
-import { CUSTOMER, apiError, apiUrl, renderApp, sessionOf } from '../test/app.tsx';
+import { CUSTOMER, apiError, apiUrl, ordersOf, renderApp, sessionOf } from '../test/app.tsx';
 
 const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
 const REPORT_PATH = `/report/${ORDER_ID}`;
 
-const server = setupServer();
+const server = setupServer(ordersOf());
 
 let startBodies: unknown[] = [];
 

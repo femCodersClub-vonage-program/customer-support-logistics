@@ -14,6 +14,7 @@ import type {
   IncidentDetail,
   ListIncidentsQueryInput,
   ListIncidentsResponse,
+  ListOrdersResponse,
   StartMediationResponse,
   RequestEvidenceUploadBody,
 } from '@csl/contracts';
@@ -38,6 +39,7 @@ export interface RequestOptions {
 
 export interface ApiClient {
   getHealth(options?: RequestOptions): Promise<HealthResponse>;
+  listOrders(options?: RequestOptions): Promise<ListOrdersResponse>;
   listIncidents(
     query?: ListIncidentsQueryInput,
     options?: RequestOptions,
@@ -156,6 +158,11 @@ export function createApiClient({
 
   return {
     getHealth: ({ signal } = {}) => request<HealthResponse>('/health', { method: 'GET', signal }),
+    listOrders: ({ signal } = {}) =>
+      request<ListOrdersResponse>('/orders', {
+        method: 'GET',
+        signal,
+      }),
     listIncidents: (query = {}, { signal } = {}) =>
       request<ListIncidentsResponse>(`/incidents${toQueryString(query)}`, {
         method: 'GET',

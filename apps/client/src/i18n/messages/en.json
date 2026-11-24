@@ -4,8 +4,21 @@
   },
   "orders": {
     "title": "My orders",
+    "reportProblem": "Report a problem",
+    "viewIncident": "View my incident",
     "empty": "You have no orders yet.",
-    "logOut": "Log out"
+    "order": "Order {id}",
+    "address": "Address",
+    "loading": "Loading your orders...",
+    "error": "We couldn't load your orders. Please try again.",
+    "retry": "Try again",
+    "logOut": "Log out",
+    "statuses": {
+      "pending": "Pending",
+      "in_transit": "On the way",
+      "delivered": "Delivered",
+      "failed": "Not delivered"
+    }
   },
   "login": {
     "title": "Log in",
@@ -57,6 +70,14 @@
   "incident": {
     "title": "Incident",
     "reference": "Incident {id}",
+    "order": "Order",
+    "typeLabel": "Incident type",
+    "status": "Current status",
+    "description": "Description",
+    "resolution": "Resolution",
+    "timeline": "Incident timeline",
+    "createdAt": "Opening date",
+    "closedAt": "Closing date",
     "type": {
       "not_delivered": "Not delivered",
       "delayed": "Delayed",
