@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
@@ -12,6 +13,8 @@ import { OfflineBanner } from './pwa/OfflineBanner.tsx';
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx';
 import '@csl/design-tokens';
 
+const queryClient = new QueryClient();
+
 const container = document.getElementById('root');
 
 if (!container) {
@@ -22,17 +25,19 @@ listenForInstallPrompt();
 
 createRoot(container).render(
   <StrictMode>
-    <LocaleProvider>
-      <InterruptionsProvider>
-        <OfflineBanner />
-        <LocaleSwitcher />
-        <BrowserRouter>
-          <SessionProvider>
-            <App />
-          </SessionProvider>
-        </BrowserRouter>
-        <UpdatePrompt />
-      </InterruptionsProvider>
-    </LocaleProvider>
+    <QueryClientProvider client={queryClient}>
+      <LocaleProvider>
+        <InterruptionsProvider>
+          <OfflineBanner />
+          <LocaleSwitcher />
+          <BrowserRouter>
+            <SessionProvider>
+              <App />
+            </SessionProvider>
+          </BrowserRouter>
+          <UpdatePrompt />
+        </InterruptionsProvider>
+      </LocaleProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );
