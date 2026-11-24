@@ -1,0 +1,1 @@
+ALTER TYPE "public"."incident_event_kind" ADD VALUE 'driver_replied';

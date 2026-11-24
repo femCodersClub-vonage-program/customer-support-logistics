@@ -66,6 +66,17 @@ const incident: IncidentDetail = {
       reason: 'Incident created',
       occurredAt: '2026-11-15T10:00:00.000Z',
     },
+    {
+      id: '66666666-6666-4666-8666-666666666666',
+      incidentId,
+      kind: 'driver_replied',
+      fromStatus: 'notified',
+      toStatus: 'notified',
+      actor: 'driver',
+      actorId: null,
+      reason: 'resolve_with_store',
+      occurredAt: '2026-11-15T10:05:00.000Z',
+    },
   ],
   communications: [],
   evidence: [],
@@ -137,6 +148,7 @@ describe('IncidentPage', () => {
     expect(getByText('Test Customer')).toBeTruthy();
     expect(getByText('Main Street 10')).toBeTruthy();
     expect(getByText(/Incident created/)).toBeTruthy();
+    expect(getByText(/driverReply\.resolve_with_store/)).toBeTruthy();
     expect(requestCookie).toBe('csl_session=test-session');
   });
 });

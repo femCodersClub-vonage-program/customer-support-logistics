@@ -1,7 +1,6 @@
 export const DRIVER_REPLIES = {
-  '1': 'delivered',
-  '2': 'address_not_found',
-  '3': 'customer_not_home',
+  '1': 'resolve_with_store',
+  '2': 'request_mediation',
 } as const;
 
 export type DriverReplyOption = keyof typeof DRIVER_REPLIES;

@@ -115,6 +115,23 @@ describe('IncidentActions', () => {
 
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeEnabled();
   });
+
+  it('resolves a notified incident after the driver solves it with the store', async () => {
+    renderWithIntl(<IncidentActions {...defaultProps} status="notified" agentId="agent-123" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve incident' }));
+    fireEvent.change(screen.getByLabelText('Resolution note'), {
+      target: { value: 'Delivered with the store' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }));
+
+    await waitFor(() => {
+      expect(api.changeIncidentStatus).toHaveBeenCalledWith('incident-123', {
+        status: 'resolved',
+        reason: 'Delivered with the store',
+      });
+    });
+  });
 });
 
 describe('IncidentActions additional coverage', () => {

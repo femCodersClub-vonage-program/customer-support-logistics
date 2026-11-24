@@ -168,7 +168,7 @@ export function IncidentActions({
         </button>
       )}
 
-      {(status === 'in_mediation' || status === 'escalated') && (
+      {(status === 'notified' || status === 'in_mediation' || status === 'escalated') && (
         <button type="button" onClick={() => setPendingAction('resolve')} disabled={loading}>
           {t('resolve')}
         </button>

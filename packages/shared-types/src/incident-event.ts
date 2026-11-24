@@ -9,6 +9,7 @@ export const INCIDENT_EVENT_KINDS = [
   'evidence_uploaded',
   'assigned',
   'driver_notification_resent',
+  'driver_replied',
 ] as const;
 
 export type IncidentEventKind = (typeof INCIDENT_EVENT_KINDS)[number];

@@ -168,7 +168,7 @@ const seededIncidents: IncidentRow[] = [
     agentId: null,
     resolution: null,
     createdAt: at(2, '16:00'),
-    updatedAt: at(2, '16:01'),
+    updatedAt: at(2, '16:05'),
     closedAt: null,
   },
   {
@@ -272,6 +272,17 @@ const seededIncidentEvents: IncidentEventRow[] = [
     actorId: null,
     reason: null,
     occurredAt: at(2, '16:01'),
+  },
+  {
+    id: seedId(0x218),
+    incidentId: ids.notifiedIncident,
+    kind: 'driver_replied',
+    fromStatus: 'notified',
+    toStatus: 'notified',
+    actor: 'driver',
+    actorId: ids.driver,
+    reason: 'resolve_with_store',
+    occurredAt: at(2, '16:05'),
   },
   {
     id: seedId(0x204),
@@ -505,6 +516,16 @@ const seededCommunications: CommunicationRow[] = [
     status: 'completed',
     durationSeconds: null,
     createdAt: at(2, '16:01'),
+  },
+  {
+    id: seedId(0x307),
+    incidentId: ids.notifiedIncident,
+    channel: 'sms',
+    direction: 'inbound',
+    vonageUuid: seedId(0x407),
+    status: 'completed',
+    durationSeconds: null,
+    createdAt: at(2, '16:05'),
   },
   {
     id: seedId(0x302),

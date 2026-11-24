@@ -8,6 +8,7 @@ import { IncidentActions } from '../../../components/IncidentActions';
 import { PhoneReveal } from '../../../components/PhoneReveal';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { currentAgentId, serverApi } from '../../../lib/api.server';
+import { isDriverReplyReason } from '../../../lib/mediation';
 
 import type { Incident } from '@csl/shared-types';
 
@@ -19,6 +20,7 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
   const { id } = await params;
   const locale = await getLocale();
   const t = await getTranslations('incident');
+  const tSummary = await getTranslations('mediation.summary');
 
   let incident;
 
@@ -41,7 +43,10 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
       kind: 'event' as const,
       actor: event.actor,
       actorId: event.actorId,
-      description: event.reason ?? `${event.fromStatus ?? t('notAvailable')} → ${event.toStatus}`,
+      description:
+        event.actor === 'driver' && isDriverReplyReason(event.reason)
+          ? tSummary(`driverReply.${event.reason}`)
+          : (event.reason ?? `${event.fromStatus ?? t('notAvailable')} → ${event.toStatus}`),
     })),
     ...incident.communications.map((communication) => ({
       id: communication.id,

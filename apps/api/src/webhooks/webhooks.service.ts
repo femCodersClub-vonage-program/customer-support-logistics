@@ -17,7 +17,7 @@ import {
 import { singleRow } from '../database/single-row.js';
 import { publishCommunicationChange } from '../events/publish-incident-event.js';
 import { invalidReplySms } from '../i18n/sms-templates.js';
-import { persistTransition } from '../incidents/persist-transition.js';
+import { persistIncidentActivity, persistTransition } from '../incidents/persist-transition.js';
 import {
   buildDriverPromptNcco,
   buildInvalidKeyNcco,
@@ -137,12 +137,23 @@ export class WebhooksService {
         };
       }
 
-      await persistTransition(tx, context.incident, {
-        to: 'in_mediation',
-        actor: 'driver',
-        actorId: context.driver.id,
-        reason: DRIVER_REPLIES[option],
-      });
+      const reply = DRIVER_REPLIES[option];
+
+      if (reply === 'request_mediation') {
+        await persistTransition(tx, context.incident, {
+          to: 'in_mediation',
+          actor: 'driver',
+          actorId: context.driver.id,
+          reason: reply,
+        });
+      } else {
+        await persistIncidentActivity(tx, context.incident, {
+          kind: 'driver_replied',
+          actor: 'driver',
+          actorId: context.driver.id,
+          reason: reply,
+        });
+      }
 
       return null;
     });

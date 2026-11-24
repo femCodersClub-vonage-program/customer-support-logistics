@@ -119,7 +119,7 @@ describe('Webhooks (e2e)', () => {
 
     it('rejects a body changed after signing', async () => {
       const signed = JSON.stringify(vonageFixture('messages-inbound-sms'));
-      const forged = JSON.stringify(vonageFixture('messages-inbound-sms', { text: '3' }));
+      const forged = JSON.stringify(vonageFixture('messages-inbound-sms', { text: '2' }));
 
       await http()
         .post('/webhooks/sms/inbound')
@@ -141,19 +141,21 @@ describe('Webhooks (e2e)', () => {
   });
 
   describe('POST /webhooks/sms/inbound', () => {
-    it('moves the driver’s notified incident to in_mediation and records the reply', async () => {
-      const payload = vonageFixture('messages-inbound-sms');
+    it('records option 1 as a driver reply and keeps the incident notified', async () => {
+      const payload = vonageFixture('messages-inbound-sms', { text: '1' });
 
       await signedPost('/webhooks/sms/inbound', payload).expect(204);
+      await testApp.app.get(BackgroundTasks).whenIdle();
 
-      expect(await statusOf(ids.notifiedIncident)).toBe('in_mediation');
+      expect(await statusOf(ids.notifiedIncident)).toBe('notified');
       expect(await eventsOf(ids.notifiedIncident)).toEqual([
         expect.objectContaining({
+          kind: 'driver_replied',
           fromStatus: 'notified',
-          toStatus: 'in_mediation',
+          toStatus: 'notified',
           actor: 'driver',
           actorId: ids.driver,
-          reason: 'delivered',
+          reason: 'resolve_with_store',
         }),
       ]);
       expect(await communicationsWith(payload.message_uuid as string)).toEqual([
@@ -166,19 +168,45 @@ describe('Webhooks (e2e)', () => {
           status: 'completed',
         }),
       ]);
+      expect(testApp.vonage.callsTo('sendSms')).toEqual([]);
     });
 
-    it.each([
-      ['2', 'address_not_found'],
-      ['3', 'customer_not_home'],
-    ])('records option %s as %s', async (text, reason) => {
+    it('moves the incident to in_mediation when the driver replies 2', async () => {
       await signedPost(
         '/webhooks/sms/inbound',
-        vonageFixture('messages-inbound-sms', { text }),
+        vonageFixture('messages-inbound-sms', { text: '2' }),
       ).expect(204);
 
+      expect(await statusOf(ids.notifiedIncident)).toBe('in_mediation');
       expect(await eventsOf(ids.notifiedIncident)).toEqual([
-        expect.objectContaining({ toStatus: 'in_mediation', actor: 'driver', reason }),
+        expect.objectContaining({
+          kind: 'status_changed',
+          fromStatus: 'notified',
+          toStatus: 'in_mediation',
+          actor: 'driver',
+          actorId: ids.driver,
+          reason: 'request_mediation',
+        }),
+      ]);
+    });
+
+    it('moves to in_mediation when the driver replies 2 after 1', async () => {
+      await signedPost(
+        '/webhooks/sms/inbound',
+        vonageFixture('messages-inbound-sms', { text: '1' }),
+      ).expect(204);
+      await signedPost(
+        '/webhooks/sms/inbound',
+        vonageFixture('messages-inbound-sms', {
+          text: '2',
+          message_uuid: 'aaaaaaaa-bbbb-4ccc-8ddd-000000000099',
+        }),
+      ).expect(204);
+
+      expect(await statusOf(ids.notifiedIncident)).toBe('in_mediation');
+      expect(await eventsOf(ids.notifiedIncident)).toEqual([
+        expect.objectContaining({ kind: 'driver_replied', reason: 'resolve_with_store' }),
+        expect.objectContaining({ kind: 'status_changed', reason: 'request_mediation' }),
       ]);
     });
 
@@ -193,17 +221,17 @@ describe('Webhooks (e2e)', () => {
       expect(await eventsOf(ids.notifiedIncident)).toHaveLength(1);
     });
 
-    it('answers an invalid reply with a short SMS and changes nothing', async () => {
+    it.each(['hola', '3'])('answers %s with a short SMS and changes nothing', async (text) => {
       await signedPost(
         '/webhooks/sms/inbound',
-        vonageFixture('messages-inbound-sms', { text: 'hola' }),
+        vonageFixture('messages-inbound-sms', { text }),
       ).expect(204);
       await testApp.app.get(BackgroundTasks).whenIdle();
 
       expect(await statusOf(ids.notifiedIncident)).toBe('notified');
       expect(await eventsOf(ids.notifiedIncident)).toEqual([]);
       expect(testApp.vonage.callsTo('sendSms')).toEqual([
-        { operation: 'sendSms', to: DRIVER_PHONE, text: 'CSL: responde 1, 2 o 3.' },
+        { operation: 'sendSms', to: DRIVER_PHONE, text: 'CSL: responde 1 o 2.' },
       ]);
       expect(await communicationsWith('fake-sms-1')).toEqual([
         expect.objectContaining({

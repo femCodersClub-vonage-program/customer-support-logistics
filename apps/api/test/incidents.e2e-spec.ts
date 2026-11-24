@@ -705,6 +705,27 @@ describe('Incidents (e2e)', () => {
       expect(incident.closedAt).toBe(event?.occurredAt.toISOString());
     });
 
+    it('lets the agent resolve a notified incident after the driver solves it with the store', async () => {
+      const response = await patch(ids.notifiedIncident, {
+        status: 'resolved',
+        reason: 'Driver delivered it with the store',
+      }).expect(200);
+
+      expect(incidentSchema.parse(response.body)).toMatchObject({
+        status: 'resolved',
+        resolution: 'Driver delivered it with the store',
+      });
+      expect(await eventsOf(ids.notifiedIncident)).toEqual([
+        expect.objectContaining({
+          kind: 'status_changed',
+          fromStatus: 'notified',
+          toStatus: 'resolved',
+          actor: 'agent',
+          actorId: ids.agentA,
+        }),
+      ]);
+    });
+
     it('returns 409 for a transition the state machine does not allow, and changes nothing', async () => {
       const response = await patch(ids.resolvedIncident, { status: 'escalated' }).expect(409);
 
