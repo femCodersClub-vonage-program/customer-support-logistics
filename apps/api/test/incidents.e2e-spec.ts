@@ -8,7 +8,8 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { incidentEvents, incidents } from '../src/database/schema/index.js';
+import { communications, incidentEvents, incidents } from '../src/database/schema/index.js';
+import { VonageRequestError } from '../src/vonage/vonage.errors.js';
 
 import { createTestApp, resetDatabase, waitForLockWait } from './fixtures/app.js';
 import { sessionCookiesFor } from './fixtures/auth.js';
@@ -35,6 +36,7 @@ describe('Incidents (e2e)', () => {
   });
 
   beforeEach(async () => {
+    testApp.vonage.reset();
     await resetDatabase(testApp.db);
     await seed(testApp.db);
     cookie = await sessionCookiesFor(testApp, actor);
@@ -465,6 +467,201 @@ describe('Incidents (e2e)', () => {
     });
   });
 
+  describe('POST /incidents/:id/assign-to-me', () => {
+    const assign = (id: string, who: string = cookie.agentA) =>
+      http().post(`/incidents/${id}/assign-to-me`).set('Cookie', who);
+
+    it('assigns the incident to the current agent and records an event', async () => {
+      const response = await assign(ids.openIncident).expect(201);
+
+      expect(incidentSchema.parse(response.body).agentId).toBe(ids.agentA);
+
+      const [updated] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.openIncident));
+
+      expect(updated).toMatchObject({
+        agentId: ids.agentA,
+        status: 'open',
+      });
+
+      expect(await eventsOf(ids.openIncident)).toContainEqual(
+        expect.objectContaining({
+          fromStatus: 'open',
+          toStatus: 'open',
+          actor: 'agent',
+          actorId: ids.agentA,
+          reason: 'Incident assigned to agent',
+        }),
+      );
+    });
+
+    it('rejects assigning an incident owned by another agent', async () => {
+      const eventsBefore = await eventsOf(ids.escalatedIncident);
+
+      const response = await assign(ids.escalatedIncident).expect(409);
+
+      expectError(response.body, 'CONFLICT');
+
+      const [unchanged] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.escalatedIncident));
+
+      expect(unchanged?.agentId).toBe(ids.agentB);
+      expect(await eventsOf(ids.escalatedIncident)).toEqual(eventsBefore);
+    });
+
+    it('rejects assigning a resolved incident', async () => {
+      const eventsBefore = await eventsOf(ids.resolvedIncident);
+
+      const response = await assign(ids.resolvedIncident).expect(409);
+
+      expectError(response.body, 'CONFLICT');
+
+      const [unchanged] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.resolvedIncident));
+
+      expect(unchanged?.agentId).toBe(ids.agentA);
+      expect(unchanged?.status).toBe('resolved');
+      expect(await eventsOf(ids.resolvedIncident)).toEqual(eventsBefore);
+    });
+
+    it('does not duplicate the assignment event when assigned again by the same agent', async () => {
+      await assign(ids.openIncident).expect(201);
+      const eventsAfterFirstAssignment = await eventsOf(ids.openIncident);
+
+      await assign(ids.openIncident).expect(201);
+
+      expect(await eventsOf(ids.openIncident)).toEqual(eventsAfterFirstAssignment);
+    });
+
+    it('rejects customers', async () => {
+      await assign(ids.openIncident, cookie.ana).expect(403);
+    });
+
+    it('returns 404 for a missing incident', async () => {
+      await assign(ids.missing).expect(404);
+    });
+  });
+
+  describe('POST /incidents/:id/notify-driver', () => {
+    const notify = (id: string, who: string = cookie.agentA) =>
+      http().post(`/incidents/${id}/notify-driver`).set('Cookie', who);
+
+    it('sends a localized SMS, records the communication and transitions to notified', async () => {
+      const response = await notify(ids.openIncident).expect(201);
+
+      expect(incidentSchema.parse(response.body).status).toBe('notified');
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+      expect(testApp.vonage.callsTo('sendSms')[0]).toMatchObject({
+        to: '+34600000009',
+        text: expect.stringContaining('incidencia en el pedido'),
+      });
+
+      const [communication] = await testApp.db
+        .select()
+        .from(communications)
+        .where(eq(communications.incidentId, ids.openIncident));
+
+      expect(communication).toMatchObject({
+        channel: 'sms',
+        direction: 'outbound',
+        toNumber: '+34600000009',
+        vonageUuid: 'fake-sms-1',
+        status: 'queued',
+      });
+
+      const events = await eventsOf(ids.openIncident);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          fromStatus: 'open',
+          toStatus: 'notified',
+          actor: 'system',
+          actorId: ids.agentA,
+          reason: 'Driver notified by SMS',
+        }),
+      );
+    });
+
+    it('rejects customers without sending an SMS', async () => {
+      await notify(ids.openIncident, cookie.ana).expect(403);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
+    });
+
+    it('rejects an incident that has already been notified', async () => {
+      await notify(ids.notifiedIncident).expect(409);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
+    });
+
+    it('marks the communication failed when Vonage definitively rejects the SMS', async () => {
+      const eventsBefore = await eventsOf(ids.openIncident);
+      testApp.vonage.failNext(
+        'sendSms',
+        new VonageRequestError('sendSms', { status: 400 }),
+      );
+
+      await notify(ids.openIncident).expect(502);
+
+      const rows = await testApp.db
+        .select()
+        .from(communications)
+        .where(eq(communications.incidentId, ids.openIncident));
+      const [incident] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.openIncident));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: 'failed', vonageUuid: null });
+      expect(incident?.status).toBe('open');
+      expect(await eventsOf(ids.openIncident)).toHaveLength(eventsBefore.length);
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+    });
+
+    it('keeps the communication pending when the SMS result is uncertain', async () => {
+      const eventsBefore = await eventsOf(ids.openIncident);
+      testApp.vonage.failNext('sendSms', new Error('Network connection lost'));
+
+      await notify(ids.openIncident).expect(500);
+
+      const rows = await testApp.db
+        .select()
+        .from(communications)
+        .where(eq(communications.incidentId, ids.openIncident));
+      const [incident] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.openIncident));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: 'pending', vonageUuid: null });
+      expect(incident?.status).toBe('open');
+      expect(await eventsOf(ids.openIncident)).toHaveLength(eventsBefore.length);
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+    });
+
+    it('does not send a second SMS when two agents notify concurrently', async () => {
+      const responses = await Promise.all([notify(ids.openIncident), notify(ids.openIncident)]);
+
+      expect(responses.map((response) => response.status).sort()).toEqual([201, 409]);
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+
+      const communicationsForIncident = await testApp.db
+        .select()
+        .from(communications)
+        .where(eq(communications.incidentId, ids.openIncident));
+
+      expect(communicationsForIncident).toHaveLength(1);
+    });
+  });
+
   describe('PATCH /incidents/:id/status', () => {
     const patch = (id: string, body: object, who: string = cookie.agentA) =>
       http().patch(`/incidents/${id}/status`).set('Cookie', who).send(body);
@@ -575,6 +772,186 @@ describe('Incidents (e2e)', () => {
         (await patch(ids.openIncident, { status: 'escalated' }, cookie.ana).expect(403)).body,
         'FORBIDDEN',
       );
+    });
+  });
+
+  describe('POST /incidents/:id/notify-driver/again', () => {
+    it.each([
+      { label: 'missing', key: undefined },
+      { label: 'empty', key: '' },
+      { label: 'whitespace-only', key: '   ' },
+      { label: 'oversized', key: 'x'.repeat(256) },
+    ])('returns 400 for a $label idempotency key', async ({ key }) => {
+      let request = http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set('Cookie', cookie.agentA);
+
+      if (key !== undefined) {
+        request = request.set('Idempotency-Key', key);
+      }
+
+      const response = await request.expect(400);
+
+      expectError(response.body, 'VALIDATION_FAILED');
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
+    });
+
+    it('resends an SMS and records the communication and event', async () => {
+      const [incidentBefore] = await testApp.db
+        .select({ updatedAt: incidents.updatedAt })
+        .from(incidents)
+        .where(eq(incidents.id, ids.notifiedIncident));
+
+      const response = await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set('Cookie', cookie.agentA)
+        .set('Idempotency-Key', 'incident-102-resend-1')
+        .expect(201);
+
+      expect(incidentSchema.parse(response.body).status).toBe('notified');
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+      expect(testApp.vonage.callsTo('sendSms')[0]).toMatchObject({
+        to: '+34600000009',
+        text: expect.stringContaining('incidencia en el pedido'),
+      });
+
+      const [incidentAfter] = await testApp.db
+        .select({ status: incidents.status, updatedAt: incidents.updatedAt })
+        .from(incidents)
+        .where(eq(incidents.id, ids.notifiedIncident));
+
+      expect(incidentAfter?.status).toBe('notified');
+      expect(incidentAfter?.updatedAt.getTime()).toBeGreaterThan(
+        incidentBefore!.updatedAt.getTime(),
+      );
+      const events = await eventsOf(ids.notifiedIncident);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          fromStatus: 'notified',
+          toStatus: 'notified',
+          actor: 'agent',
+          actorId: ids.agentA,
+          reason: 'Driver notification resent',
+        }),
+      );
+    });
+
+    it('marks a resent communication failed when Vonage definitively rejects the SMS', async () => {
+      const eventsBefore = await eventsOf(ids.notifiedIncident);
+      testApp.vonage.failNext(
+        'sendSms',
+        new VonageRequestError('sendSms', { status: 400 }),
+      );
+
+      await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set('Cookie', cookie.agentA)
+        .set('Idempotency-Key', 'incident-102-resend-definite-failure')
+        .expect(502);
+
+      const rows = await testApp.db
+        .select()
+        .from(communications)
+        .where(eq(communications.incidentId, ids.notifiedIncident));
+      const [incident] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.notifiedIncident));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: 'failed', vonageUuid: null });
+      expect(incident?.status).toBe('notified');
+      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(eventsBefore.length);
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+    });
+
+    it('keeps a resent communication pending when the SMS result is uncertain', async () => {
+      const eventsBefore = await eventsOf(ids.notifiedIncident);
+      testApp.vonage.failNext('sendSms', new Error('Network connection lost'));
+
+      await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set('Cookie', cookie.agentA)
+        .set('Idempotency-Key', 'incident-102-resend-uncertain-failure')
+        .expect(500);
+
+      const rows = await testApp.db
+        .select()
+        .from(communications)
+        .where(eq(communications.incidentId, ids.notifiedIncident));
+      const [incident] = await testApp.db
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, ids.notifiedIncident));
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: 'pending', vonageUuid: null });
+      expect(incident?.status).toBe('notified');
+      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(eventsBefore.length);
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+    });
+
+    it('does not send or record a duplicate when the same key is retried', async () => {
+      const path = `/incidents/${ids.notifiedIncident}/notify-driver/again`;
+
+      await http()
+        .post(path)
+        .set('Cookie', cookie.agentA)
+        .set('Idempotency-Key', 'incident-102-resend-retry')
+        .expect(201);
+
+      const eventsAfterFirstRequest = await eventsOf(ids.notifiedIncident);
+
+      await http()
+        .post(path)
+        .set('Cookie', cookie.agentA)
+        .set('Idempotency-Key', 'incident-102-resend-retry')
+        .expect(201);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(eventsAfterFirstRequest.length);
+    });
+
+    it('allows a deliberate resend with a different key', async () => {
+      const path = `/incidents/${ids.notifiedIncident}/notify-driver/again`;
+
+      for (const key of ['incident-102-resend-a', 'incident-102-resend-b']) {
+        await http()
+          .post(path)
+          .set('Cookie', cookie.agentA)
+          .set('Idempotency-Key', key)
+          .expect(201);
+      }
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(2);
+      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(2);
+    });
+
+    it('rejects an idempotency key already used by another incident', async () => {
+      const key = 'incident-resend-cross-incident';
+
+      await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set('Cookie', cookie.agentA)
+        .set('Idempotency-Key', key)
+        .expect(201);
+
+      await http()
+        .post(`/incidents/${ids.openIncident}/notify-driver/again`)
+        .set('Cookie', cookie.agentA)
+        .set('Idempotency-Key', key)
+        .expect(409);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(1);
+    });
+    it('rejects customers', async () => {
+      await http()
+        .post(`/incidents/${ids.notifiedIncident}/notify-driver/again`)
+        .set('Cookie', cookie.ana)
+        .set('Idempotency-Key', 'incident-102-customer')
+        .expect(403);
+
+      expect(testApp.vonage.callsTo('sendSms')).toHaveLength(0);
     });
   });
 

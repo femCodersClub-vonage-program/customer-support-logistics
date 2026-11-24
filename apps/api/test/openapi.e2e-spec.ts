@@ -46,12 +46,24 @@ describe('OpenAPI (e2e)', () => {
       '/incidents/{id}/evidence/{evidenceId}/complete',
       '/incidents/{id}/evidence',
       '/incidents/{id}/status',
+      '/incidents/{id}/assign-to-me',
+      '/incidents/{id}/notify-driver',
+      '/incidents/{id}/notify-driver/again',
       '/incidents/{id}/mediation',
       '/incidents/{id}/mediation/driver-call',
       '/orders',
       '/vonage/client-token',
     ]);
     expect(Object.keys(document.paths['/incidents'] ?? {})).toEqual(['post', 'get']);
+    expect(Object.keys(document.paths['/incidents/{id}/assign-to-me'] ?? {})).toEqual([
+      'post',
+    ]);
+    expect(Object.keys(document.paths['/incidents/{id}/notify-driver'] ?? {})).toEqual([
+      'post',
+    ]);
+    expect(Object.keys(document.paths['/incidents/{id}/notify-driver/again'] ?? {})).toEqual([
+      'post',
+    ]);
     expect(document.components.schemas).toHaveProperty('ApiErrorResponse');
     expect(document.components.schemas).toHaveProperty('IncidentStatus');
     expect(document.components.schemas).toHaveProperty('StartMediationResponse');

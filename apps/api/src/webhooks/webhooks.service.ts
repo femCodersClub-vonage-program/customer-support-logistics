@@ -1,7 +1,7 @@
 import { DEFAULT_LOCALE, DRIVER_REPLIES } from '@csl/shared-types';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { maskPhone } from '../common/logging/mask-phone.js';
 import { DATABASE } from '../database/database.constants.js';
@@ -156,6 +156,8 @@ export class WebhooksService {
 
   async handleMessageStatus(payload: MessageStatus): Promise<void> {
     await this.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${payload.message_uuid}))`);
+
       const eventId = await this.recordEvent(
         tx,
         'messages_status',

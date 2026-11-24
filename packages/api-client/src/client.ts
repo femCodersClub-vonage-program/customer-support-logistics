@@ -43,9 +43,16 @@ export interface ApiClient {
     options?: RequestOptions,
   ): Promise<ListIncidentsResponse>;
   createIncident(body: CreateIncidentBody, options?: RequestOptions): Promise<Incident>;
-  getIncident(incidentId: string, options?: RequestOptions): Promise<IncidentDetail>;
+  getIncident(id: string, options?: RequestOptions): Promise<IncidentDetail>;
+  assignIncidentToMe(id: string, options?: RequestOptions): Promise<Incident>;
+  notifyDriver(id: string, options?: RequestOptions): Promise<Incident>;
+  notifyDriverAgain(
+    id: string,
+    idempotencyKey: string,
+    options?: RequestOptions,
+  ): Promise<Incident>;
   changeIncidentStatus(
-    incidentId: string,
+    id: string,
     body: ChangeIncidentStatusBody,
     options?: RequestOptions,
   ): Promise<Incident>;
@@ -156,13 +163,29 @@ export function createApiClient({
       }),
     createIncident: (body, { signal } = {}) =>
       request<Incident>('/incidents', postJson(body, signal)),
-    getIncident: (incidentId, { signal } = {}) =>
-      request<IncidentDetail>(`/incidents/${encodeURIComponent(incidentId)}`, {
+    getIncident: (id, { signal } = {}) =>
+      request<IncidentDetail>(`/incidents/${encodeURIComponent(id)}`, {
         method: 'GET',
         signal,
       }),
-    changeIncidentStatus: (incidentId, body, { signal } = {}) =>
-      request<Incident>(`/incidents/${encodeURIComponent(incidentId)}/status`, {
+    assignIncidentToMe: (id, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/assign-to-me`, {
+        method: 'POST',
+        signal,
+      }),
+    notifyDriver: (id, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/notify-driver`, {
+        method: 'POST',
+        signal,
+      }),
+    notifyDriverAgain: (id, idempotencyKey, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/notify-driver/again`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        signal,
+      }),
+    changeIncidentStatus: (id, body, { signal } = {}) =>
+      request<Incident>(`/incidents/${encodeURIComponent(id)}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

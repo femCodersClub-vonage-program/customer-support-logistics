@@ -70,6 +70,18 @@
   "incident": {
     "title": "Incident",
     "reference": "Incident {id}",
+    "createdAt": "Created",
+    "updatedAt": "Last updated",
+    "assignedAgent": "Assigned agent",
+    "unassigned": "Unassigned",
+    "sections": {
+      "order": "Order",
+      "customer": "Customer",
+      "driver": "Driver",
+      "timeline": "Timeline"
+    },
+    "emptyTimeline": "No timeline events",
+    "notAvailable": "Not available",
     "evidence": {
       "title": "Evidence",
       "empty": "No evidence uploaded.",
@@ -88,6 +100,53 @@
       "damaged": "Damaged",
       "wrong_item": "Wrong item",
       "other": "Other"
+    },
+    "actions": {
+      "title": "Actions",
+      "assign": "Assign to me",
+      "assigned": "Incident assigned to you",
+      "notify": "Notify driver",
+      "notifyAgain": "Notify driver again",
+      "confirmNotify": "Send an SMS notification to the driver?",
+      "confirmNotifyAgain": "Send another SMS notification to the driver?",
+      "sending": "Sending...",
+      "mediation": "Start mediation",
+      "resolve": "Resolve incident",
+      "escalate": "Escalate incident",
+      "reason": "Reason",
+      "resolution": "Resolution note",
+      "escalationReason": "Reason for escalation",
+      "submit": "Confirm",
+      "cancel": "Cancel",
+      "success": "Action completed successfully",
+      "error": "The action could not be completed"
+    },
+    "phone": {
+      "show": "Show phone number",
+      "hide": "Hide phone number"
+    },
+    "actor": {
+      "customer": "Customer",
+      "agent": "Agent",
+      "driver": "Driver",
+      "system": "System"
+    },
+    "communication": {
+      "direction": {
+        "inbound": "Incoming",
+        "outbound": "Outgoing"
+      },
+      "channel": {
+        "sms": "SMS",
+        "voice": "Voice call"
+      },
+      "status": {
+        "pending": "Pending",
+        "queued": "Queued",
+        "in_progress": "In progress",
+        "completed": "Completed",
+        "failed": "Failed"
+      }
     }
   },
   "contactLanguage": {
@@ -120,6 +179,7 @@
       "status": "Call status",
       "noCall": "Not called yet",
       "callStatus": {
+        "pending": "Pending",
         "queued": "Calling",
         "in_progress": "In progress",
         "completed": "Ended",

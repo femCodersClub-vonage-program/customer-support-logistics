@@ -20,24 +20,35 @@ import {
   communications,
   customers,
   drivers,
-  incidentEvents,
   evidence,
+  incidentEvents,
   incidents,
   orders,
   routes,
+  webhookEvents,
 } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
-import { publishIncidentChange, publishIncidentEvent } from '../events/publish-incident-event.js';
+import {
+  publishCommunicationChange,
+  publishIncidentChange,
+  publishIncidentEvent,
+} from '../events/publish-incident-event.js';
+import { incidentNoticeSms } from '../i18n/sms-templates.js';
 import { toOrder } from '../orders/orders.mapper.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
+import { VonageDisabledError, VonageRequestError } from '../vonage/vonage.errors.js';
+import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
+import { advancesStatus, fromMessageStatus } from '../webhooks/communication-status.js';
+import { messageStatusSchema } from '../webhooks/vonage-payloads.js';
 
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
-import { persistTransition } from './persist-transition.js';
+import { persistIncidentActivity, persistTransition } from './persist-transition.js';
 
 import type { AuthActor } from '../auth/auth-actor.js';
 import type { Env } from '../config/env.schema.js';
 import type { Database, DatabaseTransaction } from '../database/database.constants.js';
 import type { StorageService } from '../storage/storage.service.js';
+import type { VonageService } from '../vonage/vonage.service.js';
 import type {
   ChangeIncidentStatusBody,
   CreateIncidentBody,
@@ -48,7 +59,7 @@ import type {
   EvidenceDownload,
   RequestEvidenceUploadBody,
 } from '@csl/contracts';
-import type { Incident, IncidentStatus } from '@csl/shared-types';
+import type { CommunicationStatus, Incident, IncidentStatus } from '@csl/shared-types';
 import type { SQL } from 'drizzle-orm';
 
 const INCIDENT_NOT_FOUND = 'Incident not found';
@@ -153,6 +164,7 @@ export class IncidentsService {
     @Inject(DATABASE) private readonly db: Database,
     @Inject(STORAGE_SERVICE) private readonly storage: StorageService,
     @Inject(ConfigService) private readonly config: ConfigService<Env, true>,
+    @Inject(VONAGE_SERVICE) private readonly vonage: VonageService,
   ) {}
 
   async requestEvidenceUpload(
@@ -441,7 +453,7 @@ export class IncidentsService {
       throw new NotFoundException(INCIDENT_NOT_FOUND);
     }
 
-    const [events, incidentCommunications] = await Promise.all([
+    const [events, incidentCommunications, incidentEvidence] = await Promise.all([
       this.db
         .select()
         .from(incidentEvents)
@@ -452,6 +464,11 @@ export class IncidentsService {
         .from(communications)
         .where(eq(communications.incidentId, id))
         .orderBy(asc(communications.createdAt), asc(communications.id)),
+      this.db
+        .select()
+        .from(evidence)
+        .where(eq(evidence.incidentId, id))
+        .orderBy(asc(evidence.createdAt), asc(evidence.id)),
     ]);
 
     return toIncidentDetail({
@@ -461,6 +478,7 @@ export class IncidentsService {
       driver: row.driver,
       events,
       communications: incidentCommunications,
+      evidence: incidentEvidence,
     });
   }
 
@@ -489,5 +507,360 @@ export class IncidentsService {
 
       return toIncident(updated);
     });
+  }
+
+  async assignToMe(actor: AuthActor, id: string): Promise<Incident> {
+    if (actor.role !== 'agent') {
+      throw new ForbiddenException('Only agents can assign incidents');
+    }
+
+    return this.db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ incident: incidents })
+        .from(incidents)
+        .where(eq(incidents.id, id))
+        .for('update');
+
+      if (!row) {
+        throw new NotFoundException(INCIDENT_NOT_FOUND);
+      }
+
+      const incident = row.incident;
+
+      if (incident.status === 'resolved') {
+        throw new ConflictException('Resolved incidents cannot be assigned');
+      }
+
+      if (incident.agentId !== null && incident.agentId !== actor.id) {
+        throw new ConflictException('Incident is already assigned to another agent');
+      }
+
+      if (incident.agentId === actor.id) {
+        return toIncident(incident);
+      }
+
+      const updated = singleRow(
+        await tx
+          .update(incidents)
+          .set({ agentId: actor.id })
+          .where(eq(incidents.id, id))
+          .returning(),
+      );
+
+      await tx.insert(incidentEvents).values({
+        incidentId: id,
+        kind: 'assigned',
+        fromStatus: incident.status,
+        toStatus: incident.status,
+        actor: 'agent',
+        actorId: actor.id,
+        reason: 'Incident assigned to agent',
+      });
+
+      await publishIncidentChange(tx, 'incident.assigned', updated);
+
+      return toIncident(updated);
+    });
+  }
+
+  async notifyDriverAgain(actor: AuthActor, id: string, idempotencyKey: string): Promise<Incident> {
+    if (actor.role !== 'agent') {
+      throw new ForbiddenException('Only agents can notify drivers');
+    }
+
+    const reservation = await this.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${idempotencyKey}))`);
+
+      const row = await this.selectIncidentWithDriver(tx, id);
+
+      const [existingCommunication] = await tx
+        .select()
+        .from(communications)
+        .where(eq(communications.idempotencyKey, idempotencyKey))
+        .limit(1);
+
+      if (existingCommunication) {
+        if (existingCommunication.incidentId !== id) {
+          throw new ConflictException('Idempotency key already used');
+        }
+
+        return { incident: toIncident(row.incident), existing: true as const };
+      }
+
+      if (row.incident.status !== 'notified') {
+        throw new ConflictException('Incident is not notified');
+      }
+
+      return {
+        ...(await this.reserveDriverCommunication(tx, id, row, idempotencyKey)),
+        existing: false as const,
+      };
+    });
+
+    if (reservation.existing) {
+      return reservation.incident;
+    }
+
+    const sent = await this.sendDriverSms(reservation);
+
+    return this.db.transaction(async (tx) => {
+      await this.attachSmsUuidAndApplyEarlyStatuses(
+        tx,
+        reservation.communicationId,
+        sent.messageId,
+      );
+
+      const [currentIncident] = await tx
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, id))
+        .for('update');
+
+      if (!currentIncident) {
+        throw new NotFoundException(INCIDENT_NOT_FOUND);
+      }
+
+      const updated = await persistIncidentActivity(tx, currentIncident, {
+        kind: 'driver_notification_resent',
+        actor: 'agent',
+        actorId: actor.id,
+        reason: 'Driver notification resent',
+      });
+
+      return toIncident(updated);
+    });
+  }
+
+  async notifyDriver(actor: AuthActor, id: string): Promise<Incident> {
+    if (actor.role !== 'agent') {
+      throw new ForbiddenException('Only agents can notify drivers');
+    }
+
+    const reservation = await this.db.transaction(async (tx) => {
+      const row = await this.selectIncidentWithDriver(tx, id);
+
+      if (row.incident.status !== 'open') {
+        throw new ConflictException('Incident is not open');
+      }
+
+      if (!row.driver) {
+        throw new ConflictException('Incident has no assigned driver');
+      }
+
+      const [pendingCommunication] = await tx
+        .select({ id: communications.id })
+        .from(communications)
+        .where(
+          and(
+            eq(communications.incidentId, id),
+            eq(communications.channel, 'sms'),
+            eq(communications.direction, 'outbound'),
+            eq(communications.status, 'pending'),
+          ),
+        )
+        .limit(1);
+
+      if (pendingCommunication) {
+        throw new ConflictException('Driver notification is already pending');
+      }
+
+      return this.reserveDriverCommunication(tx, id, row);
+    });
+
+    const sent = await this.sendDriverSms(reservation);
+
+    return this.db.transaction(async (tx) => {
+      await this.attachSmsUuidAndApplyEarlyStatuses(
+        tx,
+        reservation.communicationId,
+        sent.messageId,
+      );
+
+      const [currentIncident] = await tx
+        .select()
+        .from(incidents)
+        .where(eq(incidents.id, id))
+        .for('update');
+
+      if (!currentIncident) {
+        throw new NotFoundException(INCIDENT_NOT_FOUND);
+      }
+
+      if (currentIncident.status !== 'open') {
+        return toIncident(currentIncident);
+      }
+
+      const updated = await persistTransition(tx, currentIncident, {
+        to: 'notified',
+        actor: 'system',
+        actorId: actor.id,
+        reason: 'Driver notified by SMS',
+      });
+
+      return toIncident(updated);
+    });
+  }
+
+  private async selectIncidentWithDriver(
+    tx: DatabaseTransaction,
+    id: string,
+  ): Promise<{
+    incident: typeof incidents.$inferSelect;
+    order: typeof orders.$inferSelect;
+    driver: typeof drivers.$inferSelect | null;
+  }> {
+    const [row] = await tx
+      .select({
+        incident: incidents,
+        order: orders,
+        driver: drivers,
+      })
+      .from(incidents)
+      .innerJoin(orders, eq(orders.id, incidents.orderId))
+      .leftJoin(routes, eq(routes.id, orders.routeId))
+      .leftJoin(drivers, eq(drivers.id, routes.driverId))
+      .where(eq(incidents.id, id))
+      .for('update', { of: incidents });
+
+    if (!row) {
+      throw new NotFoundException(INCIDENT_NOT_FOUND);
+    }
+
+    return row;
+  }
+
+  private async reserveDriverCommunication(
+    tx: DatabaseTransaction,
+    id: string,
+    row: {
+      incident: typeof incidents.$inferSelect;
+      order: typeof orders.$inferSelect;
+      driver: typeof drivers.$inferSelect | null;
+    },
+    idempotencyKey?: string,
+  ): Promise<{
+    incident: Incident;
+    communicationId: string;
+    phone: string;
+    message: string;
+  }> {
+    if (!row.driver) {
+      throw new ConflictException('Incident has no assigned driver');
+    }
+
+    const message = incidentNoticeSms(row.driver.locale, {
+      orderId: row.order.id,
+      incidentType: row.incident.type,
+    });
+
+    const [communication] = await tx
+      .insert(communications)
+      .values({
+        incidentId: id,
+        ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+        channel: 'sms',
+        direction: 'outbound',
+        fromNumber: null,
+        toNumber: row.driver.phone,
+        vonageUuid: null,
+        status: 'pending',
+      })
+      .returning();
+
+    await publishCommunicationChange(tx, 'incident.communication_added', communication!);
+
+    return {
+      incident: toIncident(row.incident),
+      communicationId: communication!.id,
+      phone: row.driver.phone,
+      message,
+    };
+  }
+
+  private async sendDriverSms(
+    reservation: {
+      communicationId: string;
+      phone: string;
+      message: string;
+    },
+  ): Promise<Awaited<ReturnType<VonageService['sendSms']>>> {
+    try {
+      return await this.vonage.sendSms(reservation.phone, reservation.message);
+    } catch (error) {
+      const definitelyRejected =
+        error instanceof VonageDisabledError ||
+        (error instanceof VonageRequestError &&
+          error.status !== undefined &&
+          error.status >= 400 &&
+          error.status < 500);
+
+      if (definitelyRejected) {
+        await this.db
+          .update(communications)
+          .set({ status: 'failed' })
+          .where(eq(communications.id, reservation.communicationId));
+      }
+
+      throw error;
+    }
+  }
+
+  private async attachSmsUuidAndApplyEarlyStatuses(
+    tx: DatabaseTransaction,
+    communicationId: string,
+    messageId: string,
+  ): Promise<void> {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${messageId}))`);
+
+    let communication = singleRow(
+      await tx
+        .update(communications)
+        .set({ vonageUuid: messageId, status: 'queued' })
+        .where(eq(communications.id, communicationId))
+        .returning(),
+    );
+
+    const earlyEvents = await tx
+      .select({ id: webhookEvents.id, payload: webhookEvents.payload })
+      .from(webhookEvents)
+      .where(
+        and(
+          eq(webhookEvents.source, 'messages_status'),
+          isNull(webhookEvents.communicationId),
+          sql`${webhookEvents.payload}->>'message_uuid' = ${messageId}`,
+        ),
+      )
+      .orderBy(asc(webhookEvents.receivedAt), asc(webhookEvents.id));
+
+    let currentStatus: CommunicationStatus = 'queued';
+
+    for (const event of earlyEvents) {
+      const parsed = messageStatusSchema.safeParse(event.payload);
+      if (!parsed.success) {
+        continue;
+      }
+
+      await tx
+        .update(webhookEvents)
+        .set({ communicationId })
+        .where(eq(webhookEvents.id, event.id));
+
+      const nextStatus = fromMessageStatus(parsed.data.status);
+      if (nextStatus !== null && advancesStatus(currentStatus, nextStatus)) {
+        currentStatus = nextStatus;
+      }
+    }
+
+    if (currentStatus !== 'queued') {
+      communication = singleRow(
+        await tx
+          .update(communications)
+          .set({ status: currentStatus })
+          .where(eq(communications.id, communicationId))
+          .returning(),
+      );
+    }
+
+    await publishCommunicationChange(tx, 'incident.communication_updated', communication);
   }
 }

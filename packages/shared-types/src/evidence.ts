@@ -9,4 +9,5 @@ export interface Evidence {
   mimeType: string;
   sizeBytes: number;
   status: EvidenceStatus;
+  createdAt: string;
 }

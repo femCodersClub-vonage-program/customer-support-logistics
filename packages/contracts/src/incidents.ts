@@ -3,6 +3,7 @@ import {
   COMMUNICATION_CHANNELS,
   COMMUNICATION_DIRECTIONS,
   COMMUNICATION_STATUSES,
+  EVIDENCE_STATUSES,
   INCIDENT_EVENT_KINDS,
   INCIDENT_STATUSES,
   INCIDENT_TYPES,
@@ -13,7 +14,7 @@ import { z } from 'zod';
 import { isoDateTimeSchema, paginatedSchema, paginationQuerySchema, uuidSchema } from './common.js';
 import { orderSchema } from './orders.js';
 
-import type { Communication, Incident, IncidentEvent } from '@csl/shared-types';
+import type { Communication, Evidence, Incident, IncidentEvent } from '@csl/shared-types';
 
 export const incidentStatusSchema = z.enum(INCIDENT_STATUSES).meta({ id: 'IncidentStatus' });
 
@@ -61,12 +62,24 @@ export const communicationSchema = z
     direction: z.enum(COMMUNICATION_DIRECTIONS),
     fromNumber: z.string().nullable(),
     toNumber: z.string().nullable(),
-    vonageUuid: z.string(),
+    vonageUuid: z.string().nullable(),
     status: z.enum(COMMUNICATION_STATUSES),
     durationSeconds: z.number().int().min(0).nullable(),
+    createdAt: isoDateTimeSchema,
   })
   .meta({ id: 'Communication' }) satisfies z.ZodType<Communication>;
 
+export const evidenceSchema = z
+  .object({
+    id: uuidSchema,
+    incidentId: uuidSchema,
+    storageKey: z.string(),
+    mimeType: z.string(),
+    sizeBytes: z.number().int().nonnegative(),
+    status: z.enum(EVIDENCE_STATUSES),
+    createdAt: isoDateTimeSchema,
+  })
+  .meta({ id: 'Evidence' }) satisfies z.ZodType<Evidence>;
 export const incidentCustomerSchema = z
   .object({
     id: uuidSchema,
@@ -101,12 +114,22 @@ export const incidentDetailSchema = incidentSchema
     driver: incidentDriverSchema.nullable(),
     events: z.array(incidentEventSchema),
     communications: z.array(communicationSchema),
+    evidence: z.array(evidenceSchema),
   })
   .meta({ id: 'IncidentDetail' });
 
 export type IncidentDetail = z.infer<typeof incidentDetailSchema>;
 
 export const incidentIdParamsSchema = z.object({ id: uuidSchema });
+
+export const idempotencyKeyHeaderSchema = z
+  .string()
+  .min(1)
+  .max(255)
+  .refine((value) => value.trim().length > 0, {
+    message: 'Idempotency-Key must not be empty',
+  })
+  .meta({ id: 'IdempotencyKeyHeader' });
 
 export type IncidentIdParams = z.infer<typeof incidentIdParamsSchema>;
 

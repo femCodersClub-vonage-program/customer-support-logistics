@@ -3,14 +3,25 @@ import {
   createIncidentBodySchema,
   evidenceIdParamsSchema,
   incidentIdParamsSchema,
+  idempotencyKeyHeaderSchema,
   listIncidentsQuerySchema,
   requestEvidenceUploadBodySchema,
 } from '@csl/contracts';
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 
 import { CurrentActor, Roles } from '../auth/auth.decorators.js';
 import { ZodValidationPipe } from '../common/validation/zod-validation.pipe.js';
 
+import { IdempotencyKey } from './idempotency-key.decorator.js';
 import { IncidentsService } from './incidents.service.js';
 
 import type { AuthActor } from '../auth/auth-actor.js';
@@ -65,6 +76,34 @@ export class IncidentsController {
     @Body(new ZodValidationPipe(changeIncidentStatusBodySchema)) body: ChangeIncidentStatusBody,
   ): Promise<Incident> {
     return this.incidents.changeStatus(actor, params.id, body);
+  }
+
+  @Post(':id/assign-to-me')
+  @Roles('agent')
+  assignToMe(
+    @CurrentActor() actor: AuthActor,
+    @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
+  ): Promise<Incident> {
+    return this.incidents.assignToMe(actor, params.id);
+  }
+
+  @Post(':id/notify-driver')
+  @Roles('agent')
+  notifyDriver(
+    @CurrentActor() actor: AuthActor,
+    @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
+  ): Promise<Incident> {
+    return this.incidents.notifyDriver(actor, params.id);
+  }
+
+  @Post(':id/notify-driver/again')
+  @Roles('agent')
+  notifyDriverAgain(
+    @CurrentActor() actor: AuthActor,
+    @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
+    @IdempotencyKey(undefined, new ZodValidationPipe(idempotencyKeyHeaderSchema)) idempotencyKey: string,
+  ): Promise<Incident> {
+    return this.incidents.notifyDriverAgain(actor, params.id, idempotencyKey);
   }
 
   @Post(':id/evidence/upload-url')
