@@ -61,14 +61,14 @@ Accepted ADRs are not edited, except to change their status. To change a decisio
 | [0009](0009-hosting-on-railway.md)                       | Hosting on Railway                                          | proposed | 2026-11-12 |
 | [0010](0010-keep-x-dev-actor-until-both-logins-exist.md) | Keep `x-dev-actor` until both logins exist                  | proposed | 2026-11-16 |
 | [0011](0011-evidence-activity-events.md)                 | Evidence activity events                                    | accepted | 2026-11-16 |
+| [0012](0012-real-time-updates-sse.md)                    | Real-time updates with SSE and PostgreSQL `LISTEN/NOTIFY`   | proposed | 2026-11-24 |
 
 ### Pending decisions
 
 These decisions still need an ADR. Each one is written as part of its issue and takes the next free number when it is opened.
 
-| Decision                                         | Issue      | Status |
-| ------------------------------------------------ | ---------- | ------ |
-| Real-time updates for the CRM (SSE vs WebSocket) | [#40][i40] | to do  |
+| Decision         | Issue      | Status |
+| ---------------- | ---------- | ------ |
+| Evidence storage | [#32][i32] | to do  |
 
 [i32]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/32
-[i40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40

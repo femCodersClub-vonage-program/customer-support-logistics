@@ -56,7 +56,7 @@ flowchart LR
   customer -->|HTTPS| client
   agent -->|HTTPS| crm
   client -->|"HTTPS/REST"| api
-  crm -->|"HTTPS/REST, real-time TBD"| api
+  crm -->|"HTTPS/REST, SSE"| api
   client -->|"HTTPS, presigned upload"| storage
   crm -->|"HTTPS, presigned download"| storage
   api -->|SQL| db
@@ -132,7 +132,7 @@ Dashed arrows are dev dependencies. `apps/api` needs `@csl/shared-types` at runt
 
 The local bucket configures per-bucket CORS for the PWA origins through `seaweedfs-init`; `STORAGE_CORS_ALLOWED_ORIGINS` must include the HTTPS tunnel origin when testing from a phone. Pending records expire after `EVIDENCE_PENDING_TTL_SECONDS` and are reclaimed, with any uploaded object, the next time the owner requests another upload URL for that incident. Uploads use the `evidence-pending/` prefix and a separate validated final key. Compose installs a one-day lifecycle rule for the temporary prefix and runs the SeaweedFS administrator and lifecycle worker. Production requires its own lifecycle rule and worker. The PWA picker, direct-upload UI, mobile validation and phone check remain pending work; storage stays private and direct object URLs are not public.
 
-**Real-time updates.** _Planned_ in [#40]. The CRM inbox and incident detail update on their own when an incident changes. Server-Sent Events versus WebSocket is still open and will be decided in an ADR.
+**Real-time updates.** Decided in [ADR 0012](../adr/0012-real-time-updates-sse.md) ([#40]) and implemented in `apps/api/src/events`. Agents open `GET /events/stream`, a Server-Sent Events stream with small events (`{ type, incidentId, status?, updatedAt }`) and a heartbeat comment every 25 seconds. Code that changes an incident or its communications calls `pg_notify` in the same transaction, and every API instance forwards what it gets through `LISTEN` to its open streams, so a change is only announced once it is committed and several instances work. Missed events are not replayed: the CRM fetches its data again after reconnecting, and an instance that loses its `LISTEN` connection ends its streams and answers `503` until it listens again.
 
 **Background jobs.** _Planned_. Redis (`REDIS_URL`, optional for now) is meant for queues: driver call retries, scheduled SMS and slow webhook work. The technical proposal suggests BullMQ.
 

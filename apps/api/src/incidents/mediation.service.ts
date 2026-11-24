@@ -5,6 +5,10 @@ import { and, eq, gt, or } from 'drizzle-orm';
 import { DATABASE } from '../database/database.constants.js';
 import { communications, drivers, incidents, orders, routes } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
+import {
+  publishCommunicationChange,
+  publishIncidentChange,
+} from '../events/publish-incident-event.js';
 import { buildDriverPromptNcco } from '../vonage/ncco.js';
 import { buildVoiceInputUrl } from '../vonage/voice-urls.js';
 import { VonageError } from '../vonage/vonage.errors.js';
@@ -72,6 +76,8 @@ export class MediationService {
             .where(eq(incidents.id, current.id))
             .returning(),
         );
+
+        await publishIncidentChange(tx, 'incident.assigned', current);
       }
 
       const prepared = await this.prepareCall(tx, { incident: current, driver: locked.driver });
@@ -193,6 +199,8 @@ export class MediationService {
       .returning();
 
     if (created) {
+      await publishCommunicationChange(tx, 'incident.communication_added', created);
+
       return { ok: true, call: created };
     }
 

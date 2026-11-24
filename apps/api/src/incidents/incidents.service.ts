@@ -27,6 +27,7 @@ import {
   routes,
 } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
+import { publishIncidentChange, publishIncidentEvent } from '../events/publish-incident-event.js';
 import { toOrder } from '../orders/orders.mapper.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
 
@@ -294,6 +295,12 @@ export class IncidentsService {
           actorId: actor.id,
           reason: 'Evidence uploaded',
         });
+        await publishIncidentEvent(tx, {
+          type: 'incident.evidence_added',
+          incidentId,
+          status: row.incident.status,
+          updatedAt: new Date().toISOString(),
+        });
         transactionPrepared = true;
       });
     } catch (error) {
@@ -374,6 +381,8 @@ export class IncidentsService {
         actorId: customerId,
         occurredAt: incident.createdAt,
       });
+
+      await publishIncidentChange(tx, 'incident.created', incident);
 
       return toIncident(incident);
     });

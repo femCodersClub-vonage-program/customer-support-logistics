@@ -1,4 +1,3 @@
-
 # Driver User Flow
 
 ## Interface
@@ -7,14 +6,14 @@ SMS and phone calls (PSTN). No application required.
 
 ## Main flow
 
-| Step | Channel | Driver action | System response | Ticket state |
-|---|---|---|---|---|
-| 1 | SMS | Receives an incident notification. | Sends the incident details and response options. | `notified` |
-| 2 | SMS | Replies with option 1 or 2. | Records the response and informs the agent. | `notified` |
-| 3A | Phone | Option 1: Communicates with the store to resolve the incident. | Agent records the outcome and notifies the customer. | `resolved` if solved |
-| 3B | SMS | Option 2: Requests three-way mediation. | Sends an SMS announcing a call in 2 minutes. | `notified` |
-| 4 | Phone | Answers the automatic call and presses 1. | Connects the driver to the customer and agent. | `in_mediation` |
-| 5 | Phone | Participates in the mediation. | Keeps the three participants connected. | `in_mediation` |
+| Step | Channel | Driver action                                                  | System response                                      | Ticket state         |
+| ---- | ------- | -------------------------------------------------------------- | ---------------------------------------------------- | -------------------- |
+| 1    | SMS     | Receives an incident notification.                             | Sends the incident details and response options.     | `notified`           |
+| 2    | SMS     | Replies with option 1 or 2.                                    | Records the response and informs the agent.          | `notified`           |
+| 3A   | Phone   | Option 1: Communicates with the store to resolve the incident. | Agent records the outcome and notifies the customer. | `resolved` if solved |
+| 3B   | SMS     | Option 2: Requests three-way mediation.                        | Sends an SMS announcing a call in 2 minutes.         | `notified`           |
+| 4    | Phone   | Answers the automatic call and presses 1.                      | Connects the driver to the customer and agent.       | `in_mediation`       |
+| 5    | Phone   | Participates in the mediation.                                 | Keeps the three participants connected.              | `in_mediation`       |
 
 ## Alternative paths
 
