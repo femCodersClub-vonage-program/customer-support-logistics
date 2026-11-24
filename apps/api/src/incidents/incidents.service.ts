@@ -41,7 +41,6 @@ import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 import { advancesStatus, fromMessageStatus } from '../webhooks/communication-status.js';
 import { messageStatusSchema } from '../webhooks/vonage-payloads.js';
 
-import { UnauthorizedTransitionError } from './domain/transition.errors.js';
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
 import { persistIncidentActivity, persistTransition } from './persist-transition.js';
 
@@ -497,10 +496,6 @@ export class IncidentsService {
 
       if (!row) {
         throw new NotFoundException(INCIDENT_NOT_FOUND);
-      }
-
-      if (actor.role === 'agent' && body.status === 'notified') {
-        throw new UnauthorizedTransitionError('notified', actor.role);
       }
 
       const updated = await persistTransition(tx, row.incident, {
