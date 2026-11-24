@@ -15,6 +15,7 @@ import {
   webhookEvents,
 } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
+import { publishCommunicationChange } from '../events/publish-incident-event.js';
 import { invalidReplySms } from '../i18n/sms-templates.js';
 import { persistTransition } from '../incidents/persist-transition.js';
 import {
@@ -113,6 +114,7 @@ export class WebhooksService {
       );
 
       await this.linkEvent(tx, eventId, communication.id);
+      await publishCommunicationChange(tx, 'incident.communication_added', communication);
 
       if (context === null) {
         this.logger.warn(
@@ -187,10 +189,15 @@ export class WebhooksService {
       }
 
       if (status !== null && advancesStatus(communication.status, status)) {
-        await tx
-          .update(communications)
-          .set({ status })
-          .where(eq(communications.id, communication.id));
+        const updated = singleRow(
+          await tx
+            .update(communications)
+            .set({ status })
+            .where(eq(communications.id, communication.id))
+            .returning(),
+        );
+
+        await publishCommunicationChange(tx, 'incident.communication_updated', updated);
       }
     });
   }
@@ -229,10 +236,15 @@ export class WebhooksService {
       const durationSeconds = payload.duration;
 
       if (nextStatus !== undefined || durationSeconds !== undefined) {
-        await tx
-          .update(communications)
-          .set({ status: nextStatus, durationSeconds })
-          .where(eq(communications.id, communication.id));
+        const updated = singleRow(
+          await tx
+            .update(communications)
+            .set({ status: nextStatus, durationSeconds })
+            .where(eq(communications.id, communication.id))
+            .returning(),
+        );
+
+        await publishCommunicationChange(tx, 'incident.communication_updated', updated);
       }
     });
   }
@@ -407,15 +419,22 @@ export class WebhooksService {
   }: InvalidReplyFollowUp): Promise<void> {
     const { messageId } = await this.vonage.sendSms(driver.phone, invalidReplySms(driver.locale));
 
-    await this.db.insert(communications).values({
-      incidentId,
-      channel: 'sms',
-      direction: 'outbound',
-      fromNumber: virtualNumber,
-      toNumber: driver.phone,
-      vonageUuid: messageId,
-      status: 'queued',
-    });
+    const communication = singleRow(
+      await this.db
+        .insert(communications)
+        .values({
+          incidentId,
+          channel: 'sms',
+          direction: 'outbound',
+          fromNumber: virtualNumber,
+          toNumber: driver.phone,
+          vonageUuid: messageId,
+          status: 'queued',
+        })
+        .returning(),
+    );
+
+    await publishCommunicationChange(this.db, 'incident.communication_added', communication);
   }
 
   private async recordEvent(
@@ -476,7 +495,13 @@ export class WebhooksService {
       .onConflictDoNothing({ target: communications.vonageUuid })
       .returning();
 
-    return created ?? (await this.lockCall(tx, uuid));
+    if (!created) {
+      return this.lockCall(tx, uuid);
+    }
+
+    await publishCommunicationChange(tx, 'incident.communication_added', created);
+
+    return created;
   }
 
   private async lockCall(tx: DatabaseTransaction, uuid: string): Promise<CommunicationRow | null> {

@@ -1,4 +1,3 @@
-
 # Agent User Flow
 
 ## Interface
@@ -7,16 +6,16 @@ Desktop CRM (`apps/crm`).
 
 ## Main flow
 
-| Step | Screen | Agent action | System response | Ticket state |
-|---|---|---|---|---|
-| 1 | `/inbox` | Reviews incoming incidents. | Displays reported incidents. | `open` |
-| 2 | `/incidents/[id]` | Opens a case and reviews the evidence. | Displays the incident details and attachments. | `open` |
-| 3 | `/incidents/[id]` | Requests contact with the driver. | Sends an incident notification by SMS. | `notified` |
-| 4 | `/incidents/[id]` | Reviews the driver's response. | Displays the response or contact failure. | `notified` |
-| 5 | `/incidents/[id]` | Determines whether three-way mediation is needed. | Continues with direct resolution or mediation. | `notified` |
-| 6 | `/incidents/[id]/mediation` | Starts three-way mediation when required. | Sends an advance SMS and calls the driver. | `in_mediation` |
-| 7 | `/incidents/[id]/mediation` | Moderates the conversation. | Connects customer and agent via WebRTC and driver via PSTN. | `in_mediation` |
-| 8 | `/incidents/[id]` | Records the outcome. | Updates the ticket and notifies the customer. | `resolved` / `escalated` |
+| Step | Screen                      | Agent action                                      | System response                                             | Ticket state             |
+| ---- | --------------------------- | ------------------------------------------------- | ----------------------------------------------------------- | ------------------------ |
+| 1    | `/inbox`                    | Reviews incoming incidents.                       | Displays reported incidents.                                | `open`                   |
+| 2    | `/incidents/[id]`           | Opens a case and reviews the evidence.            | Displays the incident details and attachments.              | `open`                   |
+| 3    | `/incidents/[id]`           | Requests contact with the driver.                 | Sends an incident notification by SMS.                      | `notified`               |
+| 4    | `/incidents/[id]`           | Reviews the driver's response.                    | Displays the response or contact failure.                   | `notified`               |
+| 5    | `/incidents/[id]`           | Determines whether three-way mediation is needed. | Continues with direct resolution or mediation.              | `notified`               |
+| 6    | `/incidents/[id]/mediation` | Starts three-way mediation when required.         | Sends an advance SMS and calls the driver.                  | `in_mediation`           |
+| 7    | `/incidents/[id]/mediation` | Moderates the conversation.                       | Connects customer and agent via WebRTC and driver via PSTN. | `in_mediation`           |
+| 8    | `/incidents/[id]`           | Records the outcome.                              | Updates the ticket and notifies the customer.               | `resolved` / `escalated` |
 
 ## Alternative paths
 

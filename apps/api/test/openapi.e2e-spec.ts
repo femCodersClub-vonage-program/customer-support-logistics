@@ -39,6 +39,7 @@ describe('OpenAPI (e2e)', () => {
       '/auth/customer/check',
       '/auth/logout',
       '/auth/me',
+      '/events/stream',
       '/incidents',
       '/incidents/{id}',
       '/incidents/{id}/status',
@@ -52,5 +53,6 @@ describe('OpenAPI (e2e)', () => {
     expect(document.components.schemas).toHaveProperty('IncidentStatus');
     expect(document.components.schemas).toHaveProperty('StartMediationResponse');
     expect(document.components.schemas).toHaveProperty('ClientTokenResponse');
+    expect(document.components.schemas).toHaveProperty('IncidentStreamEvent');
   });
 });
