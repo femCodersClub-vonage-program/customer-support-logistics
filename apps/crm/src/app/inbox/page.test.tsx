@@ -23,6 +23,7 @@ const CURRENT_AGENT_ID = '5eed0000-0000-4000-8000-0000000000a1';
 vi.mock('next/headers', () => ({
   cookies: () => Promise.resolve({ toString: () => SESSION }),
 }));
+vi.mock('../../components/InboxLive', () => ({ InboxLive: () => null }));
 
 const incident: IncidentListItem = {
   id: 'a1b2c3d4-0000-4000-8000-000000000001',

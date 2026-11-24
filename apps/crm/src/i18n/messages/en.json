@@ -47,6 +47,10 @@
       "message": "Could not load the incidents.",
       "retry": "Try again"
     },
+    "live": {
+      "banner": "{count, plural, one {Show # new incident} other {Show # new incidents}}",
+      "announce": "{count, plural, one {# new incident} other {# new incidents}}"
+    },
     "columns": {
       "reference": "Reference",
       "type": "Type",
