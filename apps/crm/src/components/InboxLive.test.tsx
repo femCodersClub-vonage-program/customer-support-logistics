@@ -8,9 +8,16 @@ import { InboxLive } from './InboxLive';
 
 import type { StreamMessage } from '../lib/events/types';
 
-const { refresh } = vi.hoisted(() => ({ refresh: vi.fn() }));
+const { refresh, router } = vi.hoisted(() => {
+  const refresh = vi.fn();
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }));
+  return {
+    refresh,
+    router: { refresh },
+  };
+});
+
+vi.mock('next/navigation', () => ({ useRouter: () => router }));
 vi.mock('../lib/events/EventsProvider', () => ({ useEvents: vi.fn() }));
 
 let emit: (message: StreamMessage) => void = () => {};
@@ -111,5 +118,61 @@ describe('InboxLive', () => {
     const live = document.querySelector('[aria-live="polite"]');
 
     expect(live).toHaveTextContent('3 new incidents');
+  });
+
+  it('refreshes once after a burst of status changes', () => {
+    vi.useFakeTimers();
+    renderWithIntl(<InboxLive />);
+
+    const changed = (incidentId: string): StreamMessage => ({
+      kind: 'event',
+      event: {
+        type: 'incident.status_changed',
+        incidentId,
+        status: 'notified',
+        updatedAt: '2026-11-21T10:00:00Z',
+      },
+    });
+
+    act(() => {
+      emit(changed('a'));
+      emit(changed('b'));
+      emit(changed('c'));
+    });
+    expect(refresh).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes when an incident is assigned', () => {
+    vi.useFakeTimers();
+    renderWithIntl(<InboxLive />);
+
+    act(() => {
+      emit({
+        kind: 'event',
+        event: { type: 'incident.assigned', incidentId: 'a', updatedAt: '2026-11-21T10:00:00Z' },
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('refreshes after reconnecting', () => {
+    vi.useFakeTimers();
+    renderWithIntl(<InboxLive />);
+
+    act(() => emit({ kind: 'reconnected' }));
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });

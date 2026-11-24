@@ -10,6 +10,12 @@ import { INCIDENT_EVENT_TYPES } from '../lib/events/types';
 import styles from './InboxLive.module.css';
 
 const ANNOUNCE_DELAY_MS = 1500;
+const REFRESH_DELAY_MS = 300;
+
+const REFRESH_EVENTS = new Set<string>([
+  INCIDENT_EVENT_TYPES.statusChanged,
+  INCIDENT_EVENT_TYPES.assigned,
+]);
 
 export function InboxLive() {
   const t = useTranslations('inbox.live');
@@ -20,14 +26,31 @@ export function InboxLive() {
   const knownIdsRef = useRef(new Set<string>());
   const burstRef = useRef(0);
   const announceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
+    const refreshSoon = () => {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = setTimeout(() => {
+        router.refresh();
+      }, REFRESH_DELAY_MS);
+    };
+
     const unsubscribe = subscribe((message) => {
-      if (message.kind !== 'event' || message.event.type !== INCIDENT_EVENT_TYPES.created) {
+      if (message.kind === 'reconnected') {
+        refreshSoon();
         return;
       }
 
-      // The same incident can arrive twice (for example after a reconnection).
+      if (REFRESH_EVENTS.has(message.event.type)) {
+        refreshSoon();
+        return;
+      }
+
+      if (message.event.type !== INCIDENT_EVENT_TYPES.created) {
+        return;
+      }
+
       if (knownIdsRef.current.has(message.event.incidentId)) {
         return;
       }
@@ -36,7 +59,6 @@ export function InboxLive() {
       burstRef.current += 1;
       setPending(knownIdsRef.current.size);
 
-      // One announcement for a burst of incidents, instead of one per event.
       clearTimeout(announceTimerRef.current);
       announceTimerRef.current = setTimeout(() => {
         setAnnouncement(t('announce', { count: burstRef.current }));
@@ -47,8 +69,9 @@ export function InboxLive() {
     return () => {
       unsubscribe();
       clearTimeout(announceTimerRef.current);
+      clearTimeout(refreshTimerRef.current);
     };
-  }, [subscribe, t]);
+  }, [subscribe, t, router]);
 
   const showNew = () => {
     knownIdsRef.current.clear();
