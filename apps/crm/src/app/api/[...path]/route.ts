@@ -1,4 +1,4 @@
-﻿import { API_URL } from '../../../lib/api-config';
+import { API_URL } from '../../../lib/api-config';
 
 import type { NextRequest } from 'next/server';
 
