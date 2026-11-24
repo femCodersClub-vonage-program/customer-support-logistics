@@ -33,6 +33,32 @@ const VONAGE_ENV = {
 const DISABLED = { DATABASE_URL, VONAGE_ENABLED: 'false', ...STORAGE_ENV };
 
 describe('validateEnv', () => {
+  it('rejects a pending evidence TTL shorter than the upload URL TTL', () => {
+    expect(() =>
+      validateEnv({
+        ...DISABLED,
+        EVIDENCE_PENDING_TTL_SECONDS: '899',
+        EVIDENCE_UPLOAD_URL_TTL_SECONDS: '900',
+      }),
+    ).toThrow(/EVIDENCE_PENDING_TTL_SECONDS/);
+  });
+
+  it('accepts a pending evidence TTL with a one-minute margin', () => {
+    expect(
+      validateEnv({
+        ...DISABLED,
+        EVIDENCE_PENDING_TTL_SECONDS: '960',
+        EVIDENCE_UPLOAD_URL_TTL_SECONDS: '900',
+      }).EVIDENCE_PENDING_TTL_SECONDS,
+    ).toBe(960);
+  });
+
+  it('rejects a pending TTL longer than 12 hours', () => {
+    expect(() => validateEnv({ ...DISABLED, EVIDENCE_PENDING_TTL_SECONDS: '43201' })).toThrow(
+      /EVIDENCE_PENDING_TTL_SECONDS/,
+    );
+  });
+
   it('applies defaults when optional variables are missing', () => {
     expect(validateEnv(DISABLED)).toEqual({
       NODE_ENV: 'development',

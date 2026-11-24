@@ -14,6 +14,13 @@ export class FakeStorageService implements StorageService {
     this.objects.delete(key);
     this.prefixes.delete(key);
   }
+  async copyObject(sourceKey: string, destinationKey: string): Promise<void> {
+    const object = this.objects.get(sourceKey);
+    if (!object) throw new Error('Object not found');
+    this.objects.set(destinationKey, { ...object });
+    const prefix = this.prefixes.get(sourceKey);
+    if (prefix) this.prefixes.set(destinationKey, prefix.slice());
+  }
   async headObject(key: string): Promise<StorageObject | undefined> {
     return this.objects.get(key);
   }

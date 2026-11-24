@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { evidence, incidentEvents } from '../src/database/schema/index.js';
 import { STORAGE_SERVICE } from '../src/storage/storage.service.js';
@@ -43,7 +43,7 @@ describe('Evidence uploads (e2e)', () => {
       .set('Cookie', cookie.ana)
       .send({ fileName: 'parcel.jpg', mimeType: 'image/jpeg', sizeBytes: 100 })
       .expect(201);
-    expect(response.body.uploadUrl).toContain('https://storage.test/upload/incidents/');
+    expect(response.body.uploadUrl).toContain('https://storage.test/upload/evidence-pending/');
     const [row] = await testApp.db
       .select()
       .from(evidence)
@@ -136,6 +136,34 @@ describe('Evidence uploads (e2e)', () => {
       .expect(400);
   });
 
+  it('keeps completed evidence available if deleting the temporary object fails', async () => {
+    const { body } = await http()
+      .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
+      .set('Cookie', cookie.ana)
+      .send({ fileName: 'x.jpg', mimeType: 'image/jpeg', sizeBytes: 4 })
+      .expect(201);
+    const [row] = await testApp.db.select().from(evidence).where(eq(evidence.id, body.evidenceId));
+    storage.objects.set(row!.storageKey, { contentType: 'image/jpeg', sizeBytes: 4 });
+    storage.prefixes.set(row!.storageKey, jpeg);
+    const failure = vi
+      .spyOn(storage, 'deleteObject')
+      .mockRejectedValueOnce(new Error('storage unavailable'));
+    try {
+      await http()
+        .post(`/incidents/${ids.openIncident}/evidence/${body.evidenceId}/complete`)
+        .set('Cookie', cookie.ana)
+        .expect(201);
+      const [ready] = await testApp.db
+        .select()
+        .from(evidence)
+        .where(eq(evidence.id, body.evidenceId));
+      expect(ready!.status).toBe('ready');
+      expect(storage.prefixes.get(ready!.storageKey)).toEqual(jpeg);
+    } finally {
+      failure.mockRestore();
+    }
+  });
+
   it('enforces the configured maximum number of files per incident', async () => {
     for (let index = 0; index < 5; index += 1) {
       await http()
@@ -149,6 +177,49 @@ describe('Evidence uploads (e2e)', () => {
       .set('Cookie', cookie.ana)
       .send({ fileName: 'x-6.jpg', mimeType: 'image/jpeg', sizeBytes: 1 })
       .expect(409);
+  });
+
+  it('enforces the quota when upload requests arrive concurrently', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        http()
+          .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
+          .set('Cookie', cookie.ana)
+          .send({ fileName: 'x.jpg', mimeType: 'image/jpeg', sizeBytes: 4 }),
+      ),
+    );
+    expect(responses.filter((response) => response.status === 201)).toHaveLength(5);
+    expect(responses.filter((response) => response.status === 409)).toHaveLength(3);
+  });
+
+  it('records one event for concurrent completion requests', async () => {
+    const { body } = await http()
+      .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
+      .set('Cookie', cookie.ana)
+      .send({ fileName: 'x.jpg', mimeType: 'image/jpeg', sizeBytes: 4 })
+      .expect(201);
+    const [row] = await testApp.db.select().from(evidence).where(eq(evidence.id, body.evidenceId));
+    storage.objects.set(row!.storageKey, { contentType: 'image/jpeg', sizeBytes: 4 });
+    storage.prefixes.set(row!.storageKey, jpeg);
+    const responses = await Promise.all(
+      Array.from({ length: 2 }, () =>
+        http()
+          .post(`/incidents/${ids.openIncident}/evidence/${body.evidenceId}/complete`)
+          .set('Cookie', cookie.ana),
+      ),
+    );
+    expect(responses.map((response) => response.status)).toEqual([201, 201]);
+    const events = await testApp.db
+      .select()
+      .from(incidentEvents)
+      .where(eq(incidentEvents.incidentId, ids.openIncident));
+    expect(events.filter((event) => event.kind === 'evidence_uploaded')).toHaveLength(1);
+    const [ready] = await testApp.db
+      .select()
+      .from(evidence)
+      .where(eq(evidence.id, body.evidenceId));
+    expect(ready!.storageKey).not.toBe(row!.storageKey);
+    expect(storage.prefixes.get(ready!.storageKey)).toEqual(jpeg);
   });
 
   it('removes expired pending evidence before allocating a new upload slot', async () => {

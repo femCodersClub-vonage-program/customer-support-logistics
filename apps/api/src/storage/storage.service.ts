@@ -1,5 +1,6 @@
 import {
   DeleteObjectCommand,
+  CopyObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
@@ -16,9 +17,15 @@ export interface StorageObject {
 }
 
 export interface StorageService {
-  createUploadUrl(key: string, contentType: string, expiresInSeconds: number): Promise<string>;
+  createUploadUrl(
+    key: string,
+    contentType: string,
+    sizeBytes: number,
+    expiresInSeconds: number,
+  ): Promise<string>;
   createDownloadUrl(key: string, expiresInSeconds: number): Promise<string>;
   deleteObject(key: string): Promise<void>;
+  copyObject(sourceKey: string, destinationKey: string): Promise<void>;
   headObject(key: string): Promise<StorageObject | undefined>;
   readPrefix(key: string, length: number): Promise<Uint8Array | undefined>;
 }
@@ -29,11 +36,21 @@ export class S3StorageService implements StorageService {
     private readonly bucket: string,
   ) {}
 
-  createUploadUrl(key: string, contentType: string, expiresInSeconds: number): Promise<string> {
+  createUploadUrl(
+    key: string,
+    contentType: string,
+    sizeBytes: number,
+    expiresInSeconds: number,
+  ): Promise<string> {
     return getSignedUrl(
       this.client,
-      new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: contentType }),
-      { expiresIn: expiresInSeconds },
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: contentType,
+        ContentLength: sizeBytes,
+      }),
+      { expiresIn: expiresInSeconds, signableHeaders: new Set(['content-length', 'content-type']) },
     );
   }
 
@@ -45,6 +62,16 @@ export class S3StorageService implements StorageService {
 
   async deleteObject(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
+
+  async copyObject(sourceKey: string, destinationKey: string): Promise<void> {
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        Key: destinationKey,
+        CopySource: `${this.bucket}/${sourceKey.split('/').map(encodeURIComponent).join('/')}`,
+      }),
+    );
   }
 
   async headObject(key: string): Promise<StorageObject | undefined> {

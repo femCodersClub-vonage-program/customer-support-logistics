@@ -95,6 +95,22 @@ export function isVonageEnabled(env: Pick<Env, 'NODE_ENV' | 'VONAGE_ENABLED'>): 
 }
 
 export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
+  if (env.EVIDENCE_PENDING_TTL_SECONDS < env.EVIDENCE_UPLOAD_URL_TTL_SECONDS + 60) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['EVIDENCE_PENDING_TTL_SECONDS'],
+      message: 'Must exceed EVIDENCE_UPLOAD_URL_TTL_SECONDS by at least 60 seconds',
+    });
+  }
+  if (env.EVIDENCE_PENDING_TTL_SECONDS > 12 * 60 * 60) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['EVIDENCE_PENDING_TTL_SECONDS'],
+      message:
+        'Must not exceed 12 hours, so pending uploads expire before storage lifecycle cleanup',
+    });
+  }
+
   if (env.DEV_VERIFY_CODE !== undefined && env.NODE_ENV === 'production') {
     ctx.addIssue({
       code: 'custom',

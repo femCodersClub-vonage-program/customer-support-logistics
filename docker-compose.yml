@@ -49,6 +49,31 @@ services:
       timeout: 5s
       retries: 10
 
+  seaweedfs-admin:
+    image: chrislusf/seaweedfs:4.54
+    entrypoint: ["/usr/bin/weed"]
+    network_mode: service:seaweedfs
+    user: '0:0'
+    command: admin -master=localhost:9333 -dataDir=/admin-data
+    restart: unless-stopped
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    volumes:
+      - seaweedfs-admin-data:/admin-data
+
+  seaweedfs-worker:
+    image: chrislusf/seaweedfs:4.54
+    entrypoint: ["/usr/bin/weed"]
+    network_mode: service:seaweedfs
+    user: '0:0'
+    command: worker -admin=localhost:12535 -jobType=s3_lifecycle -workingDir=/worker-data
+    restart: unless-stopped
+    depends_on:
+      - seaweedfs-admin
+    volumes:
+      - seaweedfs-worker-data:/worker-data
+
   seaweedfs-init:
     image: amazon/aws-cli:2.22.35
     restart: 'no'
@@ -90,8 +115,13 @@ services:
           --bucket "$$STORAGE_BUCKET" \
           --cors-configuration "{\"CORSRules\":[{\"ID\":\"pwa-presigned-evidence\",\"AllowedOrigins\":[$$origins_json],\"AllowedMethods\":[\"GET\",\"HEAD\",\"PUT\"],\"AllowedHeaders\":[\"*\"],\"ExposeHeaders\":[\"ETag\"],\"MaxAgeSeconds\":3600}]}"
         aws --endpoint-url http://seaweedfs:8333 s3api get-bucket-cors --bucket "$$STORAGE_BUCKET"
+        aws --endpoint-url http://seaweedfs:8333 s3api put-bucket-lifecycle-configuration \
+          --bucket "$$STORAGE_BUCKET" \
+          --lifecycle-configuration '{"Rules":[{"ID":"expire-pending-evidence","Status":"Enabled","Filter":{"Prefix":"evidence-pending/"},"Expiration":{"Days":1}}]}'
 
 volumes:
   postgres-data:
   redis-data:
   seaweedfs-data:
+  seaweedfs-admin-data:
+  seaweedfs-worker-data:

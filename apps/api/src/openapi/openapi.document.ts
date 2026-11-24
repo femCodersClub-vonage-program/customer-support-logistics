@@ -10,14 +10,19 @@ import {
   customerLoginCheckBodySchema,
   customerLoginStartBodySchema,
   customerLoginStartResponseSchema,
+  evidenceDownloadSchema,
+  evidenceIdParamsSchema,
+  evidenceUploadUrlSchema,
   incidentDetailSchema,
   incidentIdParamsSchema,
   incidentSchema,
   listIncidentsQuerySchema,
   listIncidentsResponseSchema,
   listOrdersResponseSchema,
+  requestEvidenceUploadBodySchema,
   startMediationResponseSchema,
 } from '@csl/contracts';
+import { z } from 'zod';
 import { createDocument } from 'zod-openapi';
 
 import {
@@ -31,7 +36,6 @@ import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../auth/session-cookie.js';
 import { APP_VERSION } from '../version.js';
 import { CLIENT_TOKEN_TTL_SECONDS } from '../vonage/client-token.js';
 
-import type { z } from 'zod';
 import type { ZodOpenApiResponseObject, ZodOpenApiResponsesObject } from 'zod-openapi';
 
 const json = (description: string, schema: z.ZodType): ZodOpenApiResponseObject => ({
@@ -216,6 +220,47 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           requestParams: { path: incidentIdParamsSchema },
           responses: {
             '200': json('The incident detail', incidentDetailSchema),
+            ...incidentErrors,
+          },
+        },
+      },
+      '/incidents/{id}/evidence/upload-url': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Request an evidence upload URL',
+          requestParams: { path: incidentIdParamsSchema },
+          requestBody: {
+            content: { 'application/json': { schema: requestEvidenceUploadBodySchema } },
+          },
+          responses: {
+            '201': json('Pending evidence and upload URL', evidenceUploadUrlSchema),
+            ...incidentErrors,
+            '403': forbiddenFor('agents'),
+            '409': error('Evidence quota reached'),
+            '413': error('Evidence exceeds the size limit'),
+          },
+        },
+      },
+      '/incidents/{id}/evidence/{evidenceId}/complete': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Validate and complete an evidence upload',
+          requestParams: { path: evidenceIdParamsSchema },
+          responses: {
+            '201': { description: 'Evidence upload completed' },
+            ...incidentErrors,
+            '403': forbiddenFor('agents'),
+            '409': error('The object has not been uploaded'),
+          },
+        },
+      },
+      '/incidents/{id}/evidence': {
+        get: {
+          tags: ['incidents'],
+          summary: 'List ready evidence with signed download URLs',
+          requestParams: { path: incidentIdParamsSchema },
+          responses: {
+            '200': json('Ready evidence', z.array(evidenceDownloadSchema)),
             ...incidentErrors,
           },
         },
