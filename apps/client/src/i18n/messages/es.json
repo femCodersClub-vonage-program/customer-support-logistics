@@ -9,7 +9,6 @@
     "empty": "Todavía no tienes pedidos.",
     "order": "Pedido {id}",
     "address": "Dirección",
-    "status": "Estado",
     "loading": "Cargando tus pedidos...",
     "error": "No hemos podido cargar tus pedidos. Inténtalo de nuevo.",
     "retry": "Reintentar",

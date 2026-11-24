@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { api } from '../api.ts';
 import { useTranslations } from 'use-intl';
 
+import { api } from '../api.ts';
 import { useSession } from '../auth/session-context.ts';
 import '../auth/login.css';
-import { InstallPrompt } from '../pwa/InstallPrompt.tsx';
-
 import { OrderCard } from '../components/OrderCard.tsx';
+import '../orders/orders.css';
+import { InstallPrompt } from '../pwa/InstallPrompt.tsx';
 
 export function OrdersPage() {
   const t = useTranslations('orders');
@@ -36,7 +36,7 @@ export function OrdersPage() {
         {!isLoading && isError && (
           <div>
             <p role="alert">{t('error')}</p>
-            <button type="button" className="order-card__button" onClick={() => void refetch()}>
+            <button type="button" className="orders-page__retry" onClick={() => void refetch()}>
               {t('retry')}
             </button>
           </div>

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HttpResponse, http } from 'msw';
 import { MemoryRouter } from 'react-router';
 
@@ -26,12 +27,16 @@ export const sessionOf = (user: CurrentUser | null) =>
   );
 
 export function renderApp(path: string, locale: Locale = 'en') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   return renderWithIntl(
-    <MemoryRouter initialEntries={[path]}>
-      <SessionProvider>
-        <App />
-      </SessionProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[path]}>
+        <SessionProvider>
+          <App />
+        </SessionProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
     { locale },
   );
 }

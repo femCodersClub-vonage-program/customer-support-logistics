@@ -9,7 +9,6 @@
     "empty": "You have no orders yet.",
     "order": "Order {id}",
     "address": "Address",
-    "status": "Status",
     "loading": "Loading your orders...",
     "error": "We couldn't load your orders. Please try again.",
     "retry": "Try again",
