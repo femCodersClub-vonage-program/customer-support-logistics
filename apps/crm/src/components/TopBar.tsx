@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 
 import { LocaleSwitcher } from './LocaleSwitcher';
+import { LogoutButton } from './LogoutButton';
 import styles from './TopBar.module.css';
 
 export function TopBar() {
@@ -14,6 +15,7 @@ export function TopBar() {
         })}
       </p>
       <LocaleSwitcher />
+      <LogoutButton />
     </header>
   );
 }

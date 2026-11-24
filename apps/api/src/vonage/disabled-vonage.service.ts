@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 
 import { VonageDisabledError } from './vonage.errors.js';
 
+import type { ClientToken } from './client-token.js';
 import type { VonageOperation } from './vonage.errors.js';
 import type {
   CreatedCall,
@@ -37,6 +38,14 @@ export class DisabledVonageService implements VonageService {
 
   async moveVerificationToSms(): Promise<NextVerificationChannel> {
     throw this.reject('moveVerificationToSms');
+  }
+
+  async ensureUser(): Promise<void> {
+    throw this.reject('ensureUser');
+  }
+
+  async createClientToken(): Promise<ClientToken> {
+    throw this.reject('createClientToken');
   }
 
   private reject(operation: VonageOperation): VonageDisabledError {

@@ -82,6 +82,7 @@ Prettier is configured once at the root through the `prettier` field in `package
 
 To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
 
+`pnpm test` includes the API e2e tests, which need `DATABASE_URL` pointing to a test database: see [Test database](apps/api/README.md#test-database).
 
 ## Documentation
 
@@ -95,4 +96,3 @@ To run a task in a single workspace: `pnpm --filter ./apps/<name> run <task>`.
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or a pull request. It covers branches, commits, pull requests and the definition of done.
-

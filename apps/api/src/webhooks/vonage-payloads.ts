@@ -25,6 +25,7 @@ export const voiceAnswerSchema = z.looseObject({
   uuid: z.string().optional(),
   conversation_uuid: z.string().optional(),
   from: z.string().optional(),
+  from_user: z.string().optional(),
   to: z.string().optional(),
   endpoint_type: z.string().optional(),
   custom_data: z.unknown().optional(),

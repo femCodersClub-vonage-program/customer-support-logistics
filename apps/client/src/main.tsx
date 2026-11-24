@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from './App.tsx';
+import { SessionProvider } from './auth/session.tsx';
 import { LocaleProvider } from './i18n/LocaleProvider.tsx';
 import { LocaleSwitcher } from './i18n/LocaleSwitcher.tsx';
 import { listenForInstallPrompt } from './pwa/installPrompt.ts';
@@ -27,7 +28,9 @@ createRoot(container).render(
           <OfflineBanner />
           <LocaleSwitcher />
           <BrowserRouter>
-            <App />
+            <SessionProvider>
+              <App />
+            </SessionProvider>
           </BrowserRouter>
           <UpdatePrompt />
         </InterruptionsProvider>

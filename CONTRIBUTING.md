@@ -109,6 +109,8 @@ pnpm format:check
 pnpm build
 ```
 
+The API e2e tests in `pnpm test` need `DATABASE_URL` pointing to a test database: see [Test database](apps/api/README.md#test-database).
+
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs lint, tests and build for each app, so a pull request that fails them can't be merged.
 
 ## Definition of done

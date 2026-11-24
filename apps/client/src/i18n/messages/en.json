@@ -6,13 +6,14 @@
     "title": "My orders",
     "reportProblem": "Report a problem",
     "viewIncident": "View my incident",
-    "empty": "You don't have any orders yet.",
+    "empty": "You have no orders yet.",
     "order": "Order {id}",
     "address": "Address",
     "status": "Status",
     "loading": "Loading your orders...",
     "error": "We couldn't load your orders. Please try again.",
     "retry": "Try again",
+    "logOut": "Log out",
     "statuses": {
       "pending": "Pending",
       "in_transit": "On the way",
@@ -21,27 +22,121 @@
     }
   },
   "login": {
-    "title": "Log in"
+    "title": "Log in",
+    "intro": "Use the phone number you gave with your order. We'll send you a code by SMS.",
+    "country": "Country",
+    "countries": {
+      "ES": "Spain (+34)",
+      "GB": "United Kingdom (+44)"
+    },
+    "phone": "Phone number",
+    "sendCode": "Send code",
+    "sending": "Sending…",
+    "codeTitle": "Enter the code",
+    "codeSent": "We've sent a code by SMS to {phone}.",
+    "code": "Code",
+    "logIn": "Log in",
+    "checking": "Checking…",
+    "resend": "Send a new code",
+    "resendIn": "You can ask for a new code in {time}.",
+    "changeNumber": "Change number",
+    "verifying": "Checking your number…",
+    "errors": {
+      "invalidPhone": "Check the phone number: it should be a mobile number from the country you chose.",
+      "wrongCode": "That code isn't right. Check the SMS and try again.",
+      "expired": "The code has expired. Ask for a new one.",
+      "tooManyAttempts": "Too many wrong codes. Ask for a new one.",
+      "wait": "Too many attempts for this number. Wait a few minutes and try again.",
+      "offline": "There's no connection. Check it and try again.",
+      "generic": "Something went wrong. Try again in a moment."
+    }
   },
   "report": {
     "title": "Report an incident",
-    "order": "Order {orderId}"
+    "order": "Order {orderId}",
+    "type": "What happened?",
+    "description": "Describe the problem",
+    "hintOptional": "Optional · {count} / {max}",
+    "hintRequired": "Required · {count} / {max}",
+    "submit": "Send report",
+    "sending": "Sending… this may take a moment.",
+    "errors": {
+      "type": "Choose what happened.",
+      "descriptionRequired": "Describe the problem.",
+      "descriptionTooLong": "The description is too long. Use at most {max} characters.",
+      "orderNotFound": "We could not find this order.",
+      "generic": "We could not send the report. Try again in a moment."
+    }
   },
   "incident": {
-    "title": "Incident details",
+    "title": "Incident",
     "reference": "Incident {id}",
     "order": "Order",
-    "type": "Incident type",
+    "typeLabel": "Incident type",
     "status": "Current status",
     "description": "Description",
     "resolution": "Resolution",
     "timeline": "Incident timeline",
     "createdAt": "Opening date",
-    "closedAt": "Closing date"
+    "closedAt": "Closing date",
+    "type": {
+      "not_delivered": "Not delivered",
+      "delayed": "Delayed",
+      "damaged": "Damaged",
+      "wrong_item": "Wrong item",
+      "other": "Other"
+    }
   },
   "call": {
     "title": "Mediation call",
-    "incident": "Incident {id}"
+    "incident": "Incident {id}",
+    "intro": "Join the call to sort out your incident with support and the driver.",
+    "participantsTitle": "Who's on the call",
+    "participants": {
+      "you": "You",
+      "agent": "A support agent",
+      "driver": "The driver of your order, by phone"
+    },
+    "microphoneTitle": "Your microphone",
+    "microphoneIntro": "When you tap “Join the call”, your browser will ask to use your microphone. Allow it so the others can hear you. We only use it during this call.",
+    "join": "Join the call",
+    "status": {
+      "connecting": "Connecting…",
+      "ringing": "Joining the call…",
+      "connected": "Connected",
+      "reconnecting": "Connection lost. Reconnecting…",
+      "ended": "Call ended",
+      "failed": "The call couldn't connect"
+    },
+    "duration": "Duration",
+    "mute": "Mute microphone",
+    "hangUp": "Hang up",
+    "ended": {
+      "title": "The call has ended",
+      "byRemote": "Support ended the call.",
+      "byYou": "You left the call."
+    },
+    "microphoneHelp": {
+      "title": "Allow the microphone",
+      "intro": "The call needs your microphone, but your browser has blocked it. Allow it with these steps and try again.",
+      "chromeTitle": "Chrome on Android",
+      "chromeStep1": "Tap the icon to the left of the web address.",
+      "chromeStep2": "Tap “Permissions”.",
+      "chromeStep3": "Turn on “Microphone”.",
+      "safariTitle": "Safari on iPhone",
+      "safariStep1": "Tap “aA” in the address bar.",
+      "safariStep2": "Tap “Website Settings”.",
+      "safariStep3": "Set “Microphone” to “Allow”."
+    },
+    "errors": {
+      "notAvailable": "This call isn't available. The mediation may not have started yet, or it has already ended.",
+      "noConnection": "There's no connection. Check it and try again.",
+      "sessionExpired": "The call session has expired. Join again to continue.",
+      "microphoneUnavailable": "We couldn't find a microphone, or another app is using it. Check it and try again.",
+      "generic": "Something went wrong. Try again in a moment."
+    },
+    "tryAgain": "Try again",
+    "backToIncident": "Back to the incident"
   },
   "notFound": {
     "title": "Page not found",

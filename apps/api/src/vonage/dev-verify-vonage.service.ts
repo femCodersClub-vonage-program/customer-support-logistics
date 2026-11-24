@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { DisabledVonageService } from './disabled-vonage.service.js';
 
+import type { ClientToken } from './client-token.js';
 import type {
   CreatedCall,
   NextVerificationChannel,
@@ -26,6 +27,14 @@ export class DevVerifyVonageService implements VonageService {
 
   transferCall(): Promise<void> {
     return this.disabled.transferCall();
+  }
+
+  ensureUser(): Promise<void> {
+    return this.disabled.ensureUser();
+  }
+
+  createClientToken(): Promise<ClientToken> {
+    return this.disabled.createClientToken();
   }
 
   async startVerification(): Promise<StartedVerification> {

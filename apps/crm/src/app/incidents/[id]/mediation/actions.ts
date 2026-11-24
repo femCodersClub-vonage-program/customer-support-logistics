@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { unstable_rethrow } from 'next/navigation';
 
 import { serverApi } from '../../../../lib/api.server';
 import {
@@ -20,6 +21,7 @@ async function run(
   try {
     await call();
   } catch (error) {
+    unstable_rethrow(error);
     return { error: toMediationError(error) };
   }
 

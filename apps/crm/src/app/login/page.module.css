@@ -1,0 +1,10 @@
+.page {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.toolbar {
+  display: flex;
+  margin-bottom: 24px;
+}

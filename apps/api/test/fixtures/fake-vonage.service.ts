@@ -1,3 +1,6 @@
+import { CLIENT_TOKEN_TTL_SECONDS } from '../../src/vonage/client-token.js';
+
+import type { ClientToken } from '../../src/vonage/client-token.js';
 import type { NccoAction } from '../../src/vonage/ncco.js';
 import type {
   CreatedCall,
@@ -24,7 +27,9 @@ export type RecordedVonageCall =
       silentAuthRedirectUrl?: string;
     }
   | { operation: 'checkVerification'; requestId: string; code: string }
-  | { operation: 'moveVerificationToSms'; requestId: string };
+  | { operation: 'moveVerificationToSms'; requestId: string }
+  | { operation: 'ensureUser'; name: string }
+  | { operation: 'createClientToken'; userName: string };
 
 type Operation = RecordedVonageCall['operation'];
 
@@ -96,6 +101,19 @@ export class FakeVonageService implements VonageService {
     this.nextCheckOutcome = undefined;
 
     return { status: outcome ?? (code === FAKE_VERIFICATION_CODE ? 'verified' : 'wrong_code') };
+  }
+
+  async ensureUser(name: string): Promise<void> {
+    this.record({ operation: 'ensureUser', name });
+  }
+
+  async createClientToken(userName: string): Promise<ClientToken> {
+    this.record({ operation: 'createClientToken', userName });
+
+    return {
+      token: `fake-client-token-${userName}`,
+      expiresAt: new Date(Date.now() + CLIENT_TOKEN_TTL_SECONDS * 1000),
+    };
   }
 
   failNext(operation: Operation, error: Error): void {

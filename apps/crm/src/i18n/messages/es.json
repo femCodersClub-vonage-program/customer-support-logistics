@@ -4,7 +4,22 @@
     "description": "Bandeja de entrada, fichas de incidencia y consola de mediación para agentes de soporte."
   },
   "topBar": {
-    "brand": "CSL <accent>Support</accent>"
+    "brand": "CSL <accent>Support</accent>",
+    "logOut": "Cerrar sesión",
+    "logOutFailed": "No se ha podido cerrar la sesión. Comprueba la conexión y vuelve a probar."
+  },
+  "login": {
+    "title": "Iniciar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "submitting": "Entrando…",
+    "errors": {
+      "invalidCredentials": "El correo o la contraseña no son correctos.",
+      "wait": "Demasiados intentos. Espera un minuto y vuelve a probar.",
+      "offline": "No hay conexión. Compruébala y vuelve a probar.",
+      "generic": "Algo ha fallado. Vuelve a probar en un momento."
+    }
   },
   "nav": {
     "label": "Principal",

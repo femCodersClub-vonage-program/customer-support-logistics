@@ -2,7 +2,9 @@ import {
   agentLoginBodySchema,
   apiErrorResponseSchema,
   changeIncidentStatusBodySchema,
+  clientTokenResponseSchema,
   communicationSchema,
+  createClientTokenBodySchema,
   createIncidentBodySchema,
   currentUserSchema,
   customerLoginCheckBodySchema,
@@ -11,6 +13,7 @@ import {
   incidentDetailSchema,
   incidentIdParamsSchema,
   incidentSchema,
+  incidentStreamEventSchema,
   listIncidentsQuerySchema,
   listIncidentsResponseSchema,
   listOrdersResponseSchema,
@@ -24,10 +27,11 @@ import {
   CUSTOMER_LOGIN_STARTS_PER_WINDOW,
   CUSTOMER_LOGIN_START_WINDOW_MS,
 } from '../auth/auth.controller.js';
-import { DEV_ACTOR_HEADER } from '../auth/dev-actor.js';
 import { VERIFICATION_TTL_MS } from '../auth/pending-verifications.js';
 import { SESSION_COOKIE, VERIFICATION_COOKIE } from '../auth/session-cookie.js';
+import { HEARTBEAT_INTERVAL_MS } from '../events/sse-messages.js';
 import { APP_VERSION } from '../version.js';
+import { CLIENT_TOKEN_TTL_SECONDS } from '../vonage/client-token.js';
 
 import type { z } from 'zod';
 import type { ZodOpenApiResponseObject, ZodOpenApiResponsesObject } from 'zod-openapi';
@@ -68,9 +72,6 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
       version: APP_VERSION,
       description: [
         `Protected routes need the \`${SESSION_COOKIE}\` session cookie, set by the login endpoints.`,
-        'While the CRM and the PWA move to the real login, development also accepts the temporary',
-        `\`${DEV_ACTOR_HEADER}\` header (\`customer:<uuid>\` or \`agent:<uuid>\`) with`,
-        '`DEV_AUTH_ENABLED=true`.',
         '',
         'Lists use `limit` / `offset` pagination and return `total`.',
       ].join('\n'),
@@ -83,15 +84,9 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           name: SESSION_COOKIE,
           description: 'Opaque session id, `HttpOnly`, set by the login endpoints',
         },
-        devActor: {
-          type: 'apiKey',
-          in: 'header',
-          name: DEV_ACTOR_HEADER,
-          description: 'Temporary, development-only actor: `customer:<uuid>` or `agent:<uuid>`',
-        },
       },
     },
-    security: [{ session: [] }, { devActor: [] }],
+    security: [{ session: [] }],
     paths: {
       '/auth/agent/login': {
         post: {
@@ -191,6 +186,27 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           },
         },
       },
+      '/events/stream': {
+        get: {
+          tags: ['events'],
+          summary: 'Server-Sent Events stream of incident changes for the CRM',
+          description: [
+            'Each event is an unnamed message with an `id` and a small JSON `data` that says which incident changed; the CRM fetches what it needs.',
+            `A \`: heartbeat\` comment is sent every ${HEARTBEAT_INTERVAL_MS / 1000} seconds so that proxies keep the connection open.`,
+            'Events are not replayed and `Last-Event-ID` is ignored: after reconnecting, fetch the data again.',
+            'The stream ends when the API stops listening to the database, so that the client reconnects and fetches again.',
+          ].join(' '),
+          responses: {
+            '200': {
+              description: 'The stream of incident changes',
+              content: { 'text/event-stream': { schema: incidentStreamEventSchema } },
+            },
+            '401': unauthorized,
+            '403': forbiddenFor('customers'),
+            '503': error('The API is not listening to incident changes right now; try again'),
+          },
+        },
+      },
       '/incidents': {
         post: {
           tags: ['incidents'],
@@ -284,6 +300,25 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             '200': json('The customer’s orders', listOrdersResponseSchema),
             '401': unauthorized,
             '403': forbiddenFor('agents'),
+          },
+        },
+      },
+      '/vonage/client-token': {
+        post: {
+          tags: ['vonage'],
+          summary: 'Get a Vonage Client SDK token to join the mediation call',
+          description: `Creates the Vonage user of the customer (\`cust-<id>\`) or agent (\`agent-<id>\`) if it does not exist yet, and returns a JWT for it that expires after ${CLIENT_TOKEN_TTL_SECONDS / 60} minutes, with only the ACLs needed to make and control a call. The client starts the call with \`serverCall({ incidentId })\`, and the answer webhook only joins the conversation \`inc-<id>\` if the user belongs to that incident.`,
+          requestBody: {
+            content: { 'application/json': { schema: createClientTokenBodySchema } },
+          },
+          responses: {
+            '201': json(
+              'The token, the Vonage user name and when the token expires',
+              clientTokenResponseSchema,
+            ),
+            ...incidentErrors,
+            '409': error('The incident is not in mediation'),
+            '502': error('Vonage could not create the user; try again'),
           },
         },
       },

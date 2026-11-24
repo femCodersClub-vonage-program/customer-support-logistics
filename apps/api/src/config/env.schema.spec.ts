@@ -30,9 +30,24 @@ describe('validateEnv', () => {
       PORT: 3000,
       DATABASE_URL,
       VONAGE_ENABLED: false,
-      DEV_AUTH_ENABLED: false,
       WEBHOOK_RATE_LIMIT_PER_MINUTE: 120,
     });
+  });
+
+  it('reads CLIENT_IP_HEADER as a lowercase header name', () => {
+    expect(validateEnv({ ...DISABLED, CLIENT_IP_HEADER: ' X-Real-IP ' })).toMatchObject({
+      CLIENT_IP_HEADER: 'x-real-ip',
+    });
+  });
+
+  it('treats an empty CLIENT_IP_HEADER as unset', () => {
+    expect(validateEnv({ ...DISABLED, CLIENT_IP_HEADER: '' }).CLIENT_IP_HEADER).toBeUndefined();
+  });
+
+  it('throws when CLIENT_IP_HEADER is not a header name', () => {
+    expect(() => validateEnv({ ...DISABLED, CLIENT_IP_HEADER: 'x-real_ip' })).toThrow(
+      /CLIENT_IP_HEADER/,
+    );
   });
 
   it('coerces PORT to a number', () => {
@@ -40,18 +55,6 @@ describe('validateEnv', () => {
       NODE_ENV: 'production',
       PORT: 8080,
     });
-  });
-
-  it('parses DEV_AUTH_ENABLED as a boolean', () => {
-    expect(validateEnv({ ...DISABLED, DEV_AUTH_ENABLED: 'true' })).toMatchObject({
-      DEV_AUTH_ENABLED: true,
-    });
-  });
-
-  it('throws when DEV_AUTH_ENABLED is enabled in production', () => {
-    expect(() =>
-      validateEnv({ ...DISABLED, NODE_ENV: 'production', DEV_AUTH_ENABLED: 'true' }),
-    ).toThrow(/DEV_AUTH_ENABLED/);
   });
 
   describe('DEV_VERIFY_CODE', () => {

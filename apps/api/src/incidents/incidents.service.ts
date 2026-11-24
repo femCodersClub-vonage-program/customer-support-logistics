@@ -14,6 +14,7 @@ import {
   routes,
 } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
+import { publishIncidentChange } from '../events/publish-incident-event.js';
 import { toOrder } from '../orders/orders.mapper.js';
 
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
@@ -111,7 +112,10 @@ export class IncidentsService {
       }
 
       const incident = singleRow(
-        await tx.insert(incidents).values({ orderId: order.id, type: body.type }).returning(),
+        await tx
+          .insert(incidents)
+          .values({ orderId: order.id, type: body.type, description: body.description })
+          .returning(),
       );
 
       await tx.insert(incidentEvents).values({
@@ -122,6 +126,8 @@ export class IncidentsService {
         actorId: customerId,
         occurredAt: incident.createdAt,
       });
+
+      await publishIncidentChange(tx, 'incident.created', incident);
 
       return toIncident(incident);
     });
