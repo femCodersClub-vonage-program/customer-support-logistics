@@ -7,9 +7,19 @@ export const EVIDENCE_MIME_TYPES = [
   'image/png',
   'image/webp',
   'image/heic',
+  'image/heif',
   'video/mp4',
   'video/quicktime',
 ] as const;
+
+export const EVIDENCE_ACCEPT = [...EVIDENCE_MIME_TYPES, '.heic', '.heif', '.mov'].join(',');
+
+const TYPE_BY_EXTENSION = new Map([
+  ['heic', 'image/heic'],
+  ['heif', 'image/heif'],
+  ['mov', 'video/quicktime'],
+  ['mp4', 'video/mp4'],
+]);
 
 export type EvidenceRejectionReason = 'type' | 'size' | 'tooMany';
 
@@ -23,16 +33,29 @@ export interface AddedFiles {
   rejected: EvidenceRejection[];
 }
 
+export function mimeTypeOf(file: File): string {
+  if (file.type !== '') {
+    return file.type;
+  }
+
+  const dot = file.name.lastIndexOf('.');
+  const extension = dot === -1 ? '' : file.name.slice(dot + 1).toLowerCase();
+
+  return TYPE_BY_EXTENSION.get(extension) ?? '';
+}
+
 function maxBytes(type: string): number {
   return type.startsWith('video/') ? EVIDENCE_MAX_VIDEO_BYTES : EVIDENCE_MAX_IMAGE_BYTES;
 }
 
 function rejectionOf(file: File, chosen: number): EvidenceRejectionReason | null {
-  if (!EVIDENCE_MIME_TYPES.some((allowed) => allowed === file.type)) {
+  const type = mimeTypeOf(file);
+
+  if (!EVIDENCE_MIME_TYPES.some((allowed) => allowed === type)) {
     return 'type';
   }
 
-  if (file.size > maxBytes(file.type)) {
+  if (file.size > maxBytes(type)) {
     return 'size';
   }
 
