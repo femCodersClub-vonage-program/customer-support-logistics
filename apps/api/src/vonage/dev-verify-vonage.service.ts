@@ -29,6 +29,10 @@ export class DevVerifyVonageService implements VonageService {
     return this.disabled.transferCall();
   }
 
+  hangupCall(): Promise<void> {
+    return this.disabled.hangupCall();
+  }
+
   ensureUser(): Promise<void> {
     return this.disabled.ensureUser();
   }
