@@ -3,18 +3,21 @@ import { useTranslations } from 'use-intl';
 
 import {
   addFiles,
+  EVIDENCE_ACCEPT,
   EVIDENCE_MAX_FILES,
   EVIDENCE_MAX_IMAGE_BYTES,
   EVIDENCE_MAX_VIDEO_BYTES,
+  mimeTypeOf,
 } from './evidence-files.ts';
 import './evidence.css';
 
 import type { EvidenceRejection } from './evidence-files.ts';
 import type { ChangeEvent } from 'react';
 
-const ACCEPT = 'image/*,video/*';
 const CAMERA = 'environment';
+const FILE_ICON = '🖼️';
 const MB = 1024 * 1024;
+const NOT_SHOWN_BY_BROWSERS = new Set(['image/heic', 'image/heif']);
 
 const LIMITS = {
   maxFiles: EVIDENCE_MAX_FILES,
@@ -22,15 +25,15 @@ const LIMITS = {
   videoMb: EVIDENCE_MAX_VIDEO_BYTES / MB,
 };
 
-const keys = new WeakMap<File, string>();
+const keys = new WeakMap<object, string>();
 let nextKey = 0;
 
-function keyOf(file: File): string {
-  let key = keys.get(file);
+function keyOf(item: object): string {
+  let key = keys.get(item);
 
   if (key === undefined) {
     key = String(nextKey++);
-    keys.set(file, key);
+    keys.set(item, key);
   }
 
   return key;
@@ -38,6 +41,8 @@ function keyOf(file: File): string {
 
 function EvidencePreview({ file }: Readonly<{ file: File }>) {
   const [url, setUrl] = useState<string | null>(null);
+  const [broken, setBroken] = useState(false);
+  const type = mimeTypeOf(file);
 
   useEffect(() => {
     const objectUrl = URL.createObjectURL(file);
@@ -53,17 +58,36 @@ function EvidencePreview({ file }: Readonly<{ file: File }>) {
     return <span aria-hidden="true" className="evidence-preview" />;
   }
 
-  return file.type.startsWith('video/') ? (
-    <video
+  if (type.startsWith('video/')) {
+    return (
+      <video
+        className="evidence-preview"
+        src={url}
+        muted
+        controls
+        preload="metadata"
+        aria-label={file.name}
+      />
+    );
+  }
+
+  if (broken || NOT_SHOWN_BY_BROWSERS.has(type)) {
+    return (
+      <span aria-hidden="true" className="evidence-preview evidence-preview--file">
+        {FILE_ICON}
+      </span>
+    );
+  }
+
+  return (
+    <img
       className="evidence-preview"
       src={url}
-      muted
-      controls
-      preload="metadata"
-      aria-label={file.name}
+      alt=""
+      onError={() => {
+        setBroken(true);
+      }}
     />
-  ) : (
-    <img className="evidence-preview" src={url} alt="" />
   );
 }
 
@@ -81,9 +105,12 @@ export function EvidencePicker({
   const t = useTranslations('report.evidence');
   const id = useId();
   const hintId = `${id}-hint`;
-  const [rejected, setRejected] = useState<EvidenceRejection[]>([]);
+  const [rejection, setRejection] = useState<{ batch: number; items: EvidenceRejection[] }>({
+    batch: 0,
+    items: [],
+  });
 
-  const needsPhoto = suggestPhoto && !files.some((file) => file.type.startsWith('image/'));
+  const needsPhoto = suggestPhoto && !files.some((file) => mimeTypeOf(file).startsWith('image/'));
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const incoming = Array.from(event.target.files ?? []);
@@ -97,12 +124,12 @@ export function EvidencePicker({
     const result = addFiles(files, incoming);
 
     onChange(result.files);
-    setRejected(result.rejected);
+    setRejection(({ batch }) => ({ batch: batch + 1, items: result.rejected }));
   }
 
   function remove(file: File) {
     onChange(files.filter((candidate) => candidate !== file));
-    setRejected([]);
+    setRejection(({ batch }) => ({ batch, items: [] }));
   }
 
   return (
@@ -114,7 +141,7 @@ export function EvidencePicker({
           <input
             className="evidence-button__input"
             type="file"
-            accept={ACCEPT}
+            accept={EVIDENCE_ACCEPT}
             capture={CAMERA}
             aria-describedby={hintId}
             onChange={handleChange}
@@ -125,7 +152,7 @@ export function EvidencePicker({
           <input
             className="evidence-button__input"
             type="file"
-            accept={ACCEPT}
+            accept={EVIDENCE_ACCEPT}
             multiple
             aria-describedby={hintId}
             onChange={handleChange}
@@ -140,12 +167,16 @@ export function EvidencePicker({
 
       {needsPhoto && <p className="report-form__hint">{t('suggestPhoto')}</p>}
 
-      {rejected.length > 0 && (
-        <ul role="alert" className="report-form__error evidence__rejected">
-          {rejected.map(({ name, reason }) => (
-            <li key={`${reason}-${name}`}>{t(`rejected.${reason}`, { name, ...LIMITS })}</li>
-          ))}
-        </ul>
+      {rejection.items.length > 0 && (
+        <div key={rejection.batch} role="alert" className="report-form__error">
+          <ul className="evidence__rejected">
+            {rejection.items.map((item) => (
+              <li key={keyOf(item)}>
+                {t(`rejected.${item.reason}`, { name: item.name, ...LIMITS })}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {files.length > 0 && (
