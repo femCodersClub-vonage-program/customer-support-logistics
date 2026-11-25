@@ -15,11 +15,12 @@ Desktop CRM (`apps/crm`).
 | 5    | `/incidents/[id]`           | Determines whether three-way mediation is needed. | Continues with direct resolution or mediation.              | `notified`               |
 | 6    | `/incidents/[id]/mediation` | Starts three-way mediation when required.         | Texts the driver and the customer, and calls the driver.    | `in_mediation`           |
 | 7    | `/incidents/[id]/mediation` | Moderates the conversation.                       | Connects customer and agent via WebRTC and driver via PSTN. | `in_mediation`           |
-| 8    | `/incidents/[id]`           | Records the outcome.                              | Updates the ticket and notifies the customer.               | `resolved` / `escalated` |
+| 8    | `/incidents/[id]`           | Records the outcome.                              | Updates the ticket, ends the call and notifies by SMS.      | `resolved` / `escalated` |
 
 ## Alternative paths
 
-- **No mediation needed:** The agent records the resolution and closes the incident.
+- **No mediation needed:** The agent records the resolution and closes the incident. The customer and the driver receive a confirmation SMS.
+- **Outcome recorded:** Resolving sends an SMS to the customer and to the driver; escalating sends one to the customer. Each is in the recipient's language and doesn't include the agent's note.
 - **Driver does not respond to the initial SMS:** The contact attempt is recorded and the incident remains pending further handling.
 - **Starting the mediation:** The driver gets an SMS announcing the call and the customer an SMS with the link to `/call/:id`. The driver is called 2 minutes later.
 - **Driver does not answer the mediation call or press 1:** The call is retried twice, 60 seconds apart (3 calls in total), then the driver gets a fallback SMS. The timeline shows that the driver could not be reached, and the incident stays in mediation.

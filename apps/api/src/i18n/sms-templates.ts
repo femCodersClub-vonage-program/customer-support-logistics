@@ -32,3 +32,15 @@ export function mediationInviteSms(
 export function invalidReplySms(locale: Locale) {
   return getTranslator(locale)('sms.invalidReply');
 }
+
+export function resolvedCustomerSms(locale: Locale, { orderId }: { orderId: Order['id'] }) {
+  return getTranslator(locale)('sms.resolvedCustomer', { orderId });
+}
+
+export function resolvedDriverSms(locale: Locale, { orderId }: { orderId: Order['id'] }) {
+  return getTranslator(locale)('sms.resolvedDriver', { orderId });
+}
+
+export function escalatedCustomerSms(locale: Locale, { orderId }: { orderId: Order['id'] }) {
+  return getTranslator(locale)('sms.escalatedCustomer', { orderId });
+}

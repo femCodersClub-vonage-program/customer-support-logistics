@@ -4,7 +4,10 @@
     "callSoon": "CSL: te llamaremos en {minutes, plural, one {# minuto} other {# minutos}} por la incidencia del pedido {orderId}.",
     "callFallback": "CSL: no hemos podido contactarte por el pedido {orderId}. Te volveremos a llamar.",
     "mediationInvite": "CSL: entra a la llamada del pedido {orderId}: {url}",
-    "invalidReply": "CSL: responde 1 o 2."
+    "invalidReply": "CSL: responde 1 o 2.",
+    "resolvedCustomer": "CSL: hemos resuelto la incidencia de tu pedido {orderId}. Gracias por tu paciencia.",
+    "resolvedDriver": "CSL: la incidencia del pedido {orderId} se ha resuelto. Gracias por tu ayuda.",
+    "escalatedCustomer": "CSL: seguimos trabajando en la incidencia de tu pedido {orderId}. Te avisaremos por SMS."
   },
   "voice": {
     "driverPrompt": "Incidencia en el pedido {orderId}. Pulse 1 para conectar con soporte.",

@@ -198,6 +198,7 @@ The customer (PWA, `/call/:id`) and the agent (CRM) join `inc-<id>` with the Von
 - **JWT.** `sub` is the user name. The ACLs are only those needed to start, control and hang up a call, plus conversation events, which `mute` needs (`CLIENT_TOKEN_ACL` in `apps/api/src/vonage/client-token.ts`).
 - **Who gets one.** A customer only gets a token for an incident on one of their orders (`404` otherwise), an agent for any incident, and the incident must be `in_mediation` (`409` otherwise). `502` means Vonage didn't create the user.
 - **The call.** The browser starts the call with `serverCall({ incidentId })`. Vonage asks the answer URL with `endpoint_type: app`, the caller's user name in `from_user` and the context in `custom_data`. The answer URL joins the call to `inc-<id>` only if the incident is `in_mediation` and `from_user` is the customer who owns it or an existing agent. Any other call gets `[]` and hangs up, so a valid token for one incident can't join another incident's conversation.
+- **Recording.** Before joining it, the answer URL stores the call as an inbound voice `Communication` of the incident, with the leg's `uuid` as `vonageUuid`. If an event webhook stored it first without an incident, it links it. This way the API knows every leg of `inc-<id>` when it closes the call.
 
 In the PWA (`apps/client/src/call`):
 
@@ -229,7 +230,23 @@ The mediation form records the outcome with `PATCH /incidents/:id/status`, which
 | Escalated        | `escalated` | The note, if any                    |
 | Follow-up needed | `escalated` | `follow_up_needed`, plus `: <note>` |
 
-Ending the conversation for everyone and the confirmation SMS to the customer and the driver are still _planned_.
+When the status moves to `resolved` or `escalated` (from the mediation form or from the incident detail, [#38]), the same transaction:
+
+- stores one outbound SMS `Communication` in `pending` for each recipient, so it appears in the timeline right away:
+
+  | Status      | Customer                                | Driver                          |
+  | ----------- | --------------------------------------- | ------------------------------- |
+  | `resolved`  | `resolvedCustomer`                      | `resolvedDriver`, if it has one |
+  | `escalated` | `escalatedCustomer` ("we keep working") | -                               |
+
+- reads the voice `Communication`s of the incident that are still `queued` or `in_progress`.
+
+After the commit, `BackgroundTasks` (`apps/api/src/common/background`):
+
+- hangs up each of those calls with `hangupCall` (`PUT /v1/calls/:uuid`, `action: hangup`). Vonage's `404` or `410` means the call had already ended. When every leg hangs up, the conversation `inc-<id>` ends for everyone;
+- sends each SMS in the recipient's `locale`. When Vonage accepts it, the `Communication` gets the message id and moves to `queued`, and the status webhook updates it from there. When Vonage rejects it (`4xx`, or Vonage disabled), it moves to `failed`. A timeout or a `5xx` leaves it in `pending`, because the SMS may have been sent.
+
+A Vonage failure never undoes the status change: it is logged and visible in the timeline. The agent's note is not sent. Patching the same status again returns `409` (`INVALID_TRANSITION`), so nothing is sent twice. Moving an escalated incident to `resolved` later sends the resolution SMS.
 
 ## Driver calls or texts back
 

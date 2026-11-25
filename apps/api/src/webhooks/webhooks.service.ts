@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
+import { BackgroundTasks } from '../common/background/background-tasks.js';
 import { maskPhone } from '../common/logging/mask-phone.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
@@ -28,7 +29,6 @@ import { buildVoiceInputUrl } from '../vonage/voice-urls.js';
 import { parseVonageUserName } from '../vonage/vonage-users.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 
-import { BackgroundTasks } from './background-tasks.js';
 import { advancesStatus, fromMessageStatus, fromVoiceStatus } from './communication-status.js';
 import { parseDriverReply } from './driver-reply.js';
 import { toE164 } from './phone-number.js';
@@ -428,7 +428,43 @@ export class WebhooksService {
       return [];
     }
 
+    if (payload.uuid !== undefined) {
+      await this.recordAppCall(incidentId, payload.uuid);
+    }
+
     return buildJoinConversationNcco(incidentId);
+  }
+
+  private async recordAppCall(incidentId: string, uuid: string): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(communications)
+        .values({
+          incidentId,
+          channel: 'voice',
+          direction: 'inbound',
+          fromNumber: null,
+          toNumber: null,
+          vonageUuid: uuid,
+          status: 'queued',
+        })
+        .onConflictDoNothing({ target: communications.vonageUuid })
+        .returning();
+
+      const linked =
+        created ??
+        (
+          await tx
+            .update(communications)
+            .set({ incidentId })
+            .where(and(eq(communications.vonageUuid, uuid), isNull(communications.incidentId)))
+            .returning()
+        )[0];
+
+      if (linked) {
+        await publishCommunicationChange(tx, 'incident.communication_added', linked);
+      }
+    });
   }
 
   private async findIncidentForCaller(

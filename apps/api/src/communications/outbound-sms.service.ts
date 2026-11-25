@@ -5,11 +5,10 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { DATABASE } from '../database/database.constants.js';
 import { communications } from '../database/schema/index.js';
 import { publishCommunicationChange } from '../events/publish-incident-event.js';
+import { attachSmsUuidAndApplyEarlyStatuses } from '../incidents/outbound-sms.js';
 import { JOB_QUEUE } from '../jobs/job-queue.js';
 import { VonageError } from '../vonage/vonage.errors.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
-
-import { attachSmsUuid } from './attach-sms-uuid.js';
 
 import type { Env } from '../config/env.schema.js';
 import type { Database, DatabaseTransaction } from '../database/database.constants.js';
@@ -93,7 +92,9 @@ export class OutboundSmsService implements OnModuleInit {
       return;
     }
 
-    await this.db.transaction((tx) => attachSmsUuid(tx, communicationId, messageId));
+    await this.db.transaction((tx) =>
+      attachSmsUuidAndApplyEarlyStatuses(tx, communicationId, messageId),
+    );
   }
 
   private async markFailed(communicationId: string): Promise<void> {

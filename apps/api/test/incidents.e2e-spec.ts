@@ -6,9 +6,15 @@ import {
 } from '@csl/contracts';
 import { eq } from 'drizzle-orm';
 import request from 'supertest';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { communications, incidentEvents, incidents } from '../src/database/schema/index.js';
+import { BackgroundTasks } from '../src/common/background/background-tasks.js';
+import {
+  communications,
+  drivers,
+  incidentEvents,
+  incidents,
+} from '../src/database/schema/index.js';
 import { VonageRequestError } from '../src/vonage/vonage.errors.js';
 
 import { createTestApp, resetDatabase, waitForLockWait } from './fixtures/app.js';
@@ -40,6 +46,10 @@ describe('Incidents (e2e)', () => {
     await resetDatabase(testApp.db);
     await seed(testApp.db);
     cookie = await sessionCookiesFor(testApp, actor);
+  });
+
+  afterEach(async () => {
+    await testApp.app.get(BackgroundTasks).whenIdle();
   });
 
   afterAll(async () => {
@@ -793,6 +803,176 @@ describe('Incidents (e2e)', () => {
         (await patch(ids.openIncident, { status: 'escalated' }, cookie.ana).expect(403)).body,
         'FORBIDDEN',
       );
+    });
+
+    describe('closing the incident', () => {
+      const CUSTOMER_PHONE = '+34600000001';
+      const DRIVER_PHONE = '+34600000009';
+
+      const whenIdle = () => testApp.app.get(BackgroundTasks).whenIdle();
+
+      const smsOf = (incidentId: string) =>
+        testApp.db
+          .select()
+          .from(communications)
+          .where(eq(communications.incidentId, incidentId))
+          .then((rows) => rows.filter((row) => row.channel === 'sms'));
+
+      it('sends one SMS to the customer and one to the driver when it is resolved', async () => {
+        await patch(ids.notifiedIncident, {
+          status: 'resolved',
+          reason: 'Private note for the team',
+        }).expect(200);
+        await whenIdle();
+
+        expect(testApp.vonage.callsTo('sendSms')).toEqual([
+          {
+            operation: 'sendSms',
+            to: CUSTOMER_PHONE,
+            text: `CSL: hemos resuelto la incidencia de tu pedido ${ids.anaRoutedOrder}. Gracias por tu paciencia.`,
+          },
+          {
+            operation: 'sendSms',
+            to: DRIVER_PHONE,
+            text: `CSL: la incidencia del pedido ${ids.anaRoutedOrder} se ha resuelto. Gracias por tu ayuda.`,
+          },
+        ]);
+        expect(await smsOf(ids.notifiedIncident)).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              direction: 'outbound',
+              toNumber: CUSTOMER_PHONE,
+              status: 'queued',
+              vonageUuid: expect.any(String),
+            }),
+            expect.objectContaining({
+              direction: 'outbound',
+              toNumber: DRIVER_PHONE,
+              status: 'queued',
+              vonageUuid: expect.any(String),
+            }),
+          ]),
+        );
+      });
+
+      it('sends one SMS only to the customer when it is escalated', async () => {
+        await patch(ids.openIncident, { status: 'escalated' }).expect(200);
+        await whenIdle();
+
+        expect(testApp.vonage.callsTo('sendSms')).toEqual([
+          {
+            operation: 'sendSms',
+            to: CUSTOMER_PHONE,
+            text: `CSL: seguimos trabajando en la incidencia de tu pedido ${ids.anaRoutedOrder}. Te avisaremos por SMS.`,
+          },
+        ]);
+        expect(await smsOf(ids.openIncident)).toHaveLength(1);
+      });
+
+      it('sends each SMS in the locale of its recipient', async () => {
+        await testApp.db.update(drivers).set({ locale: 'en' }).where(eq(drivers.id, ids.driver));
+
+        await patch(ids.notifiedIncident, { status: 'resolved' }).expect(200);
+        await whenIdle();
+
+        expect(testApp.vonage.callsTo('sendSms').map(({ to, text }) => ({ to, text }))).toEqual([
+          { to: CUSTOMER_PHONE, text: expect.stringMatching(/^CSL: hemos resuelto/) },
+          { to: DRIVER_PHONE, text: expect.stringMatching(/^CSL: the incident on order/) },
+        ]);
+      });
+
+      it('keeps the new status and stores a failed SMS when Vonage rejects it', async () => {
+        testApp.vonage.failNext('sendSms', new VonageRequestError('sendSms', { status: 400 }));
+
+        await patch(ids.notifiedIncident, { status: 'resolved' }).expect(200);
+        await whenIdle();
+
+        const [incident] = await testApp.db
+          .select()
+          .from(incidents)
+          .where(eq(incidents.id, ids.notifiedIncident));
+
+        expect(incident?.status).toBe('resolved');
+        expect(await smsOf(ids.notifiedIncident)).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              toNumber: CUSTOMER_PHONE,
+              status: 'failed',
+              vonageUuid: null,
+            }),
+            expect.objectContaining({ toNumber: DRIVER_PHONE, status: 'queued' }),
+          ]),
+        );
+      });
+
+      it('hangs up every active call of the incident', async () => {
+        await testApp.db.insert(communications).values([
+          {
+            incidentId: ids.mediationIncident,
+            channel: 'voice',
+            direction: 'outbound',
+            vonageUuid: 'call-driver',
+            status: 'in_progress',
+          },
+          {
+            incidentId: ids.mediationIncident,
+            channel: 'voice',
+            direction: 'inbound',
+            vonageUuid: 'call-agent',
+            status: 'queued',
+          },
+          {
+            incidentId: ids.mediationIncident,
+            channel: 'voice',
+            direction: 'outbound',
+            vonageUuid: 'call-ended',
+            status: 'completed',
+          },
+        ]);
+
+        await patch(ids.mediationIncident, { status: 'resolved' }).expect(200);
+        await whenIdle();
+
+        expect(
+          testApp.vonage
+            .callsTo('hangupCall')
+            .map(({ callId }) => callId)
+            .sort(),
+        ).toEqual(['call-agent', 'call-driver']);
+      });
+
+      it('does not send the SMS again when the same status is patched twice', async () => {
+        await patch(ids.notifiedIncident, { status: 'resolved' }).expect(200);
+        await whenIdle();
+
+        const second = await patch(ids.notifiedIncident, { status: 'resolved' }).expect(409);
+        await whenIdle();
+
+        expectError(second.body, 'INVALID_TRANSITION');
+        expect(testApp.vonage.callsTo('sendSms')).toHaveLength(2);
+        expect(await smsOf(ids.notifiedIncident)).toHaveLength(2);
+      });
+
+      it('shows the closing SMS in the incident detail', async () => {
+        await patch(ids.notifiedIncident, { status: 'resolved' }).expect(200);
+        await whenIdle();
+
+        const response = await http()
+          .get(`/incidents/${ids.notifiedIncident}`)
+          .set('Cookie', cookie.agentA)
+          .expect(200);
+
+        expect(incidentDetailSchema.parse(response.body).communications).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ channel: 'sms', direction: 'outbound', status: 'queued' }),
+          ]),
+        );
+        expect(
+          incidentDetailSchema
+            .parse(response.body)
+            .communications.filter((communication) => communication.channel === 'sms'),
+        ).toHaveLength(2);
+      });
     });
   });
 

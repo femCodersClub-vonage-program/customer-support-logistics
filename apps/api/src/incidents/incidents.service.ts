@@ -13,9 +13,23 @@ import {
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm';
 
-import { attachSmsUuid } from '../communications/attach-sms-uuid.js';
+import { BackgroundTasks } from '../common/background/background-tasks.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
   communications,
@@ -33,14 +47,23 @@ import {
   publishIncidentChange,
   publishIncidentEvent,
 } from '../events/publish-incident-event.js';
-import { incidentNoticeSms } from '../i18n/sms-templates.js';
+import {
+  escalatedCustomerSms,
+  incidentNoticeSms,
+  resolvedCustomerSms,
+  resolvedDriverSms,
+} from '../i18n/sms-templates.js';
 import { toOrder } from '../orders/orders.mapper.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
 import { buildCallUrl } from '../vonage/voice-urls.js';
-import { VonageDisabledError, VonageRequestError } from '../vonage/vonage.errors.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
+import {
+  attachSmsUuidAndApplyEarlyStatuses,
+  isDefinitelyRejected,
+  markSmsFailed,
+} from './outbound-sms.js';
 import { persistIncidentActivity, persistTransition } from './persist-transition.js';
 
 import type { AuthActor } from '../auth/auth-actor.js';
@@ -62,6 +85,30 @@ import type { Incident, IncidentStatus } from '@csl/shared-types';
 import type { SQL } from 'drizzle-orm';
 
 const INCIDENT_NOT_FOUND = 'Incident not found';
+
+type ClosingStatus = Extract<IncidentStatus, 'resolved' | 'escalated'>;
+
+interface ClosingContext {
+  incident: typeof incidents.$inferSelect;
+  order: typeof orders.$inferSelect;
+  customer: typeof customers.$inferSelect;
+  driver: typeof drivers.$inferSelect | null;
+}
+
+interface PendingSms {
+  communicationId: string;
+  phone: string;
+  message: string;
+}
+
+interface Closing {
+  callIds: string[];
+  sms: PendingSms[];
+}
+
+function isClosingStatus(status: IncidentStatus): status is ClosingStatus {
+  return status === 'resolved' || status === 'escalated';
+}
 const ALLOWED_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -164,6 +211,7 @@ export class IncidentsService {
     @Inject(STORAGE_SERVICE) private readonly storage: StorageService,
     @Inject(ConfigService) private readonly config: ConfigService<Env, true>,
     @Inject(VONAGE_SERVICE) private readonly vonage: VonageService,
+    @Inject(BackgroundTasks) private readonly background: BackgroundTasks,
   ) {}
 
   async requestEvidenceUpload(
@@ -493,10 +541,14 @@ export class IncidentsService {
     id: string,
     body: ChangeIncidentStatusBody,
   ): Promise<Incident> {
-    return this.db.transaction(async (tx) => {
+    const { incident, closing } = await this.db.transaction(async (tx) => {
       const [row] = await tx
-        .select({ incident: incidents })
+        .select({ incident: incidents, order: orders, customer: customers, driver: drivers })
         .from(incidents)
+        .innerJoin(orders, eq(orders.id, incidents.orderId))
+        .innerJoin(customers, eq(customers.id, orders.customerId))
+        .leftJoin(routes, eq(routes.id, orders.routeId))
+        .leftJoin(drivers, eq(drivers.id, routes.driverId))
         .where(eq(incidents.id, id))
         .for('update', { of: incidents });
 
@@ -511,8 +563,110 @@ export class IncidentsService {
         reason: body.reason,
       });
 
-      return toIncident(updated);
+      return {
+        incident: toIncident(updated),
+        closing: isClosingStatus(updated.status)
+          ? await this.prepareClosing(tx, { ...row, incident: updated }, updated.status)
+          : null,
+      };
     });
+
+    if (closing !== null) {
+      this.runClosing(id, closing);
+    }
+
+    return incident;
+  }
+
+  private async prepareClosing(
+    tx: DatabaseTransaction,
+    { incident, order, customer, driver }: ClosingContext,
+    status: ClosingStatus,
+  ): Promise<Closing> {
+    const recipients: { phone: string; message: string }[] =
+      status === 'resolved'
+        ? [
+            {
+              phone: customer.phone,
+              message: resolvedCustomerSms(customer.locale, { orderId: order.id }),
+            },
+            ...(driver === null
+              ? []
+              : [
+                  {
+                    phone: driver.phone,
+                    message: resolvedDriverSms(driver.locale, { orderId: order.id }),
+                  },
+                ]),
+          ]
+        : [
+            {
+              phone: customer.phone,
+              message: escalatedCustomerSms(customer.locale, { orderId: order.id }),
+            },
+          ];
+
+    const sms: PendingSms[] = [];
+
+    for (const recipient of recipients) {
+      const communication = singleRow(
+        await tx
+          .insert(communications)
+          .values({
+            incidentId: incident.id,
+            channel: 'sms',
+            direction: 'outbound',
+            fromNumber: null,
+            toNumber: recipient.phone,
+            vonageUuid: null,
+            status: 'pending',
+          })
+          .returning(),
+      );
+
+      await publishCommunicationChange(tx, 'incident.communication_added', communication);
+
+      sms.push({ communicationId: communication.id, ...recipient });
+    }
+
+    const activeCalls = await tx
+      .select({ callId: communications.vonageUuid })
+      .from(communications)
+      .where(
+        and(
+          eq(communications.incidentId, incident.id),
+          eq(communications.channel, 'voice'),
+          inArray(communications.status, ['queued', 'in_progress']),
+          isNotNull(communications.vonageUuid),
+        ),
+      );
+
+    return {
+      callIds: activeCalls.flatMap(({ callId }) => (callId === null ? [] : [callId])),
+      sms,
+    };
+  }
+
+  private runClosing(incidentId: string, { callIds, sms }: Closing): void {
+    for (const callId of callIds) {
+      this.background.run(`Hang-up of call ${callId} for incident ${incidentId}`, () =>
+        this.vonage.hangupCall(callId),
+      );
+    }
+
+    for (const pending of sms) {
+      this.background.run(`Closing SMS ${pending.communicationId} for incident ${incidentId}`, () =>
+        this.sendClosingSms(pending),
+      );
+    }
+  }
+
+  private async sendClosingSms(pending: PendingSms): Promise<void> {
+    const { messageId } = await this.sendReservedSms(pending);
+
+    await this.db.transaction((tx) =>
+      attachSmsUuidAndApplyEarlyStatuses(tx, pending.communicationId, messageId),
+    );
   }
 
   async assignToMe(actor: AuthActor, id: string): Promise<Incident> {
@@ -607,10 +761,10 @@ export class IncidentsService {
       return reservation.incident;
     }
 
-    const sent = await this.sendDriverSms(reservation);
+    const sent = await this.sendReservedSms(reservation);
 
     return this.db.transaction(async (tx) => {
-      await attachSmsUuid(tx, reservation.communicationId, sent.messageId);
+      await attachSmsUuidAndApplyEarlyStatuses(tx, reservation.communicationId, sent.messageId);
 
       const [currentIncident] = await tx
         .select()
@@ -669,10 +823,10 @@ export class IncidentsService {
       return this.reserveDriverCommunication(tx, id, row);
     });
 
-    const sent = await this.sendDriverSms(reservation);
+    const sent = await this.sendReservedSms(reservation);
 
     return this.db.transaction(async (tx) => {
-      await attachSmsUuid(tx, reservation.communicationId, sent.messageId);
+      await attachSmsUuidAndApplyEarlyStatuses(tx, reservation.communicationId, sent.messageId);
 
       const [currentIncident] = await tx
         .select()
@@ -775,7 +929,7 @@ export class IncidentsService {
     };
   }
 
-  private async sendDriverSms(
+  private async sendReservedSms(
     reservation: {
       communicationId: string;
       phone: string;
@@ -785,18 +939,8 @@ export class IncidentsService {
     try {
       return await this.vonage.sendSms(reservation.phone, reservation.message);
     } catch (error) {
-      const definitelyRejected =
-        error instanceof VonageDisabledError ||
-        (error instanceof VonageRequestError &&
-          error.status !== undefined &&
-          error.status >= 400 &&
-          error.status < 500);
-
-      if (definitelyRejected) {
-        await this.db
-          .update(communications)
-          .set({ status: 'failed' })
-          .where(eq(communications.id, reservation.communicationId));
+      if (isDefinitelyRejected(error)) {
+        await markSmsFailed(this.db, reservation.communicationId);
       }
 
       throw error;

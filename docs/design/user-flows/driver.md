@@ -15,6 +15,7 @@ SMS and phone calls (PSTN). No application required.
 | 4    | SMS     | Receives an SMS announcing a call in 2 minutes.                | Sent when the agent starts the mediation.            | `in_mediation`       |
 | 5    | Phone   | Answers the call 2 minutes later and presses 1.                | Connects the driver to the customer and agent.       | `in_mediation`       |
 | 6    | Phone   | Participates in the mediation.                                 | Keeps the three participants connected.              | `in_mediation`       |
+| 7    | SMS     | Receives the confirmation when the incident is resolved.       | Ends the call and sends the confirmation SMS.        | `resolved`           |
 
 ## Alternative paths
 

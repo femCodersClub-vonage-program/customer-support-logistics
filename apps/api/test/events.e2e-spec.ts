@@ -9,6 +9,7 @@ import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { BackgroundTasks } from '../src/common/background/background-tasks.js';
 import { evidence } from '../src/database/schema/index.js';
 import { IncidentEventsListener } from '../src/events/incident-events.listener.js';
 import { STORAGE_SERVICE } from '../src/storage/storage.service.js';
@@ -159,8 +160,9 @@ describe('Events stream (e2e)', () => {
     cookie = await sessionCookiesFor(testApp, actor);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     streams.splice(0).forEach((stream) => stream.close());
+    await testApp.app.get(BackgroundTasks).whenIdle();
   });
 
   afterAll(async () => {

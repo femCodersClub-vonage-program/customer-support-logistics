@@ -3,13 +3,36 @@ import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { communications, webhookEvents } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
 import { publishCommunicationChange } from '../events/publish-incident-event.js';
+import { VonageDisabledError, VonageRequestError } from '../vonage/vonage.errors.js';
 import { advancesStatus, fromMessageStatus } from '../webhooks/communication-status.js';
 import { messageStatusSchema } from '../webhooks/vonage-payloads.js';
 
-import type { DatabaseTransaction } from '../database/database.constants.js';
+import type { Database, DatabaseTransaction } from '../database/database.constants.js';
 import type { CommunicationStatus } from '@csl/shared-types';
 
-export async function attachSmsUuid(
+export function isDefinitelyRejected(error: unknown): boolean {
+  return (
+    error instanceof VonageDisabledError ||
+    (error instanceof VonageRequestError &&
+      error.status !== undefined &&
+      error.status >= 400 &&
+      error.status < 500)
+  );
+}
+
+export async function markSmsFailed(db: Database, communicationId: string): Promise<void> {
+  const [failed] = await db
+    .update(communications)
+    .set({ status: 'failed' })
+    .where(eq(communications.id, communicationId))
+    .returning();
+
+  if (failed) {
+    await publishCommunicationChange(db, 'incident.communication_updated', failed);
+  }
+}
+
+export async function attachSmsUuidAndApplyEarlyStatuses(
   tx: DatabaseTransaction,
   communicationId: string,
   messageId: string,

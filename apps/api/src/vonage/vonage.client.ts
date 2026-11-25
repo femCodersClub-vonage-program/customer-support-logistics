@@ -25,6 +25,7 @@ export interface VonageClient {
       ncco: NccoAction[];
     }): Promise<{ uuid: string }>;
     transferCallWithNCCO(uuid: string, ncco: NccoAction[]): Promise<void>;
+    hangupCall(uuid: string): Promise<void>;
   };
   verify2: {
     newRequest(params: {
