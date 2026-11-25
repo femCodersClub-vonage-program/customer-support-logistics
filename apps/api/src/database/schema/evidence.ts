@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { bigint, check, index, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
 import { createdAt, id } from './columns.js';
+import { evidenceStatus } from './enums.js';
 import { incidents } from './incidents.js';
 
 export const evidence = pgTable(
@@ -14,6 +15,7 @@ export const evidence = pgTable(
     storageKey: text().notNull().unique('evidence_storage_key_unique'),
     mimeType: text().notNull(),
     sizeBytes: bigint({ mode: 'number' }).notNull(),
+    status: evidenceStatus().notNull().default('pending'),
     createdAt: createdAt(),
   },
   (table) => [

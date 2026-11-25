@@ -42,9 +42,8 @@ flowchart LR
     client["apps/client<br/>React + Vite PWA"]
     crm["apps/crm<br/>Next.js"]
     api["apps/api<br/>NestJS"]
-    db[("PostgreSQL")]
-    redis[("Redis<br/>(planned)")]
-    storage[("Evidence storage<br/>S3-compatible (planned)")]
+    db[("PostgreSQL<br/>incl. pg-boss jobs")]
+    storage[("Private evidence storage<br/>S3-compatible")]
   end
 
   subgraph vonage["Vonage"]
@@ -56,11 +55,10 @@ flowchart LR
   customer -->|HTTPS| client
   agent -->|HTTPS| crm
   client -->|"HTTPS/REST"| api
-  crm -->|"HTTPS/REST, real-time TBD"| api
+  crm -->|"HTTPS/REST, SSE"| api
   client -->|"HTTPS, presigned upload"| storage
   crm -->|"HTTPS, presigned download"| storage
   api -->|SQL| db
-  api -->|"Redis protocol"| redis
   api -->|"HTTPS/REST"| verify
   api -->|"HTTPS/REST"| sms
   api -->|"HTTPS/REST"| voice
@@ -74,15 +72,14 @@ flowchart LR
   verify -->|"SMS code or silent auth"| customer
 ```
 
-| Container        | Responsibility                                                                                                        | Status                                                                             |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `apps/client`    | Customer PWA: login, orders, incident report with evidence, mediation call (`/call/:id`)                              | Shell and routes exist; features planned                                           |
-| `apps/crm`       | Agent CRM: inbox, incident detail, mediation console (`/incidents/:id/mediation`)                                     | Shell and routes exist; features planned                                           |
-| `apps/api`       | REST API, incident state machine, Vonage calls and webhooks, Client SDK tokens. The only part with Vonage credentials | `/health` exists; modules planned ([#27]–[#30])                                    |
-| PostgreSQL       | Orders, routes, incidents, evidence metadata, communications and incident events                                      | Schema and migrations with Drizzle ([ADR 0005](../adr/0005-orm-and-migrations.md)) |
-| Redis            | Queues for call retries and scheduled SMS, idempotent webhook processing                                              | In Docker Compose; not used yet                                                    |
-| Evidence storage | Photos and videos from customers, in a private bucket                                                                 | Planned ([#32])                                                                    |
-| Vonage           | Verification, SMS, voice calls and browser calls                                                                      | Planned ([#29], [#30])                                                             |
+| Container        | Responsibility                                                                                                           | Status                                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/client`    | Customer PWA: login, orders, incident report with evidence, mediation call (`/call/:id`)                                 | Shell and routes exist; features planned                                                                                                                        |
+| `apps/crm`       | Agent CRM: inbox, incident detail, mediation console (`/incidents/:id/mediation`)                                        | Shell and routes exist; features planned                                                                                                                        |
+| `apps/api`       | REST API, incident state machine, Vonage calls and webhooks, Client SDK tokens. The only part with Vonage credentials    | `/health` exists; modules planned ([#27]–[#30])                                                                                                                 |
+| PostgreSQL       | Orders, routes, incidents, evidence metadata, communications and incident events. Background jobs in the `pgboss` schema | Schema and migrations with Drizzle ([ADR 0005](../adr/0005-orm-and-migrations.md)); jobs with pg-boss ([ADR 0013](../adr/0013-background-jobs-with-pg-boss.md)) |
+| Evidence storage | Photos and videos from customers, in a private S3-compatible bucket                                                      | SeaweedFS local; API and CRM gallery ready, PWA uploader pending ([#32])                                                                                        |
+| Vonage           | Verification, SMS, voice calls and browser calls                                                                         | Planned ([#29], [#30])                                                                                                                                          |
 
 The API never carries audio. It creates the conversation, issues Client SDK tokens and reacts to webhooks; the audio goes directly between the browsers, the phone network and Vonage.
 
@@ -128,11 +125,13 @@ Dashed arrows are dev dependencies. `apps/api` needs `@csl/shared-types` at runt
 
 **Persistence.** PostgreSQL 17, already in `docker-compose.yml` and in CI, with `DATABASE_URL` required by the API. The API uses Drizzle ORM with SQL migrations generated by `drizzle-kit` ([ADR 0005](../adr/0005-orm-and-migrations.md)). Migrations run as a separate step, never on app boot (see [`apps/api/README.md`](../../apps/api/README.md)). `GET /health/ready` reports whether the database is reachable. Every incident status change is validated in the API and recorded as an `IncidentEvent` ([#27]).
 
-**File storage.** _Planned_ in [#32]. Evidence goes to a private S3-compatible bucket (MinIO in local). The browser uploads and downloads files with short-lived presigned URLs, so files never go through the API; the API only stores the metadata (`Evidence`).
+**File storage.** [#32] uses a private S3-compatible bucket: SeaweedFS 4.54 in local Compose and any compatible private provider in production. The API authorises the incident owner, validates declared type and size, creates a `pending` evidence record and returns a short-lived presigned `PUT` URL. The browser sends file bytes directly to storage, then calls the API to complete the upload. Completion verifies the object metadata and magic bytes, changes the record to `ready` and emits an `evidence_uploaded` event. Agents and the owner receive short-lived presigned `GET` URLs only for ready evidence; the CRM renders these in its gallery.
 
-**Real-time updates.** _Planned_ in [#40]. The CRM inbox and incident detail update on their own when an incident changes. Server-Sent Events versus WebSocket is still open and will be decided in an ADR.
+The local bucket configures per-bucket CORS for the PWA origins through `seaweedfs-init`; `STORAGE_CORS_ALLOWED_ORIGINS` must include the HTTPS tunnel origin when testing from a phone. Pending records expire after `EVIDENCE_PENDING_TTL_SECONDS` and are reclaimed, with any uploaded object, the next time the owner requests another upload URL for that incident. Uploads use the `evidence-pending/` prefix and a separate validated final key. Compose installs a one-day lifecycle rule for the temporary prefix and runs the SeaweedFS administrator and lifecycle worker. Production requires its own lifecycle rule and worker. The PWA picker, direct-upload UI, mobile validation and phone check remain pending work; storage stays private and direct object URLs are not public.
 
-**Background jobs.** _Planned_. Redis (`REDIS_URL`, optional for now) is meant for queues: driver call retries, scheduled SMS and slow webhook work. The technical proposal suggests BullMQ.
+**Real-time updates.** Decided in [ADR 0012](../adr/0012-real-time-updates-sse.md) ([#40]) and implemented in `apps/api/src/events`. Agents open `GET /events/stream`, a Server-Sent Events stream with small events (`{ type, incidentId, status?, updatedAt }`) and a heartbeat comment every 25 seconds. Code that changes an incident or its communications calls `pg_notify` in the same transaction, and every API instance forwards what it gets through `LISTEN` to its open streams, so a change is only announced once it is committed and several instances work. Missed events are not replayed: the CRM fetches its data again after reconnecting, and an instance that loses its `LISTEN` connection ends its streams and answers `503` until it listens again.
+
+**Background jobs.** Decided in [ADR 0013](../adr/0013-background-jobs-with-pg-boss.md) ([#85]) and implemented in `apps/api/src/jobs`. pg-boss keeps the jobs in the `pgboss` schema of the main database, so a job is added in the same transaction as the change that causes it and survives restarts. The mediation uses them for the SMS before the call, the delayed call and its retries ([Vonage](vonage.md#sms-before-the-call-invite-and-retries)). Each job reserves its effect first as a `Communication` with a unique `idempotencyKey`, so running it twice does nothing. Redis is still in Docker Compose but nothing uses it.
 
 **Internationalisation.** Decided in [ADR 0006](../adr/0006-internationalisation.md) ([#26]). Screen copy comes from translation files in each app (`use-intl` in the client, `next-intl` in the CRM), and SMS, voice and Verify messages use each recipient's `locale`. How to add keys and languages, and the SMS length of each template, are in [i18n](../i18n.md).
 
@@ -150,3 +149,4 @@ Dashed arrows are dev dependencies. `apps/api` needs `@csl/shared-types` at runt
 [#32]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/32
 [#40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40
 [#57]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/57
+[#85]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/85

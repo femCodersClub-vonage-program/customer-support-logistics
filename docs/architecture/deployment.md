@@ -29,16 +29,19 @@ The other services read its connection string through the reference variable `${
 | Healthcheck path   | `/health`                                                              |
 | Public domain      | `https://api-production-f91265aa.up.railway.app`, port `3000`          |
 
-| Variable                  | Value                                                         |
-| ------------------------- | ------------------------------------------------------------- |
-| `NODE_ENV`                | `production`                                                  |
-| `PORT`                    | `3000`                                                        |
-| `DATABASE_URL`            | `${{Postgres.DATABASE_URL}}`                                  |
-| `DEV_AUTH_ENABLED`        | `false` (the API refuses to start with `true` in production)  |
-| `CLIENT_IP_HEADER`        | `x-real-ip` (see [Client IP](#client-ip))                     |
-| `PUBLIC_URL`              | `https://api-production-f91265aa.up.railway.app`              |
-| `VONAGE_ENABLED`          | `true`, with the six Vonage variables (see [Vonage](#vonage)) |
-| `RAILWAY_DOCKERFILE_PATH` | `apps/api/Dockerfile`                                         |
+| Variable                  | Value                                                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                | `production`                                                                                                                    |
+| `PORT`                    | `3000`                                                                                                                          |
+| `DATABASE_URL`            | `${{Postgres.DATABASE_URL}}`                                                                                                    |
+| `DEV_AUTH_ENABLED`        | `false` (the API refuses to start with `true` in production)                                                                    |
+| `CLIENT_IP_HEADER`        | `x-real-ip` (see [Client IP](#client-ip))                                                                                       |
+| `PUBLIC_URL`              | `https://api-production-f91265aa.up.railway.app`                                                                                |
+| `CLIENT_PUBLIC_URL`       | `https://client-production-8cd55b5b.up.railway.app`, for the link in the mediation invite SMS. Required while Vonage is enabled |
+| `VONAGE_ENABLED`          | `true`, with the six Vonage variables (see [Vonage](#vonage))                                                                   |
+| `RAILWAY_DOCKERFILE_PATH` | `apps/api/Dockerfile`                                                                                                           |
+
+Background jobs ([ADR 0013](../adr/0013-background-jobs-with-pg-boss.md)) use the same `DATABASE_URL`, with up to 5 more connections, and need no service of their own. pg-boss creates and migrates its `pgboss` schema when the API starts. `JOBS_POLLING_INTERVAL_SECONDS`, `MEDIATION_CALL_DELAY_SECONDS` and `MEDIATION_RETRY_DELAY_SECONDS` keep their defaults (2, 120 and 60) and are not set.
 
 Migrations run before each new version starts. If they fail, the deploy stops and the previous version keeps running. That previous version also keeps serving while they run, so a migration must not break it: add first, remove in a later deploy.
 

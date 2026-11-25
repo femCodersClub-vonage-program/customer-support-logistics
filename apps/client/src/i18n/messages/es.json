@@ -4,8 +4,21 @@
   },
   "orders": {
     "title": "Mis pedidos",
+    "reportProblem": "Comunicar un problema",
+    "viewIncident": "Ver mi incidencia",
     "empty": "Todavía no tienes pedidos.",
-    "logOut": "Cerrar sesión"
+    "order": "Pedido {id}",
+    "address": "Dirección",
+    "loading": "Cargando tus pedidos...",
+    "error": "No hemos podido cargar tus pedidos. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "logOut": "Cerrar sesión",
+    "statuses": {
+      "pending": "Pendiente",
+      "in_transit": "En camino",
+      "delivered": "Entregado",
+      "failed": "No entregado"
+    }
   },
   "login": {
     "title": "Iniciar sesión",
@@ -72,6 +85,14 @@
   "incident": {
     "title": "Incidencia",
     "reference": "Incidencia {id}",
+    "order": "Pedido",
+    "typeLabel": "Tipo de incidencia",
+    "status": "Estado actual",
+    "description": "Descripción",
+    "resolution": "Resolución",
+    "timeline": "Seguimiento de la incidencia",
+    "createdAt": "Fecha de apertura",
+    "closedAt": "Fecha de cierre",
     "type": {
       "not_delivered": "No entregado",
       "delayed": "Retrasado",

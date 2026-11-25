@@ -3,13 +3,13 @@ import { asc, eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { BackgroundTasks } from '../src/common/background/background-tasks.js';
 import {
   communications,
   incidentEvents,
   incidents,
   webhookEvents,
 } from '../src/database/schema/index.js';
-import { BackgroundTasks } from '../src/webhooks/background-tasks.js';
 
 import { createTestApp, resetDatabase } from './fixtures/app.js';
 import { ids, seed } from './fixtures/seed.js';
@@ -119,7 +119,7 @@ describe('Webhooks (e2e)', () => {
 
     it('rejects a body changed after signing', async () => {
       const signed = JSON.stringify(vonageFixture('messages-inbound-sms'));
-      const forged = JSON.stringify(vonageFixture('messages-inbound-sms', { text: '3' }));
+      const forged = JSON.stringify(vonageFixture('messages-inbound-sms', { text: '2' }));
 
       await http()
         .post('/webhooks/sms/inbound')
@@ -141,19 +141,21 @@ describe('Webhooks (e2e)', () => {
   });
 
   describe('POST /webhooks/sms/inbound', () => {
-    it('moves the driver’s notified incident to in_mediation and records the reply', async () => {
-      const payload = vonageFixture('messages-inbound-sms');
+    it('records option 1 as a driver reply and keeps the incident notified', async () => {
+      const payload = vonageFixture('messages-inbound-sms', { text: '1' });
 
       await signedPost('/webhooks/sms/inbound', payload).expect(204);
+      await testApp.app.get(BackgroundTasks).whenIdle();
 
-      expect(await statusOf(ids.notifiedIncident)).toBe('in_mediation');
+      expect(await statusOf(ids.notifiedIncident)).toBe('notified');
       expect(await eventsOf(ids.notifiedIncident)).toEqual([
         expect.objectContaining({
+          kind: 'driver_replied',
           fromStatus: 'notified',
-          toStatus: 'in_mediation',
+          toStatus: 'notified',
           actor: 'driver',
           actorId: ids.driver,
-          reason: 'delivered',
+          reason: 'resolve_with_store',
         }),
       ]);
       expect(await communicationsWith(payload.message_uuid as string)).toEqual([
@@ -166,19 +168,45 @@ describe('Webhooks (e2e)', () => {
           status: 'completed',
         }),
       ]);
+      expect(testApp.vonage.callsTo('sendSms')).toEqual([]);
     });
 
-    it.each([
-      ['2', 'address_not_found'],
-      ['3', 'customer_not_home'],
-    ])('records option %s as %s', async (text, reason) => {
+    it('moves the incident to in_mediation when the driver replies 2', async () => {
       await signedPost(
         '/webhooks/sms/inbound',
-        vonageFixture('messages-inbound-sms', { text }),
+        vonageFixture('messages-inbound-sms', { text: '2' }),
       ).expect(204);
 
+      expect(await statusOf(ids.notifiedIncident)).toBe('in_mediation');
       expect(await eventsOf(ids.notifiedIncident)).toEqual([
-        expect.objectContaining({ toStatus: 'in_mediation', actor: 'driver', reason }),
+        expect.objectContaining({
+          kind: 'status_changed',
+          fromStatus: 'notified',
+          toStatus: 'in_mediation',
+          actor: 'driver',
+          actorId: ids.driver,
+          reason: 'request_mediation',
+        }),
+      ]);
+    });
+
+    it('moves to in_mediation when the driver replies 2 after 1', async () => {
+      await signedPost(
+        '/webhooks/sms/inbound',
+        vonageFixture('messages-inbound-sms', { text: '1' }),
+      ).expect(204);
+      await signedPost(
+        '/webhooks/sms/inbound',
+        vonageFixture('messages-inbound-sms', {
+          text: '2',
+          message_uuid: 'aaaaaaaa-bbbb-4ccc-8ddd-000000000099',
+        }),
+      ).expect(204);
+
+      expect(await statusOf(ids.notifiedIncident)).toBe('in_mediation');
+      expect(await eventsOf(ids.notifiedIncident)).toEqual([
+        expect.objectContaining({ kind: 'driver_replied', reason: 'resolve_with_store' }),
+        expect.objectContaining({ kind: 'status_changed', reason: 'request_mediation' }),
       ]);
     });
 
@@ -193,17 +221,17 @@ describe('Webhooks (e2e)', () => {
       expect(await eventsOf(ids.notifiedIncident)).toHaveLength(1);
     });
 
-    it('answers an invalid reply with a short SMS and changes nothing', async () => {
+    it.each(['hola', '3'])('answers %s with a short SMS and changes nothing', async (text) => {
       await signedPost(
         '/webhooks/sms/inbound',
-        vonageFixture('messages-inbound-sms', { text: 'hola' }),
+        vonageFixture('messages-inbound-sms', { text }),
       ).expect(204);
       await testApp.app.get(BackgroundTasks).whenIdle();
 
       expect(await statusOf(ids.notifiedIncident)).toBe('notified');
       expect(await eventsOf(ids.notifiedIncident)).toEqual([]);
       expect(testApp.vonage.callsTo('sendSms')).toEqual([
-        { operation: 'sendSms', to: DRIVER_PHONE, text: 'CSL: responde 1, 2 o 3.' },
+        { operation: 'sendSms', to: DRIVER_PHONE, text: 'CSL: responde 1 o 2.' },
       ]);
       expect(await communicationsWith('fake-sms-1')).toEqual([
         expect.objectContaining({
@@ -363,6 +391,49 @@ describe('Webhooks (e2e)', () => {
       expect(response.body).toEqual(joinNcco(ids.mediationIncident));
     });
 
+    it('records the browser call in the incident so it can be hung up later', async () => {
+      const payload = vonageFixture('voice-answer-app');
+
+      await signedGet('/webhooks/voice/answer', payload).expect(200);
+      await signedGet('/webhooks/voice/answer', payload).expect(200);
+
+      expect(
+        await testApp.db
+          .select()
+          .from(communications)
+          .where(eq(communications.vonageUuid, payload.uuid as string)),
+      ).toEqual([
+        expect.objectContaining({
+          incidentId: ids.mediationIncident,
+          channel: 'voice',
+          direction: 'inbound',
+          status: 'queued',
+        }),
+      ]);
+    });
+
+    it('links a browser call that a voice event recorded first without an incident', async () => {
+      const payload = vonageFixture('voice-answer-app');
+      await testApp.db.insert(communications).values({
+        incidentId: null,
+        channel: 'voice',
+        direction: 'inbound',
+        vonageUuid: payload.uuid as string,
+        status: 'in_progress',
+      });
+
+      await signedGet('/webhooks/voice/answer', payload).expect(200);
+
+      expect(
+        await testApp.db
+          .select()
+          .from(communications)
+          .where(eq(communications.vonageUuid, payload.uuid as string)),
+      ).toEqual([
+        expect.objectContaining({ incidentId: ids.mediationIncident, status: 'in_progress' }),
+      ]);
+    });
+
     it('accepts the incident id as an object in a POST answer webhook', async () => {
       const response = await signedPost(
         '/webhooks/voice/answer',
@@ -405,15 +476,20 @@ describe('Webhooks (e2e)', () => {
       expect(response.body).toEqual([]);
     });
 
-    it('joins the driver calling in to the open mediation', async () => {
+    it('joins the driver calling in to the open mediation and records it once', async () => {
       await setStatus(ids.notifiedIncident, 'in_mediation');
+      const callingIn = vonageFixture('voice-answer-driver', {
+        from: '34600000009',
+        to: '34900000000',
+      });
 
-      const response = await signedGet(
-        '/webhooks/voice/answer',
-        vonageFixture('voice-answer-driver', { from: '34600000009', to: '34900000000' }),
-      ).expect(200);
+      const response = await signedGet('/webhooks/voice/answer', callingIn).expect(200);
+      await signedGet('/webhooks/voice/answer', callingIn).expect(200);
 
       expect(response.body).toEqual(joinNcco(ids.notifiedIncident));
+      expect(await eventsOf(ids.notifiedIncident)).toEqual([
+        expect.objectContaining({ kind: 'driver_joined', actor: 'driver', actorId: ids.driver }),
+      ]);
     });
 
     it('hangs up the driver calling in when no mediation is open', async () => {
@@ -513,6 +589,7 @@ describe('Webhooks (e2e)', () => {
           actorId: ids.driver,
           reason: 'accepted_call',
         }),
+        expect.objectContaining({ kind: 'driver_joined', actor: 'driver', actorId: ids.driver }),
       ]);
     });
 
@@ -523,18 +600,23 @@ describe('Webhooks (e2e)', () => {
       const repeated = await signedPost(inputPath(ids.notifiedIncident), payload).expect(200);
 
       expect(repeated.body).toEqual(joinNcco(ids.notifiedIncident));
-      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(1);
+      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(2);
       expect(await allWebhookEvents()).toHaveLength(1);
     });
 
-    it('joins without a new event when the incident is already in mediation', async () => {
+    it('only records that the driver joined when the incident is already in mediation', async () => {
       const response = await signedPost(
         inputPath(ids.mediationIncident),
         vonageFixture('voice-input-dtmf'),
       ).expect(200);
 
       expect(response.body).toEqual(joinNcco(ids.mediationIncident));
-      expect(await eventsOf(ids.mediationIncident)).toHaveLength(3);
+      expect(await eventsOf(ids.mediationIncident)).toHaveLength(4);
+      expect((await eventsOf(ids.mediationIncident)).at(-1)).toMatchObject({
+        kind: 'driver_joined',
+        fromStatus: 'in_mediation',
+        toStatus: 'in_mediation',
+      });
     });
 
     it.each([

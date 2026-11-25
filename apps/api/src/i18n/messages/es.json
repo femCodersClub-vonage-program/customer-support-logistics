@@ -1,9 +1,13 @@
 {
   "sms": {
-    "incidentNotice": "CSL: incidencia en el pedido {orderId} ({incidentType}). Responde 1 entregado, 2 no encuentro el domicilio, 3 cliente ausente.",
+    "incidentNotice": "CSL: incidencia en el pedido {orderId} ({incidentType}). Responde 1 si lo resuelves con la tienda, 2 para llamada con cliente y soporte.",
     "callSoon": "CSL: te llamaremos en {minutes, plural, one {# minuto} other {# minutos}} por la incidencia del pedido {orderId}.",
     "callFallback": "CSL: no hemos podido contactarte por el pedido {orderId}. Te volveremos a llamar.",
-    "invalidReply": "CSL: responde 1, 2 o 3."
+    "mediationInvite": "CSL: entra a la llamada del pedido {orderId}: {url}",
+    "invalidReply": "CSL: responde 1 o 2.",
+    "resolvedCustomer": "CSL: hemos resuelto la incidencia de tu pedido {orderId}. Gracias por tu paciencia.",
+    "resolvedDriver": "CSL: la incidencia del pedido {orderId} se ha resuelto. Gracias por tu ayuda.",
+    "escalatedCustomer": "CSL: seguimos trabajando en la incidencia de tu pedido {orderId}. Te avisaremos por SMS."
   },
   "voice": {
     "driverPrompt": "Incidencia en el pedido {orderId}. Pulse 1 para conectar con soporte.",

@@ -7,3 +7,4 @@ allowBuilds:
   '@scarf/scarf': false
   '@swc/core': false
   esbuild: false
+  msw: false

@@ -6,6 +6,8 @@ NestJS API. It is the only part of the platform that talks to the database and t
 
 Copy `.env.example` to `.env` and adjust the values. `DATABASE_URL` is required: the API refuses to start if it is missing or is not a `postgres://` or `postgresql://` URL. The Vonage variables are explained in [Vonage](#vonage).
 
+Background jobs run on pg-boss in the same database ([ADR 0013](../../docs/adr/0013-background-jobs-with-pg-boss.md)), so they need no extra service. `JOBS_POLLING_INTERVAL_SECONDS` sets how often workers look for jobs, and `MEDIATION_CALL_DELAY_SECONDS` and `MEDIATION_RETRY_DELAY_SECONDS` the time before the driver's mediation call and between its retries. `CLIENT_PUBLIC_URL` is the PWA address used in the mediation invite SMS.
+
 `CLIENT_IP_HEADER` names the header the API takes the client IP from, for the rate limits. Leave it unset locally: anyone could send that header. Behind Railway it is `x-real-ip`; the reason, and every variable of the deployment, are in [Deployment](../../docs/architecture/deployment.md).
 
 Any PostgreSQL 17 works. The easiest way is the one in the root `docker-compose.yml`:
@@ -13,6 +15,12 @@ Any PostgreSQL 17 works. The easiest way is the one in the root `docker-compose.
 ```sh
 docker compose up -d postgres
 ```
+
+## Evidence upload lifecycle
+
+Evidence records are created as `pending` before the browser uploads directly with a presigned URL. A pending record that is older than `EVIDENCE_PENDING_TTL_SECONDS` (one hour by default) is removed, together with its object, when the customer requests another upload URL for that incident. This returns abandoned upload slots to the incident quota; ready evidence is never removed by this mechanism.
+
+Upload URLs are signed for the declared content length. Completion copies the uploaded object to a separate key, validates that copy and serves only the copy. Temporary keys use the `evidence-pending/` prefix. Local Compose installs a one-day expiration rule and starts the SeaweedFS administrator and lifecycle worker. Production storage must be configured separately with an equivalent lifecycle rule and an operational lifecycle worker. The pending TTL must exceed the signed URL lifetime by at least one minute and cannot exceed 12 hours, leaving a safety margin before storage lifecycle expiration. Lifecycle processing is asynchronous, so deletion is not immediate.
 
 ## Database
 
@@ -361,5 +369,7 @@ DATABASE_URL=postgresql://app:dev_only_password@localhost:5432/customer_support_
 A `DATABASE_URL` set in the shell takes precedence over `apps/api/.env`, both for `db:migrate` and for the tests. That is why the commands above set it only for themselves: if it stays set, `run dev` in the same terminal also uses the test database, and the next e2e run empties it. In PowerShell, use a separate terminal for the tests and set the variable there with `$env:DATABASE_URL='postgresql://…_test'`. CI creates `customer_support_logistics_test` in its PostgreSQL service and migrates it before the tests.
 
 The e2e tests run one file at a time and set `PUBLIC_URL` and the Vonage webhook variables themselves (see `vitest.config.ts`); `VonageService` is replaced by `FakeVonageService`, so nothing reaches Vonage. To act as someone, a test creates a session with `sessionCookieFor` or `sessionCookiesFor` (`test/fixtures/auth.ts`) and sends it as the `Cookie` header.
+
+Background jobs use the real pg-boss on the test database, but workers poll only once an hour (`JOBS_POLLING_INTERVAL_SECONDS=3600`), so nothing runs on its own. `runDueJobs(testApp)` (`test/fixtures/jobs.ts`) runs the jobs that are due, `advanceJobClock(testApp, seconds)` moves the pending jobs forward in time and runs them, and `pendingJobs(testApp)` lists what is scheduled and in how many seconds.
 
 [#30]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/30

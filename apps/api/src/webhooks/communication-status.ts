@@ -1,10 +1,11 @@
-import type { CommunicationStatus } from '@csl/shared-types';
+﻿import type { CommunicationStatus } from '@csl/shared-types';
 
 const PROGRESS: Record<CommunicationStatus, number> = {
-  queued: 0,
-  in_progress: 1,
-  completed: 2,
-  failed: 2,
+  pending: 0,
+  queued: 1,
+  in_progress: 2,
+  completed: 3,
+  failed: 3,
 };
 
 const MESSAGE_STATUSES = new Map<string, CommunicationStatus>([

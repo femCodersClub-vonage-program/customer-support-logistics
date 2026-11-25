@@ -8,3 +8,7 @@ export function buildVoiceInputUrl(publicUrl: string, incidentId: Incident['id']
 
   return url.toString();
 }
+
+export function buildCallUrl(clientPublicUrl: string, incidentId: Incident['id']): string {
+  return new URL(`/call/${incidentId}`, clientPublicUrl).toString();
+}
