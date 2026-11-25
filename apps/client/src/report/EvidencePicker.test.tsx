@@ -1,10 +1,10 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithIntl } from '../test/render.tsx';
 
-import { EVIDENCE_MAX_FILES, EVIDENCE_MAX_IMAGE_BYTES } from './evidence-files.ts';
+import { EVIDENCE_ACCEPT, EVIDENCE_MAX_FILES, EVIDENCE_MAX_IMAGE_BYTES } from './evidence-files.ts';
 import { EvidencePicker } from './EvidencePicker.tsx';
 
 import type { Locale } from '@csl/shared-types';
@@ -60,9 +60,9 @@ describe('EvidencePicker', () => {
     renderPicker();
 
     expect(camera()).toHaveAttribute('capture');
-    expect(camera()).toHaveAttribute('accept', 'image/*,video/*');
+    expect(camera()).toHaveAttribute('accept', EVIDENCE_ACCEPT);
     expect(gallery()).not.toHaveAttribute('capture');
-    expect(gallery()).toHaveAttribute('accept', 'image/*,video/*');
+    expect(gallery()).toHaveAttribute('accept', EVIDENCE_ACCEPT);
     expect(gallery()).toHaveAttribute('multiple');
   });
 
@@ -95,6 +95,29 @@ describe('EvidencePicker', () => {
       'src',
       'blob:preview',
     );
+  });
+
+  it.each([
+    ['photo.heic', 'image/heic'],
+    ['photo.heif', 'image/heif'],
+    ['photo.HEIC', ''],
+  ])('shows a generic icon instead of a broken image for %s', (name, type) => {
+    const { container } = renderPicker();
+
+    pick(gallery(), fileOf(name, type));
+
+    expect(screen.getByText(name)).toBeInTheDocument();
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the generic icon when the browser cannot show the image', () => {
+    const { container } = renderPicker();
+
+    pick(gallery(), fileOf('photo.jpg', 'image/jpeg'));
+    fireEvent.error(container.querySelector('img') as HTMLImageElement);
+
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(screen.getByText('photo.jpg')).toBeInTheDocument();
   });
 
   it('adds several files from the gallery in one go', () => {
@@ -186,6 +209,34 @@ describe('EvidencePicker', () => {
       expect(screen.getByText('photo.jpg')).toBeInTheDocument();
     });
 
+    it('keeps the list inside the alert and shows two files with the same name', () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      renderPicker();
+
+      pick(gallery(), fileOf('image.gif', 'image/gif'), fileOf('image.gif', 'image/gif'));
+
+      const alert = screen.getByRole('alert');
+
+      expect(within(alert).getByRole('list')).toBeInTheDocument();
+      expect(within(alert).getAllByRole('listitem')).toHaveLength(2);
+      expect(error).not.toHaveBeenCalled();
+
+      error.mockRestore();
+    });
+
+    it('announces again a file that is rejected twice in a row', () => {
+      renderPicker();
+
+      pick(gallery(), fileOf('animation.gif', 'image/gif'));
+
+      const first = screen.getByRole('alert');
+
+      pick(gallery(), fileOf('animation.gif', 'image/gif'));
+
+      expect(screen.getByRole('alert')).not.toBe(first);
+    });
+
     it('replaces the message with the next one and clears it when a file is removed', () => {
       renderPicker();
 
@@ -220,6 +271,14 @@ describe('EvidencePicker', () => {
       renderPicker({ suggestPhoto: true });
 
       pick(camera(), fileOf('photo.jpg', 'image/jpeg'));
+
+      expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
+    });
+
+    it('counts a HEIC photo without a type as a photo', () => {
+      renderPicker({ suggestPhoto: true });
+
+      pick(camera(), fileOf('photo.heic', ''));
 
       expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
     });
