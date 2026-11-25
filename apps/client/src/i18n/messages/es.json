@@ -2,24 +2,24 @@
   "localeSwitcher": {
     "label": "Idioma"
   },
-"orders": {
-  "title": "Mis pedidos",
-  "reportProblem": "Reportar un problema",
-  "viewIncident": "Ver mi incidencia",
-  "empty": "Todavía no tienes pedidos.",
-  "order": "Pedido {id}",
-  "address": "Dirección",
-  "loading": "Cargando tus pedidos...",
-  "error": "No hemos podido cargar tus pedidos. Inténtalo de nuevo.",
-  "retry": "Reintentar",
-  "logOut": "Cerrar sesión",
-  "statuses": {
-    "pending": "Pendiente",
-    "in_transit": "En camino",
-    "delivered": "Entregado",
-    "failed": "No entregado"
-  }
-},
+  "orders": {
+    "title": "Mis pedidos",
+    "reportProblem": "Reportar un problema",
+    "viewIncident": "Ver mi incidencia",
+    "empty": "Todavía no tienes pedidos.",
+    "order": "Pedido {id}",
+    "address": "Dirección",
+    "loading": "Cargando tus pedidos...",
+    "error": "No hemos podido cargar tus pedidos. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "logOut": "Cerrar sesión",
+    "statuses": {
+      "pending": "Pendiente",
+      "in_transit": "En camino",
+      "delivered": "Entregado",
+      "failed": "No entregado"
+    }
+  },
   "login": {
     "title": "Iniciar sesión",
     "intro": "Usa el teléfono que diste con tu pedido. Te enviaremos un código por SMS.",
@@ -82,25 +82,25 @@
       }
     }
   },
-"incident": {
-  "title": "Incidencia",
-  "reference": "Incidencia {id}",
-  "order": "Pedido",
-  "typeLabel": "Tipo de incidencia",
-  "status": "Estado actual",
-  "description": "Descripción",
-  "resolution": "Resolución",
-  "timeline": "Cronología de la incidencia",
-  "createdAt": "Fecha de apertura",
-  "closedAt": "Fecha de cierre",
-  "type": {
-    "not_delivered": "No entregado",
-    "delayed": "Retrasado",
-    "damaged": "Dañado",
-    "wrong_item": "Artículo incorrecto",
-    "other": "Otro"
-  }
-},
+  "incident": {
+    "title": "Incidencia",
+    "reference": "Incidencia {id}",
+    "order": "Pedido",
+    "typeLabel": "Tipo de incidencia",
+    "status": "Estado actual",
+    "description": "Descripción",
+    "resolution": "Resolución",
+    "timeline": "Cronología de la incidencia",
+    "createdAt": "Fecha de apertura",
+    "closedAt": "Fecha de cierre",
+    "type": {
+      "not_delivered": "No entregado",
+      "delayed": "Retrasado",
+      "damaged": "Dañado",
+      "wrong_item": "Artículo incorrecto",
+      "other": "Otro"
+    }
+  },
   "call": {
     "title": "Llamada de mediación",
     "incident": "Incidencia {id}",
