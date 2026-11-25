@@ -22,6 +22,7 @@ const PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----
 
 const VONAGE_ENV = {
   PUBLIC_URL: 'https://example.ngrok-free.app',
+  CLIENT_PUBLIC_URL: 'https://client.example.app',
   VONAGE_API_KEY: 'key',
   VONAGE_API_SECRET: 'secret',
   VONAGE_APPLICATION_ID: 'app-id',
@@ -77,6 +78,9 @@ describe('validateEnv', () => {
       EVIDENCE_UPLOAD_URL_TTL_SECONDS: 15 * 60,
       EVIDENCE_PENDING_TTL_SECONDS: 60 * 60,
       EVIDENCE_DOWNLOAD_URL_TTL_SECONDS: 5 * 60,
+      JOBS_POLLING_INTERVAL_SECONDS: 2,
+      MEDIATION_CALL_DELAY_SECONDS: 2 * 60,
+      MEDIATION_RETRY_DELAY_SECONDS: 60,
       WEBHOOK_RATE_LIMIT_PER_MINUTE: 120,
     });
   });
@@ -176,6 +180,22 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...DISABLED, PUBLIC_URL: 'http://localhost:3000' })).toThrow(
       /PUBLIC_URL/,
     );
+  });
+
+  it('throws when a mediation delay is negative', () => {
+    expect(() => validateEnv({ ...DISABLED, MEDIATION_RETRY_DELAY_SECONDS: '-1' })).toThrow(
+      /MEDIATION_RETRY_DELAY_SECONDS/,
+    );
+  });
+
+  it('accepts an HTTP CLIENT_PUBLIC_URL for local development', () => {
+    expect(validateEnv({ ...DISABLED, CLIENT_PUBLIC_URL: 'http://localhost:5173' })).toMatchObject({
+      CLIENT_PUBLIC_URL: 'http://localhost:5173',
+    });
+  });
+
+  it('treats an empty CLIENT_PUBLIC_URL as unset', () => {
+    expect(validateEnv({ ...DISABLED, CLIENT_PUBLIC_URL: '' }).CLIENT_PUBLIC_URL).toBeUndefined();
   });
 
   describe('Vonage', () => {

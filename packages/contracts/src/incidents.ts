@@ -106,6 +106,15 @@ export const incidentListItemSchema = incidentSchema
 
 export type IncidentListItem = z.infer<typeof incidentListItemSchema>;
 
+export const mediationInviteSchema = z
+  .object({
+    url: z.url(),
+    sentAt: isoDateTimeSchema,
+  })
+  .meta({ id: 'MediationInvite' });
+
+export type MediationInvite = z.infer<typeof mediationInviteSchema>;
+
 export const incidentDetailSchema = incidentSchema
   .extend({
     description: z.string().nullable(),
@@ -115,6 +124,7 @@ export const incidentDetailSchema = incidentSchema
     events: z.array(incidentEventSchema),
     communications: z.array(communicationSchema),
     evidence: z.array(evidenceSchema),
+    mediationInvite: mediationInviteSchema.nullable(),
   })
   .meta({ id: 'IncidentDetail' });
 
@@ -195,7 +205,7 @@ export const evidenceDownloadSchema = z.object({
 export type EvidenceDownload = z.infer<typeof evidenceDownloadSchema>;
 
 export const startMediationResponseSchema = z
-  .object({ incident: incidentSchema, call: communicationSchema })
+  .object({ incident: incidentSchema, call: communicationSchema.nullable() })
   .meta({ id: 'StartMediationResponse' });
 export type StartMediationResponse = z.infer<typeof startMediationResponseSchema>;
 

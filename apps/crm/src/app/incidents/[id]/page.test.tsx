@@ -80,6 +80,7 @@ const incident: IncidentDetail = {
   ],
   communications: [],
   evidence: [],
+  mediationInvite: null,
 };
 
 beforeAll(() => {

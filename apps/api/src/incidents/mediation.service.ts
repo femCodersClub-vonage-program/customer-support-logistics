@@ -1,40 +1,62 @@
-import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, eq, gt, or } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, notLike, or, sql } from 'drizzle-orm';
 
+import { OutboundSmsService } from '../communications/outbound-sms.service.js';
 import { DATABASE } from '../database/database.constants.js';
-import { communications, drivers, incidents, orders, routes } from '../database/schema/index.js';
+import {
+  communications,
+  customers,
+  drivers,
+  incidentEvents,
+  incidents,
+  orders,
+  routes,
+} from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
 import {
   publishCommunicationChange,
   publishIncidentChange,
 } from '../events/publish-incident-event.js';
+import { callFallbackSms, callSoonSms, mediationInviteSms } from '../i18n/sms-templates.js';
+import { JOB_QUEUE } from '../jobs/job-queue.js';
 import { buildDriverPromptNcco } from '../vonage/ncco.js';
-import { buildVoiceInputUrl } from '../vonage/voice-urls.js';
+import { buildCallUrl, buildVoiceInputUrl } from '../vonage/voice-urls.js';
 import { VonageError } from '../vonage/vonage.errors.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
+import { advancesStatus } from '../webhooks/communication-status.js';
 
 import { toCommunication, toIncident } from './incidents.mapper.js';
-import { persistTransition } from './persist-transition.js';
+import { MEDIATION_CALL_ATTEMPTS, mediationKeys, parseMediationCallKey } from './mediation-keys.js';
+import { persistIncidentActivity, persistTransition } from './persist-transition.js';
 
-import type { CommunicationRow, DriverRow, IncidentRow } from './incidents.mapper.js';
+import type { CommunicationRow, CustomerRow, DriverRow, IncidentRow } from './incidents.mapper.js';
 import type { Env } from '../config/env.schema.js';
 import type { Database, DatabaseTransaction } from '../database/database.constants.js';
+import type { JobPayloads, JobQueue } from '../jobs/job-queue.js';
 import type { NccoAction } from '../vonage/ncco.js';
 import type { VonageService } from '../vonage/vonage.service.js';
 import type { StartMediationResponse } from '@csl/contracts';
 import type { Communication } from '@csl/shared-types';
+import type { OnModuleInit } from '@nestjs/common';
 
 export const STALE_QUEUED_CALL_MS = 2 * 60 * 1000;
+
+export const DRIVER_UNREACHABLE_REASON = 'no_answer_after_retries';
 
 interface LockedIncident {
   incident: IncidentRow;
   driver: DriverRow | null;
+  customer: CustomerRow;
 }
 
 interface PreparedCall {
   driver: DriverRow;
   ncco: NccoAction[];
+}
+
+interface ReservedCall extends PreparedCall {
+  communicationId: string;
 }
 
 type CallAttempt = { ok: true; call: CommunicationRow } | { ok: false; error: VonageError };
@@ -48,15 +70,23 @@ function unwrap(attempt: CallAttempt): CommunicationRow {
 }
 
 @Injectable()
-export class MediationService {
+export class MediationService implements OnModuleInit {
+  private readonly logger = new Logger(MediationService.name);
+
   constructor(
     @Inject(DATABASE) private readonly db: Database,
     @Inject(VONAGE_SERVICE) private readonly vonage: VonageService,
+    @Inject(JOB_QUEUE) private readonly queue: JobQueue,
+    @Inject(OutboundSmsService) private readonly sms: OutboundSmsService,
     @Inject(ConfigService) private readonly config: ConfigService<Env, true>,
   ) {}
 
+  onModuleInit(): void {
+    this.queue.work('mediation-call', (data) => this.placeScheduledCall(data));
+  }
+
   async start(agentId: string, id: string): Promise<StartMediationResponse> {
-    const { incident, attempt } = await this.db.transaction(async (tx) => {
+    const incident = await this.db.transaction(async (tx) => {
       const locked = await this.lockIncident(tx, id);
       let current = locked.incident;
 
@@ -80,12 +110,16 @@ export class MediationService {
         await publishIncidentChange(tx, 'incident.assigned', current);
       }
 
-      const prepared = await this.prepareCall(tx, { incident: current, driver: locked.driver });
+      if (locked.driver === null) {
+        throw new ConflictException('Incident has no driver assigned');
+      }
 
-      return { incident: current, attempt: await this.placeCall(tx, current.id, prepared) };
+      await this.scheduleMediation(tx, current, locked.driver, locked.customer);
+
+      return current;
     });
 
-    return { incident: toIncident(incident), call: toCommunication(unwrap(attempt)) };
+    return { incident: toIncident(incident), call: null };
   }
 
   async callDriver(id: string): Promise<Communication> {
@@ -102,21 +136,324 @@ export class MediationService {
     return toCommunication(unwrap(attempt));
   }
 
+  async attemptFailed(tx: DatabaseTransaction, call: CommunicationRow): Promise<void> {
+    const parsed = parseMediationCallKey(call.idempotencyKey);
+
+    if (parsed === null) {
+      return;
+    }
+
+    if (parsed.attempt < MEDIATION_CALL_ATTEMPTS) {
+      await this.queue.send(
+        tx,
+        'mediation-call',
+        { incidentId: parsed.incidentId, attempt: parsed.attempt + 1 },
+        { delaySeconds: this.config.get('MEDIATION_RETRY_DELAY_SECONDS', { infer: true }) },
+      );
+      return;
+    }
+
+    await this.giveUp(tx, parsed.incidentId);
+  }
+
+  async recordDriverJoined(
+    tx: DatabaseTransaction,
+    incident: IncidentRow,
+    driverId: string | undefined,
+  ): Promise<void> {
+    if (await this.driverJoined(tx, incident.id)) {
+      return;
+    }
+
+    await persistIncidentActivity(tx, incident, {
+      kind: 'driver_joined',
+      actor: 'driver',
+      actorId: driverId,
+    });
+  }
+
+  private async scheduleMediation(
+    tx: DatabaseTransaction,
+    incident: IncidentRow,
+    driver: DriverRow,
+    customer: CustomerRow,
+  ): Promise<void> {
+    if (!(await this.driverJoined(tx, incident.id))) {
+      await this.scheduleDriverCall(tx, incident, driver);
+    }
+
+    const clientPublicUrl = this.config.get('CLIENT_PUBLIC_URL', { infer: true });
+
+    if (clientPublicUrl === undefined) {
+      this.logger.error(
+        `Cannot invite the customer of incident ${incident.id}: CLIENT_PUBLIC_URL is not set`,
+      );
+      return;
+    }
+
+    await this.sms.enqueue(tx, {
+      incidentId: incident.id,
+      idempotencyKey: mediationKeys.invite(incident.id),
+      to: customer.phone,
+      text: mediationInviteSms(customer.locale, {
+        orderId: incident.orderId,
+        url: buildCallUrl(clientPublicUrl, incident.id),
+      }),
+    });
+  }
+
+  private async scheduleDriverCall(
+    tx: DatabaseTransaction,
+    incident: IncidentRow,
+    driver: DriverRow,
+  ): Promise<void> {
+    const delaySeconds = this.config.get('MEDIATION_CALL_DELAY_SECONDS', { infer: true });
+
+    const callSoon = await this.sms.enqueue(tx, {
+      incidentId: incident.id,
+      idempotencyKey: mediationKeys.callSoon(incident.id),
+      to: driver.phone,
+      text: callSoonSms(driver.locale, {
+        orderId: incident.orderId,
+        minutes: Math.max(1, Math.round(delaySeconds / 60)),
+      }),
+    });
+
+    if (callSoon === null) {
+      return;
+    }
+
+    await this.queue.send(
+      tx,
+      'mediation-call',
+      { incidentId: incident.id, attempt: 1 },
+      { delaySeconds },
+    );
+  }
+
+  private async placeScheduledCall({
+    incidentId,
+    attempt,
+  }: JobPayloads['mediation-call']): Promise<void> {
+    const reserved = await this.db.transaction((tx) => this.reserveCall(tx, incidentId, attempt));
+
+    if (reserved === null) {
+      return;
+    }
+
+    let callId: string;
+
+    try {
+      ({ callId } = await this.vonage.createCall(reserved.driver.phone, reserved.ncco));
+    } catch (error) {
+      if (!(error instanceof VonageError)) {
+        throw error;
+      }
+
+      this.logger.warn(
+        `Call ${attempt} to the driver of incident ${incidentId} was not created: ${error.message}`,
+      );
+      await this.db.transaction(async (tx) => {
+        const failed = singleRow(
+          await tx
+            .update(communications)
+            .set({ status: 'failed' })
+            .where(eq(communications.id, reserved.communicationId))
+            .returning(),
+        );
+
+        await publishCommunicationChange(tx, 'incident.communication_updated', failed);
+        await this.attemptFailed(tx, failed);
+      });
+      return;
+    }
+
+    await this.db.transaction((tx) => this.attachCallUuid(tx, reserved.communicationId, callId));
+  }
+
+  private async reserveCall(
+    tx: DatabaseTransaction,
+    incidentId: string,
+    attempt: number,
+  ): Promise<ReservedCall | null> {
+    const locked = await this.findLockedIncident(tx, incidentId);
+
+    if (locked === null || locked.incident.status !== 'in_mediation' || locked.driver === null) {
+      this.logger.log(`Skipped call ${attempt} for incident ${incidentId}: no longer in mediation`);
+      return null;
+    }
+
+    if (await this.driverJoined(tx, incidentId)) {
+      this.logger.log(`Skipped call ${attempt} for incident ${incidentId}: the driver joined`);
+      return null;
+    }
+
+    if (await this.hasActiveCall(tx, incidentId, locked.driver.phone, { manualOnly: true })) {
+      this.logger.log(
+        `Skipped call ${attempt} for incident ${incidentId}: another call to the driver is active`,
+      );
+      return null;
+    }
+
+    const prepared = this.buildCall(locked.incident, locked.driver);
+
+    const [reservation] = await tx
+      .insert(communications)
+      .values({
+        incidentId,
+        idempotencyKey: mediationKeys.call(incidentId, attempt),
+        channel: 'voice',
+        direction: 'outbound',
+        fromNumber: this.config.get('VONAGE_VIRTUAL_NUMBER', { infer: true }) ?? null,
+        toNumber: prepared.driver.phone,
+        vonageUuid: null,
+        status: 'pending',
+      })
+      .onConflictDoNothing({ target: communications.idempotencyKey })
+      .returning();
+
+    if (!reservation) {
+      this.logger.log(`Skipped call ${attempt} for incident ${incidentId}: already placed`);
+      return null;
+    }
+
+    await publishCommunicationChange(tx, 'incident.communication_added', reservation);
+
+    return { ...prepared, communicationId: reservation.id };
+  }
+
+  private async attachCallUuid(
+    tx: DatabaseTransaction,
+    communicationId: string,
+    callId: string,
+  ): Promise<void> {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${callId}))`);
+
+    const [current] = await tx
+      .select()
+      .from(communications)
+      .where(eq(communications.id, communicationId))
+      .for('update');
+
+    if (!current || current.vonageUuid === callId) {
+      return;
+    }
+
+    const updated = singleRow(
+      await tx
+        .update(communications)
+        .set({
+          vonageUuid: callId,
+          status: advancesStatus(current.status, 'queued') ? 'queued' : current.status,
+        })
+        .where(eq(communications.id, communicationId))
+        .returning(),
+    );
+
+    await publishCommunicationChange(tx, 'incident.communication_updated', updated);
+  }
+
+  private async giveUp(tx: DatabaseTransaction, incidentId: string): Promise<void> {
+    const locked = await this.findLockedIncident(tx, incidentId);
+
+    if (locked === null || locked.incident.status !== 'in_mediation' || locked.driver === null) {
+      return;
+    }
+
+    if (await this.driverJoined(tx, incidentId)) {
+      return;
+    }
+
+    const fallback = await this.sms.enqueue(tx, {
+      incidentId,
+      idempotencyKey: mediationKeys.callFallback(incidentId),
+      to: locked.driver.phone,
+      text: callFallbackSms(locked.driver.locale, { orderId: locked.incident.orderId }),
+    });
+
+    if (fallback === null) {
+      return;
+    }
+
+    await persistIncidentActivity(tx, locked.incident, {
+      kind: 'driver_unreachable',
+      actor: 'system',
+      reason: DRIVER_UNREACHABLE_REASON,
+    });
+  }
+
+  private async driverJoined(tx: DatabaseTransaction, incidentId: string): Promise<boolean> {
+    const [joined] = await tx
+      .select({ id: incidentEvents.id })
+      .from(incidentEvents)
+      .where(
+        and(eq(incidentEvents.incidentId, incidentId), eq(incidentEvents.kind, 'driver_joined')),
+      )
+      .limit(1);
+
+    return joined !== undefined;
+  }
+
   private async lockIncident(tx: DatabaseTransaction, id: string): Promise<LockedIncident> {
+    const locked = await this.findLockedIncident(tx, id);
+
+    if (locked === null) {
+      throw new NotFoundException('Incident not found');
+    }
+
+    return locked;
+  }
+
+  private async findLockedIncident(
+    tx: DatabaseTransaction,
+    id: string,
+  ): Promise<LockedIncident | null> {
     const [row] = await tx
-      .select({ incident: incidents, driver: drivers })
+      .select({ incident: incidents, driver: drivers, customer: customers })
       .from(incidents)
       .innerJoin(orders, eq(orders.id, incidents.orderId))
+      .innerJoin(customers, eq(customers.id, orders.customerId))
       .leftJoin(routes, eq(routes.id, orders.routeId))
       .leftJoin(drivers, eq(drivers.id, routes.driverId))
       .where(eq(incidents.id, id))
       .for('update', { of: incidents });
 
-    if (!row) {
-      throw new NotFoundException('Incident not found');
-    }
+    return row ?? null;
+  }
 
-    return row;
+  private async hasActiveCall(
+    tx: DatabaseTransaction,
+    incidentId: string,
+    driverPhone: string,
+    { manualOnly = false }: { manualOnly?: boolean } = {},
+  ): Promise<boolean> {
+    const [activeCall] = await tx
+      .select({ id: communications.id })
+      .from(communications)
+      .where(
+        and(
+          eq(communications.incidentId, incidentId),
+          eq(communications.channel, 'voice'),
+          eq(communications.direction, 'outbound'),
+          eq(communications.toNumber, driverPhone),
+          manualOnly
+            ? or(
+                isNull(communications.idempotencyKey),
+                notLike(communications.idempotencyKey, mediationKeys.callPattern(incidentId)),
+              )
+            : undefined,
+          or(
+            eq(communications.status, 'in_progress'),
+            and(
+              inArray(communications.status, ['pending', 'queued']),
+              gt(communications.createdAt, new Date(Date.now() - STALE_QUEUED_CALL_MS)),
+            ),
+          ),
+        ),
+      )
+      .limit(1);
+
+    return activeCall !== undefined;
   }
 
   private async prepareCall(
@@ -127,44 +464,32 @@ export class MediationService {
       throw new ConflictException('Incident has no driver assigned');
     }
 
-    const [activeCall] = await tx
-      .select({ id: communications.id })
-      .from(communications)
-      .where(
-        and(
-          eq(communications.incidentId, incident.id),
-          eq(communications.channel, 'voice'),
-          eq(communications.direction, 'outbound'),
-          eq(communications.toNumber, driver.phone),
-          or(
-            eq(communications.status, 'in_progress'),
-            and(
-              eq(communications.status, 'queued'),
-              gt(communications.createdAt, new Date(Date.now() - STALE_QUEUED_CALL_MS)),
-            ),
-          ),
-        ),
-      )
-      .limit(1);
-
-    if (activeCall) {
+    if (await this.hasActiveCall(tx, incident.id, driver.phone)) {
       throw new ConflictException('A call to the driver is already in progress');
     }
 
-    const publicUrl = this.config.get('PUBLIC_URL', { infer: true });
+    return this.buildCall(incident, driver);
+  }
 
-    if (publicUrl === undefined) {
-      throw new Error(`Cannot call the driver of incident ${incident.id}: PUBLIC_URL is not set`);
-    }
-
+  private buildCall(incident: IncidentRow, driver: DriverRow): PreparedCall {
     return {
       driver,
       ncco: buildDriverPromptNcco({
         locale: driver.locale,
         orderId: incident.orderId,
-        inputUrl: buildVoiceInputUrl(publicUrl, incident.id),
+        inputUrl: this.voiceInputUrl(incident.id),
       }),
     };
+  }
+
+  private voiceInputUrl(incidentId: string): string {
+    const publicUrl = this.config.get('PUBLIC_URL', { infer: true });
+
+    if (publicUrl === undefined) {
+      throw new Error(`Cannot call the driver of incident ${incidentId}: PUBLIC_URL is not set`);
+    }
+
+    return buildVoiceInputUrl(publicUrl, incidentId);
   }
 
   private async placeCall(

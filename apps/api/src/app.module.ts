@@ -9,6 +9,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { EventsModule } from './events/events.module.js';
 import { HealthModule } from './health/health.module.js';
 import { IncidentsModule } from './incidents/incidents.module.js';
+import { JobsModule } from './jobs/jobs.module.js';
 import { OrdersModule } from './orders/orders.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { VonageModule } from './vonage/vonage.module.js';
@@ -26,6 +27,7 @@ import { WebhooksModule } from './webhooks/webhooks.module.js';
     EventsModule,
     HealthModule,
     IncidentsModule,
+    JobsModule,
     OrdersModule,
     StorageModule,
     VonageModule,

@@ -3,6 +3,7 @@
     "incidentNotice": "CSL: incident on order {orderId} ({incidentType}). Reply 1 if you solve it with the store, 2 for a call with the customer and support.",
     "callSoon": "CSL: we'll call you in {minutes, plural, one {# minute} other {# minutes}} about the incident on order {orderId}.",
     "callFallback": "CSL: we couldn't reach you about order {orderId}. We'll call you again later.",
+    "mediationInvite": "CSL: join the call about order {orderId}: {url}",
     "invalidReply": "CSL: please reply 1 or 2."
   },
   "voice": {

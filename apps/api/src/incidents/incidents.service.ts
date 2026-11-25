@@ -15,6 +15,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 
+import { attachSmsUuid } from '../communications/attach-sms-uuid.js';
 import { DATABASE } from '../database/database.constants.js';
 import {
   communications,
@@ -25,7 +26,6 @@ import {
   incidents,
   orders,
   routes,
-  webhookEvents,
 } from '../database/schema/index.js';
 import { singleRow } from '../database/single-row.js';
 import {
@@ -36,10 +36,9 @@ import {
 import { incidentNoticeSms } from '../i18n/sms-templates.js';
 import { toOrder } from '../orders/orders.mapper.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
+import { buildCallUrl } from '../vonage/voice-urls.js';
 import { VonageDisabledError, VonageRequestError } from '../vonage/vonage.errors.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
-import { advancesStatus, fromMessageStatus } from '../webhooks/communication-status.js';
-import { messageStatusSchema } from '../webhooks/vonage-payloads.js';
 
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
 import { persistIncidentActivity, persistTransition } from './persist-transition.js';
@@ -59,7 +58,7 @@ import type {
   EvidenceDownload,
   RequestEvidenceUploadBody,
 } from '@csl/contracts';
-import type { CommunicationStatus, Incident, IncidentStatus } from '@csl/shared-types';
+import type { Incident, IncidentStatus } from '@csl/shared-types';
 import type { SQL } from 'drizzle-orm';
 
 const INCIDENT_NOT_FOUND = 'Incident not found';
@@ -479,7 +478,14 @@ export class IncidentsService {
       events,
       communications: incidentCommunications,
       evidence: incidentEvidence,
+      callUrl: this.callUrl(id),
     });
+  }
+
+  private callUrl(incidentId: string): string | null {
+    const clientPublicUrl = this.config.get('CLIENT_PUBLIC_URL', { infer: true });
+
+    return clientPublicUrl === undefined ? null : buildCallUrl(clientPublicUrl, incidentId);
   }
 
   async changeStatus(
@@ -604,11 +610,7 @@ export class IncidentsService {
     const sent = await this.sendDriverSms(reservation);
 
     return this.db.transaction(async (tx) => {
-      await this.attachSmsUuidAndApplyEarlyStatuses(
-        tx,
-        reservation.communicationId,
-        sent.messageId,
-      );
+      await attachSmsUuid(tx, reservation.communicationId, sent.messageId);
 
       const [currentIncident] = await tx
         .select()
@@ -670,11 +672,7 @@ export class IncidentsService {
     const sent = await this.sendDriverSms(reservation);
 
     return this.db.transaction(async (tx) => {
-      await this.attachSmsUuidAndApplyEarlyStatuses(
-        tx,
-        reservation.communicationId,
-        sent.messageId,
-      );
+      await attachSmsUuid(tx, reservation.communicationId, sent.messageId);
 
       const [currentIncident] = await tx
         .select()
@@ -803,64 +801,5 @@ export class IncidentsService {
 
       throw error;
     }
-  }
-
-  private async attachSmsUuidAndApplyEarlyStatuses(
-    tx: DatabaseTransaction,
-    communicationId: string,
-    messageId: string,
-  ): Promise<void> {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${messageId}))`);
-
-    let communication = singleRow(
-      await tx
-        .update(communications)
-        .set({ vonageUuid: messageId, status: 'queued' })
-        .where(eq(communications.id, communicationId))
-        .returning(),
-    );
-
-    const earlyEvents = await tx
-      .select({ id: webhookEvents.id, payload: webhookEvents.payload })
-      .from(webhookEvents)
-      .where(
-        and(
-          eq(webhookEvents.source, 'messages_status'),
-          isNull(webhookEvents.communicationId),
-          sql`${webhookEvents.payload}->>'message_uuid' = ${messageId}`,
-        ),
-      )
-      .orderBy(asc(webhookEvents.receivedAt), asc(webhookEvents.id));
-
-    let currentStatus: CommunicationStatus = 'queued';
-
-    for (const event of earlyEvents) {
-      const parsed = messageStatusSchema.safeParse(event.payload);
-      if (!parsed.success) {
-        continue;
-      }
-
-      await tx
-        .update(webhookEvents)
-        .set({ communicationId })
-        .where(eq(webhookEvents.id, event.id));
-
-      const nextStatus = fromMessageStatus(parsed.data.status);
-      if (nextStatus !== null && advancesStatus(currentStatus, nextStatus)) {
-        currentStatus = nextStatus;
-      }
-    }
-
-    if (currentStatus !== 'queued') {
-      communication = singleRow(
-        await tx
-          .update(communications)
-          .set({ status: currentStatus })
-          .where(eq(communications.id, communicationId))
-          .returning(),
-      );
-    }
-
-    await publishCommunicationChange(tx, 'incident.communication_updated', communication);
   }
 }

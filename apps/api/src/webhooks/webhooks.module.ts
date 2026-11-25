@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 
+import { IncidentsModule } from '../incidents/incidents.module.js';
 import { VonageModule } from '../vonage/vonage.module.js';
 
 import { BackgroundTasks } from './background-tasks.js';
@@ -15,6 +16,7 @@ export const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 
 @Module({
   imports: [
+    IncidentsModule,
     VonageModule,
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],

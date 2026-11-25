@@ -3,7 +3,7 @@ import {
   communicationSchema,
   startMediationResponseSchema,
 } from '@csl/contracts';
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
@@ -22,6 +22,8 @@ import type { ApiErrorResponse } from '@csl/contracts';
 import type { IncidentStatus } from '@csl/shared-types';
 
 const DRIVER_PHONE = '+34600000009';
+
+const CUSTOMER_PHONE = '+34600000001';
 
 const driverPromptNcco = (incidentId: string, orderId: string) => [
   {
@@ -74,6 +76,13 @@ describe('Mediation (e2e)', () => {
       .from(communications)
       .where(and(eq(communications.incidentId, incidentId), eq(communications.channel, 'voice')));
 
+  const smsReservationsOf = (incidentId: string) =>
+    testApp.db
+      .select()
+      .from(communications)
+      .where(and(eq(communications.incidentId, incidentId), eq(communications.channel, 'sms')))
+      .orderBy(asc(communications.toNumber));
+
   beforeAll(async () => {
     testApp = await createTestApp();
   });
@@ -91,7 +100,7 @@ describe('Mediation (e2e)', () => {
   });
 
   describe('POST /incidents/:id/mediation', () => {
-    it('moves a notified incident to in_mediation, assigns the agent and calls the driver', async () => {
+    it('moves a notified incident to in_mediation, assigns the agent and schedules the call', async () => {
       const response = await startMediation(ids.notifiedIncident).expect(201);
 
       const { incident, call } = startMediationResponseSchema.parse(response.body);
@@ -101,20 +110,11 @@ describe('Mediation (e2e)', () => {
         status: 'in_mediation',
         agentId: ids.agentA,
       });
-      expect(call).toMatchObject({
-        incidentId: ids.notifiedIncident,
-        channel: 'voice',
-        direction: 'outbound',
-        toNumber: DRIVER_PHONE,
-        vonageUuid: 'fake-call-1',
-        status: 'queued',
-      });
-      expect(testApp.vonage.callsTo('createCall')).toEqual([
-        {
-          operation: 'createCall',
-          to: DRIVER_PHONE,
-          ncco: driverPromptNcco(ids.notifiedIncident, ids.anaRoutedOrder),
-        },
+      expect(call).toBeNull();
+      expect(testApp.vonage.calls).toEqual([]);
+      expect(await smsReservationsOf(ids.notifiedIncident)).toEqual([
+        expect.objectContaining({ toNumber: DRIVER_PHONE, status: 'pending' }),
+        expect.objectContaining({ toNumber: CUSTOMER_PHONE, status: 'pending' }),
       ]);
       expect(await eventsOf(ids.notifiedIncident)).toEqual([
         expect.objectContaining({
@@ -124,7 +124,7 @@ describe('Mediation (e2e)', () => {
           actorId: ids.agentA,
         }),
       ]);
-      expect(await voiceCallsOf(ids.notifiedIncident)).toHaveLength(1);
+      expect(await voiceCallsOf(ids.notifiedIncident)).toEqual([]);
     });
 
     it('keeps the agent already assigned to the incident', async () => {
@@ -135,13 +135,13 @@ describe('Mediation (e2e)', () => {
       expect(startMediationResponseSchema.parse(response.body).incident.agentId).toBe(ids.agentB);
     });
 
-    it('calls the driver without a new event when the incident is already in mediation', async () => {
+    it('schedules the call without a new event when the incident is already in mediation', async () => {
       await setStatus(ids.notifiedIncident, 'in_mediation');
 
       await startMediation(ids.notifiedIncident).expect(201);
 
       expect(await eventsOf(ids.notifiedIncident)).toEqual([]);
-      expect(testApp.vonage.callsTo('createCall')).toHaveLength(1);
+      expect(await smsReservationsOf(ids.notifiedIncident)).toHaveLength(2);
     });
 
     it.each([
@@ -172,77 +172,15 @@ describe('Mediation (e2e)', () => {
       expect(testApp.vonage.calls).toEqual([]);
     });
 
-    it('returns 409 while a call to the driver is in progress', async () => {
-      await startMediation(ids.notifiedIncident).expect(201);
-
-      const response = await startMediation(ids.notifiedIncident).expect(409);
-
-      expectError(response.body, 'CONFLICT');
-      expect(testApp.vonage.callsTo('createCall')).toHaveLength(1);
-    });
-
-    it('creates a single call when two agents start the mediation at the same time', async () => {
+    it('schedules a single mediation when two agents start it at the same time', async () => {
       const responses = await Promise.all([
         startMediation(ids.notifiedIncident),
         startMediation(ids.notifiedIncident),
       ]);
 
-      expect(responses.map(({ status }) => status).sort()).toEqual([201, 409]);
-      expect(testApp.vonage.callsTo('createCall')).toHaveLength(1);
+      expect(responses.map(({ status }) => status)).toEqual([201, 201]);
+      expect(await smsReservationsOf(ids.notifiedIncident)).toHaveLength(2);
       expect(await eventsOf(ids.notifiedIncident)).toHaveLength(1);
-    });
-
-    it('ignores a queued call that never got a status update', async () => {
-      await testApp.db.insert(communications).values({
-        incidentId: ids.notifiedIncident,
-        channel: 'voice',
-        direction: 'outbound',
-        toNumber: DRIVER_PHONE,
-        vonageUuid: 'stuck-call',
-        status: 'queued',
-        createdAt: new Date(Date.now() - STALE_QUEUED_CALL_MS - 1000),
-      });
-
-      await startMediation(ids.notifiedIncident).expect(201);
-
-      expect(testApp.vonage.callsTo('createCall')).toHaveLength(1);
-    });
-
-    it('returns 502 when Vonage fails, keeping the mediation so the agent can retry', async () => {
-      testApp.vonage.failNext(
-        'createCall',
-        new VonageRequestError('createCall', { status: 500, reason: 'Internal Error' }),
-      );
-
-      const response = await startMediation(ids.notifiedIncident).expect(502);
-
-      expectError(response.body, 'BAD_GATEWAY');
-      expect(await incidentRow(ids.notifiedIncident)).toMatchObject({
-        status: 'in_mediation',
-        agentId: ids.agentA,
-      });
-      expect(await voiceCallsOf(ids.notifiedIncident)).toEqual([]);
-
-      await callDriver(ids.notifiedIncident).expect(201);
-
-      expect(await voiceCallsOf(ids.notifiedIncident)).toHaveLength(1);
-    });
-
-    it('lets the voice event webhook update the call it created', async () => {
-      await startMediation(ids.notifiedIncident).expect(201);
-
-      const body = JSON.stringify(vonageFixture('voice-event-answered', { uuid: 'fake-call-1' }));
-
-      await http()
-        .post('/webhooks/voice/event')
-        .set('Content-Type', 'application/json')
-        .set('Authorization', `Bearer ${signVonageJwt({ body })}`)
-        .send(body)
-        .expect(204);
-
-      expect(await voiceCallsOf(ids.notifiedIncident)).toEqual([
-        expect.objectContaining({ vonageUuid: 'fake-call-1', status: 'in_progress' }),
-      ]);
     });
 
     it('returns 403 for customers', async () => {
@@ -309,6 +247,70 @@ describe('Mediation (e2e)', () => {
       await callDriver(ids.notifiedIncident).expect(201);
 
       expect(testApp.vonage.callsTo('createCall')).toHaveLength(2);
+    });
+
+    it('ignores a queued call that never got a status update', async () => {
+      await testApp.db.insert(communications).values({
+        incidentId: ids.notifiedIncident,
+        channel: 'voice',
+        direction: 'outbound',
+        toNumber: DRIVER_PHONE,
+        vonageUuid: 'stuck-call',
+        status: 'queued',
+        createdAt: new Date(Date.now() - STALE_QUEUED_CALL_MS - 1000),
+      });
+
+      await callDriver(ids.notifiedIncident).expect(201);
+
+      expect(testApp.vonage.callsTo('createCall')).toHaveLength(1);
+    });
+
+    it('returns 502 when Vonage fails and stores nothing, so the agent can retry', async () => {
+      testApp.vonage.failNext(
+        'createCall',
+        new VonageRequestError('createCall', { status: 500, reason: 'Internal Error' }),
+      );
+
+      const response = await callDriver(ids.notifiedIncident).expect(502);
+
+      expectError(response.body, 'BAD_GATEWAY');
+      expect(await voiceCallsOf(ids.notifiedIncident)).toEqual([]);
+
+      await callDriver(ids.notifiedIncident).expect(201);
+
+      expect(await voiceCallsOf(ids.notifiedIncident)).toHaveLength(1);
+    });
+
+    it('lets the voice event webhook update the call it created', async () => {
+      await callDriver(ids.notifiedIncident).expect(201);
+
+      const body = JSON.stringify(vonageFixture('voice-event-answered', { uuid: 'fake-call-1' }));
+
+      await http()
+        .post('/webhooks/voice/event')
+        .set('Content-Type', 'application/json')
+        .set('Authorization', `Bearer ${signVonageJwt({ body })}`)
+        .send(body)
+        .expect(204);
+
+      expect(await voiceCallsOf(ids.notifiedIncident)).toEqual([
+        expect.objectContaining({ vonageUuid: 'fake-call-1', status: 'in_progress' }),
+      ]);
+    });
+
+    it('returns 409 while a scheduled call to the driver is being placed', async () => {
+      await testApp.db.insert(communications).values({
+        incidentId: ids.notifiedIncident,
+        channel: 'voice',
+        direction: 'outbound',
+        toNumber: DRIVER_PHONE,
+        status: 'pending',
+      });
+
+      const response = await callDriver(ids.notifiedIncident).expect(409);
+
+      expectError(response.body, 'CONFLICT');
+      expect(testApp.vonage.calls).toEqual([]);
     });
 
     it('returns 409 when the incident is not in mediation', async () => {

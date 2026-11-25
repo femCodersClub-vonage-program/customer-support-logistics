@@ -433,15 +433,20 @@ describe('Webhooks (e2e)', () => {
       expect(response.body).toEqual([]);
     });
 
-    it('joins the driver calling in to the open mediation', async () => {
+    it('joins the driver calling in to the open mediation and records it once', async () => {
       await setStatus(ids.notifiedIncident, 'in_mediation');
+      const callingIn = vonageFixture('voice-answer-driver', {
+        from: '34600000009',
+        to: '34900000000',
+      });
 
-      const response = await signedGet(
-        '/webhooks/voice/answer',
-        vonageFixture('voice-answer-driver', { from: '34600000009', to: '34900000000' }),
-      ).expect(200);
+      const response = await signedGet('/webhooks/voice/answer', callingIn).expect(200);
+      await signedGet('/webhooks/voice/answer', callingIn).expect(200);
 
       expect(response.body).toEqual(joinNcco(ids.notifiedIncident));
+      expect(await eventsOf(ids.notifiedIncident)).toEqual([
+        expect.objectContaining({ kind: 'driver_joined', actor: 'driver', actorId: ids.driver }),
+      ]);
     });
 
     it('hangs up the driver calling in when no mediation is open', async () => {
@@ -541,6 +546,7 @@ describe('Webhooks (e2e)', () => {
           actorId: ids.driver,
           reason: 'accepted_call',
         }),
+        expect.objectContaining({ kind: 'driver_joined', actor: 'driver', actorId: ids.driver }),
       ]);
     });
 
@@ -551,18 +557,23 @@ describe('Webhooks (e2e)', () => {
       const repeated = await signedPost(inputPath(ids.notifiedIncident), payload).expect(200);
 
       expect(repeated.body).toEqual(joinNcco(ids.notifiedIncident));
-      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(1);
+      expect(await eventsOf(ids.notifiedIncident)).toHaveLength(2);
       expect(await allWebhookEvents()).toHaveLength(1);
     });
 
-    it('joins without a new event when the incident is already in mediation', async () => {
+    it('only records that the driver joined when the incident is already in mediation', async () => {
       const response = await signedPost(
         inputPath(ids.mediationIncident),
         vonageFixture('voice-input-dtmf'),
       ).expect(200);
 
       expect(response.body).toEqual(joinNcco(ids.mediationIncident));
-      expect(await eventsOf(ids.mediationIncident)).toHaveLength(3);
+      expect(await eventsOf(ids.mediationIncident)).toHaveLength(4);
+      expect((await eventsOf(ids.mediationIncident)).at(-1)).toMatchObject({
+        kind: 'driver_joined',
+        fromStatus: 'in_mediation',
+        toStatus: 'in_mediation',
+      });
     });
 
     it.each([

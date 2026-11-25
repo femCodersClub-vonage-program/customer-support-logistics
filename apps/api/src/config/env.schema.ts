@@ -44,6 +44,13 @@ const baseEnvSchema = z.object({
     .positive()
     .default(5 * 60),
   PUBLIC_URL: z.url({ protocol: /^https$/ }).optional(),
+  CLIENT_PUBLIC_URL: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.url({ protocol: /^https?$/ }).optional(),
+  ),
+  JOBS_POLLING_INTERVAL_SECONDS: z.coerce.number().min(0.5).default(2),
+  MEDIATION_CALL_DELAY_SECONDS: z.coerce.number().int().min(0).default(120),
+  MEDIATION_RETRY_DELAY_SECONDS: z.coerce.number().int().min(0).default(60),
   VONAGE_ENABLED: z.stringbool().default(true),
   VONAGE_API_KEY: z.string().min(1).optional(),
   VONAGE_API_SECRET: z.string().min(1).optional(),
@@ -88,6 +95,7 @@ export const VONAGE_REQUIRED_VARIABLES = [
   'VONAGE_VIRTUAL_NUMBER',
   'VONAGE_SIGNATURE_SECRET',
   'PUBLIC_URL',
+  'CLIENT_PUBLIC_URL',
 ] as const;
 
 export function isVonageEnabled(env: Pick<Env, 'NODE_ENV' | 'VONAGE_ENABLED'>): boolean {

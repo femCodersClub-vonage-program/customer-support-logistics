@@ -40,6 +40,7 @@
     "@vonage/verify2": "1.22.1",
     "drizzle-orm": "0.45.4",
     "pg": "8.23.1",
+    "pg-boss": "12.39.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "use-intl": "4.14.9",

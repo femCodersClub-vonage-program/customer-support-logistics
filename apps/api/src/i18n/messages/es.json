@@ -3,6 +3,7 @@
     "incidentNotice": "CSL: incidencia en el pedido {orderId} ({incidentType}). Responde 1 si lo resuelves con la tienda, 2 para llamada con cliente y soporte.",
     "callSoon": "CSL: te llamaremos en {minutes, plural, one {# minuto} other {# minutos}} por la incidencia del pedido {orderId}.",
     "callFallback": "CSL: no hemos podido contactarte por el pedido {orderId}. Te volveremos a llamar.",
+    "mediationInvite": "CSL: entra a la llamada del pedido {orderId}: {url}",
     "invalidReply": "CSL: responde 1 o 2."
   },
   "voice": {

@@ -11,16 +11,17 @@ SMS and phone calls (PSTN). No application required.
 | 1    | SMS     | Receives an incident notification.                             | Sends the incident details and response options.     | `notified`           |
 | 2    | SMS     | Replies with option 1 or 2.                                    | Records the response and informs the agent.          | `notified`           |
 | 3A   | Phone   | Option 1: Communicates with the store to resolve the incident. | Agent records the outcome and notifies the customer. | `resolved` if solved |
-| 3B   | SMS     | Option 2: Requests three-way mediation.                        | Sends an SMS announcing a call in 2 minutes.         | `in_mediation`       |
-| 4    | Phone   | Answers the call started by the agent and presses 1.           | Connects the driver to the customer and agent.       | `in_mediation`       |
-| 5    | Phone   | Participates in the mediation.                                 | Keeps the three participants connected.              | `in_mediation`       |
+| 3B   | SMS     | Option 2: Requests three-way mediation.                        | Records the request for the agent.                   | `in_mediation`       |
+| 4    | SMS     | Receives an SMS announcing a call in 2 minutes.                | Sent when the agent starts the mediation.            | `in_mediation`       |
+| 5    | Phone   | Answers the call 2 minutes later and presses 1.                | Connects the driver to the customer and agent.       | `in_mediation`       |
+| 6    | Phone   | Participates in the mediation.                                 | Keeps the three participants connected.              | `in_mediation`       |
 
 ## Alternative paths
 
 - **No response (option 3 in the approved flow):** Up to two additional contact attempts are made. If unsuccessful, the incident remains pending.
 - **SMS not delivered:** The system reports the delivery failure to the CRM.
-- **Mediation call unanswered or 1 not pressed:** Two retries are made, 60 seconds apart, followed by a fallback SMS.
-- **Driver calls back:** The system associates the call with the active incident when possible.
+- **Mediation call unanswered or 1 not pressed:** The call is retried twice, 60 seconds apart (3 calls in total). After the last one, the driver gets a fallback SMS and the agent sees that the driver could not be reached. The incident stays in mediation.
+- **Driver calls back:** The system associates the call with the active incident when possible. If a mediation is open, the driver joins it and no more calls are made.
 - **Driver sends an SMS to the virtual number:** The message is associated with the incident or logged for agent follow-up.
 - **Mediation cannot proceed:** The agent may reschedule or escalate the incident.
 

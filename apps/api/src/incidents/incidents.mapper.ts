@@ -1,3 +1,5 @@
+import { mediationKeys } from './mediation-keys.js';
+
 import type {
   communications,
   customers,
@@ -90,6 +92,7 @@ export interface IncidentDetailRows {
   events: IncidentEventRow[];
   communications: CommunicationRow[];
   evidence: EvidenceRow[];
+  callUrl: string | null;
 }
 
 export function toIncidentDetail(rows: IncidentDetailRows): IncidentDetail {
@@ -107,5 +110,21 @@ export function toIncidentDetail(rows: IncidentDetailRows): IncidentDetail {
     events: rows.events.map(toIncidentEvent),
     communications: rows.communications.map(toCommunication),
     evidence: rows.evidence.map(toEvidence),
+    mediationInvite: toMediationInvite(rows),
   };
+}
+
+function toMediationInvite({
+  incident,
+  communications: rows,
+  callUrl,
+}: IncidentDetailRows): IncidentDetail['mediationInvite'] {
+  const inviteKey = mediationKeys.invite(incident.id);
+  const invite = rows.find((row) => row.idempotencyKey === inviteKey);
+
+  if (invite === undefined || callUrl === null) {
+    return null;
+  }
+
+  return { url: callUrl, sentAt: invite.createdAt.toISOString() };
 }

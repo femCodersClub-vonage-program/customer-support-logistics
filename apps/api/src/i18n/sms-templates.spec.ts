@@ -8,11 +8,15 @@ import {
   callSoonSms,
   incidentNoticeSms,
   invalidReplySms,
+  mediationInviteSms,
 } from './sms-templates.js';
 
 import type { Locale } from '@csl/shared-types';
 
 const orderId = 'A1B2C3D4';
+
+const inviteUrl =
+  'https://client-production-8cd55b5b.up.railway.app/call/0b7f6c1e-3d2a-4f5b-9c8d-7e6f5a4b3c2d';
 
 function allTemplates(locale: Locale) {
   return {
@@ -24,6 +28,7 @@ function allTemplates(locale: Locale) {
     ),
     callSoon: callSoonSms(locale, { orderId, minutes: 2 }),
     callFallback: callFallbackSms(locale, { orderId }),
+    mediationInvite: mediationInviteSms(locale, { orderId, url: inviteUrl }),
     invalidReply: invalidReplySms(locale),
   };
 }
@@ -59,6 +64,15 @@ describe('SMS templates', () => {
     );
   });
 
+  it('builds the mediation invite with the call link', () => {
+    expect(mediationInviteSms('es', { orderId, url: inviteUrl })).toBe(
+      `CSL: entra a la llamada del pedido A1B2C3D4: ${inviteUrl}`,
+    );
+    expect(mediationInviteSms('en', { orderId, url: inviteUrl })).toBe(
+      `CSL: join the call about order A1B2C3D4: ${inviteUrl}`,
+    );
+  });
+
   it('keeps the driver replies numeric in every locale', () => {
     for (const locale of SUPPORTED_LOCALES) {
       expect(invalidReplySms(locale)).toMatch(/1 (o|or) 2\.$/);
@@ -81,6 +95,7 @@ describe('SMS templates', () => {
           ),
           callSoon: measureSms(callSoonSms(locale, { orderId, minutes: 2 })),
           callFallback: measureSms(callFallbackSms(locale, { orderId })),
+          mediationInvite: measureSms(mediationInviteSms(locale, { orderId, url: inviteUrl })),
           invalidReply: measureSms(invalidReplySms(locale)),
         },
       ]),
@@ -91,12 +106,14 @@ describe('SMS templates', () => {
         incidentNotice: { encoding: 'GSM-7', length: 140, segments: 1 },
         callSoon: { encoding: 'GSM-7', length: 70, segments: 1 },
         callFallback: { encoding: 'GSM-7', length: 80, segments: 1 },
+        mediationInvite: { encoding: 'GSM-7', length: 136, segments: 1 },
         invalidReply: { encoding: 'GSM-7', length: 20, segments: 1 },
       },
       en: {
         incidentNotice: { encoding: 'GSM-7', length: 129, segments: 1 },
         callSoon: { encoding: 'GSM-7', length: 70, segments: 1 },
         callFallback: { encoding: 'GSM-7', length: 76, segments: 1 },
+        mediationInvite: { encoding: 'GSM-7', length: 132, segments: 1 },
         invalidReply: { encoding: 'GSM-7', length: 25, segments: 1 },
       },
     });

@@ -5,6 +5,8 @@ import { sql } from 'drizzle-orm';
 import { APP_OPTIONS, configureApp } from '../../src/app-setup.js';
 import { AppModule } from '../../src/app.module.js';
 import { DATABASE } from '../../src/database/database.constants.js';
+import { JOB_QUEUE } from '../../src/jobs/job-queue.js';
+import { JOBS_SCHEMA } from '../../src/jobs/pg-boss-job-queue.js';
 import { setupOpenApi } from '../../src/openapi/setup-openapi.js';
 import { VONAGE_SERVICE } from '../../src/vonage/vonage.service.js';
 
@@ -13,6 +15,7 @@ import { FakeVonageService } from './fake-vonage.service.js';
 import type { AppSettings } from '../../src/app-setup.js';
 import type { Env } from '../../src/config/env.schema.js';
 import type { Database } from '../../src/database/database.constants.js';
+import type { JobQueue } from '../../src/jobs/job-queue.js';
 import type { INestApplication } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { TestingModuleBuilder } from '@nestjs/testing';
@@ -21,6 +24,7 @@ export interface TestApp {
   app: INestApplication;
   db: Database;
   vonage: FakeVonageService;
+  jobs: JobQueue;
 }
 
 export async function createTestApp(
@@ -42,7 +46,7 @@ export async function createTestApp(
   setupOpenApi(app, 'development');
   await app.init();
 
-  return { app, db: app.get<Database>(DATABASE), vonage };
+  return { app, db: app.get<Database>(DATABASE), vonage, jobs: app.get<JobQueue>(JOB_QUEUE) };
 }
 
 export async function waitForLockWait(db: Database, timeoutMs = 5000): Promise<void> {
@@ -64,6 +68,7 @@ export async function waitForLockWait(db: Database, timeoutMs = 5000): Promise<v
 }
 
 export async function resetDatabase(db: Database): Promise<void> {
+  await db.execute(sql`DELETE FROM ${sql.identifier(JOBS_SCHEMA)}.job`);
   await db.execute(
     sql`TRUNCATE sessions, incident_events, webhook_events, communications, evidence, incidents, orders, routes, drivers, customers, agents CASCADE`,
   );

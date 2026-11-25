@@ -1,7 +1,7 @@
 import { DEFAULT_LOCALE, DRIVER_REPLIES } from '@csl/shared-types';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 
 import { maskPhone } from '../common/logging/mask-phone.js';
 import { DATABASE } from '../database/database.constants.js';
@@ -17,6 +17,7 @@ import {
 import { singleRow } from '../database/single-row.js';
 import { publishCommunicationChange } from '../events/publish-incident-event.js';
 import { invalidReplySms } from '../i18n/sms-templates.js';
+import { MediationService } from '../incidents/mediation.service.js';
 import { persistIncidentActivity, persistTransition } from '../incidents/persist-transition.js';
 import {
   buildDriverPromptNcco,
@@ -84,6 +85,7 @@ export class WebhooksService {
     @Inject(VONAGE_SERVICE) private readonly vonage: VonageService,
     @Inject(BackgroundTasks) private readonly background: BackgroundTasks,
     @Inject(ConfigService) private readonly config: ConfigService<Env, true>,
+    @Inject(MediationService) private readonly mediation: MediationService,
   ) {}
 
   async handleInboundSms(payload: InboundSms): Promise<void> {
@@ -223,6 +225,8 @@ export class WebhooksService {
     }
 
     await this.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${uuid}))`);
+
       const eventId = await this.recordEvent(
         tx,
         'voice_event',
@@ -258,6 +262,10 @@ export class WebhooksService {
         );
 
         await publishCommunicationChange(tx, 'incident.communication_updated', updated);
+
+        if (nextStatus === 'failed') {
+          await this.mediation.attemptFailed(tx, updated);
+        }
       }
     });
   }
@@ -273,6 +281,14 @@ export class WebhooksService {
 
     if (callingIn !== null) {
       if (callingIn.incident.status === 'in_mediation') {
+        await this.db.transaction(async (tx) => {
+          const context = await this.findIncident(tx, callingIn.incident.id);
+
+          if (context?.incident.status === 'in_mediation') {
+            await this.mediation.recordDriverJoined(tx, context.incident, callingIn.driver.id);
+          }
+        });
+
         return buildJoinConversationNcco(callingIn.incident.id);
       }
 
@@ -322,15 +338,16 @@ export class WebhooksService {
         payload,
       );
 
-      if (eventId !== null && payload.uuid !== undefined) {
-        const [call] = await tx
-          .select({ id: communications.id })
-          .from(communications)
-          .where(eq(communications.vonageUuid, payload.uuid));
+      const [call] =
+        payload.uuid === undefined
+          ? []
+          : await tx
+              .select()
+              .from(communications)
+              .where(eq(communications.vonageUuid, payload.uuid));
 
-        if (call) {
-          await this.linkEvent(tx, eventId, call.id);
-        }
+      if (eventId !== null && call) {
+        await this.linkEvent(tx, eventId, call.id);
       }
 
       const context = incidentId === undefined ? null : await this.findIncident(tx, incidentId);
@@ -345,21 +362,29 @@ export class WebhooksService {
       const pressedOne = payload.dtmf?.digits === '1' && payload.dtmf.timed_out !== true;
 
       if (!pressedOne) {
+        if (eventId !== null && call) {
+          await this.mediation.attemptFailed(tx, call);
+        }
+
         return buildInvalidKeyNcco(context.driver?.locale ?? DEFAULT_LOCALE);
       }
 
       if (context.incident.status === 'notified') {
-        await persistTransition(tx, context.incident, {
+        const updated = await persistTransition(tx, context.incident, {
           to: 'in_mediation',
           actor: 'driver',
           actorId: context.driver?.id,
           reason: ACCEPTED_CALL_REASON,
         });
 
+        await this.mediation.recordDriverJoined(tx, updated, context.driver?.id);
+
         return buildJoinConversationNcco(context.incident.id);
       }
 
       if (context.incident.status === 'in_mediation') {
+        await this.mediation.recordDriverJoined(tx, context.incident, context.driver?.id);
+
         return buildJoinConversationNcco(context.incident.id);
       }
 
@@ -491,6 +516,15 @@ export class WebhooksService {
     }
 
     const driverNumber = toE164(payload.direction === 'inbound' ? payload.from : payload.to);
+
+    if (payload.direction === 'outbound' && driverNumber !== null) {
+      const reservation = await this.adoptCallReservation(tx, uuid, driverNumber);
+
+      if (reservation !== null) {
+        return reservation;
+      }
+    }
+
     const context =
       driverNumber === null ? null : await this.findActiveIncidentForDriver(tx, driverNumber);
 
@@ -515,6 +549,44 @@ export class WebhooksService {
     await publishCommunicationChange(tx, 'incident.communication_added', created);
 
     return created;
+  }
+
+  private async adoptCallReservation(
+    tx: DatabaseTransaction,
+    uuid: string,
+    toNumber: string,
+  ): Promise<CommunicationRow | null> {
+    const [reservation] = await tx
+      .select()
+      .from(communications)
+      .where(
+        and(
+          eq(communications.channel, 'voice'),
+          eq(communications.direction, 'outbound'),
+          eq(communications.toNumber, toNumber),
+          eq(communications.status, 'pending'),
+          isNull(communications.vonageUuid),
+        ),
+      )
+      .orderBy(desc(communications.createdAt))
+      .limit(1)
+      .for('update');
+
+    if (!reservation) {
+      return null;
+    }
+
+    const adopted = singleRow(
+      await tx
+        .update(communications)
+        .set({ vonageUuid: uuid, status: 'queued' })
+        .where(eq(communications.id, reservation.id))
+        .returning(),
+    );
+
+    await publishCommunicationChange(tx, 'incident.communication_updated', adopted);
+
+    return adopted;
   }
 
   private async lockCall(tx: DatabaseTransaction, uuid: string): Promise<CommunicationRow | null> {
