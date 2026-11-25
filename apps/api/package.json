@@ -21,6 +21,7 @@
     "db:check": "drizzle-kit check",
     "db:seed": "node --env-file-if-exists=.env dist/database/seed.js",
     "agent:create": "node --env-file-if-exists=.env dist/auth/create-agent.js",
+    "evidence:reconcile": "node --env-file-if-exists=.env dist/storage/reconcile-evidence-cli.js",
     "vonage:send-test-sms": "node --env-file-if-exists=.env dist/vonage/send-test-sms.js"
   },
   "dependencies": {

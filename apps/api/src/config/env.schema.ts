@@ -8,6 +8,10 @@ const baseEnvSchema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   REDIS_URL: z.url({ protocol: /^rediss?$/ }).optional(),
   STORAGE_ENDPOINT: z.url({ protocol: /^https?$/ }),
+  STORAGE_PUBLIC_ENDPOINT: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.url({ protocol: /^https$/ }).optional(),
+  ),
   STORAGE_REGION: z.string().min(1),
   STORAGE_BUCKET: z
     .string()

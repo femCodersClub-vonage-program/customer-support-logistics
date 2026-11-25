@@ -3,6 +3,9 @@ import type { StorageObject, StorageService } from '../../src/storage/storage.se
 export class FakeStorageService implements StorageService {
   readonly objects = new Map<string, StorageObject>();
   readonly prefixes = new Map<string, Uint8Array>();
+  async *listKeys(prefix: string): AsyncIterable<string> {
+    for (const key of this.objects.keys()) if (key.startsWith(prefix)) yield key;
+  }
 
   async createUploadUrl(key: string): Promise<string> {
     return `https://storage.test/upload/${key}`;

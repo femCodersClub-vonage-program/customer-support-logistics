@@ -34,6 +34,18 @@ const VONAGE_ENV = {
 const DISABLED = { DATABASE_URL, VONAGE_ENABLED: 'false', ...STORAGE_ENV };
 
 describe('validateEnv', () => {
+  it('accepts an optional public HTTPS storage endpoint and treats empty as unset', () => {
+    expect(
+      validateEnv({ ...DISABLED, STORAGE_PUBLIC_ENDPOINT: 'https://storage.example.com' })
+        .STORAGE_PUBLIC_ENDPOINT,
+    ).toBe('https://storage.example.com');
+    expect(
+      validateEnv({ ...DISABLED, STORAGE_PUBLIC_ENDPOINT: '' }).STORAGE_PUBLIC_ENDPOINT,
+    ).toBeUndefined();
+    expect(() =>
+      validateEnv({ ...DISABLED, STORAGE_PUBLIC_ENDPOINT: 'http://storage.example.com' }),
+    ).toThrow(/STORAGE_PUBLIC_ENDPOINT/);
+  });
   it('rejects a pending evidence TTL shorter than the upload URL TTL', () => {
     expect(() =>
       validateEnv({

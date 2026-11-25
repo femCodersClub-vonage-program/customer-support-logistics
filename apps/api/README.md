@@ -22,6 +22,14 @@ Evidence records are created as `pending` before the browser uploads directly wi
 
 Upload URLs are signed for the declared content length. Completion copies the uploaded object to a separate key, validates that copy and serves only the copy. Temporary keys use the `evidence-pending/` prefix. Local Compose installs a one-day expiration rule and starts the SeaweedFS administrator and lifecycle worker. Production storage must be configured separately with an equivalent lifecycle rule and an operational lifecycle worker. The pending TTL must exceed the signed URL lifetime by at least one minute and cannot exceed 12 hours, leaving a safety margin before storage lifecycle expiration. Lifecycle processing is asynchronous, so deletion is not immediate.
 
+### Orphaned evidence maintenance
+
+After building the API, run `pnpm --filter @csl/api evidence:reconcile` with the target environment configured. Run this command periodically through the deployment's maintenance scheduler, or manually after an unknown completion outcome is logged. It scans `incidents/` with paginated storage listings and deletes final objects without a `ready` evidence reference. Temporary uploads remain covered by their separate lifecycle rule. The command uses a standalone application context; it does not start the HTTP server or mediation workers.
+
+For each final object, reconciliation locks its incident before reading evidence references and deleting the object. Completion uses the same lock from before copying until its database transaction commits, so reconciliation waits for in-flight completions before deciding whether a copy is orphaned. Failures stop the sweep and can be retried; existing ready objects are preserved. This is orphan reconciliation, not retention of valid evidence. Unexpected key formats are skipped.
+
+`STORAGE_PUBLIC_ENDPOINT` optionally selects the HTTPS storage endpoint used to sign browser PUT and GET URLs. Internal HEAD, reads, copies, listings and deletes continue through `STORAGE_ENDPOINT`. Without the public endpoint, signing also uses the internal endpoint. Configure both to reach the same bucket, and preserve signed host/path/query when proxying public requests.
+
 ## Database
 
 The schema is defined with [Drizzle ORM](https://orm.drizzle.team) in `src/database/schema/`, and SQL migrations live in `drizzle/`. Why Drizzle, and the schema conventions, are in [ADR 0005](../../docs/adr/0005-orm-and-migrations.md).
