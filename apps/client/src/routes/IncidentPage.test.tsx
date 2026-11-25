@@ -4,7 +4,15 @@ import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { DATE_TIME_FORMAT } from '../incident/date-format.ts';
-import { CUSTOMER, apiError, apiUrl, renderApp, sessionOf } from '../test/app.tsx';
+import {
+  CUSTOMER,
+  apiError,
+  apiUrl,
+  incidentDetailOf,
+  incidentOf,
+  renderApp,
+  sessionOf,
+} from '../test/app.tsx';
 
 import type { EvidenceDownload, IncidentDetail } from '@csl/contracts';
 import type { IncidentEvent } from '@csl/shared-types';
@@ -28,58 +36,42 @@ const event = (id: string, overrides: Partial<IncidentEvent>): IncidentEvent => 
   ...overrides,
 });
 
-const incident = (overrides: Partial<IncidentDetail> = {}): IncidentDetail => ({
-  id: INCIDENT_ID,
-  orderId: ORDER_ID,
-  type: 'damaged',
-  status: 'notified',
-  agentId: null,
-  resolution: null,
-  createdAt: CREATED_AT,
-  updatedAt: NOTIFIED_AT,
-  closedAt: null,
-  description: 'The box arrived crushed',
-  order: {
-    id: ORDER_ID,
-    customerId: CUSTOMER.id,
-    routeId: null,
-    address: 'Calle Mayor 1, Madrid',
-    status: 'delivered',
-  },
-  customer: { id: CUSTOMER.id, name: CUSTOMER.name, phone: '+34600000001', locale: 'en' },
-  driver: null,
-  events: [
-    event('created', {}),
-    event('evidence', { kind: 'evidence_uploaded', occurredAt: '2026-11-20T09:31:00.000Z' }),
-    event('notified', {
-      fromStatus: 'open',
-      toStatus: 'notified',
-      actor: 'agent',
-      reason: 'Internal note for the driver team',
-      occurredAt: NOTIFIED_AT,
-    }),
-    event('resent', {
-      kind: 'driver_notification_resent',
-      toStatus: 'notified',
-      actor: 'agent',
-      occurredAt: '2026-11-20T10:45:00.000Z',
-    }),
-  ],
-  communications: [],
-  evidence: [
-    {
-      id: EVIDENCE_ID,
-      incidentId: INCIDENT_ID,
-      storageKey: `incidents/${INCIDENT_ID}/${EVIDENCE_ID}`,
-      mimeType: 'image/jpeg',
-      sizeBytes: 1024,
-      status: 'ready',
-      createdAt: '2026-11-20T09:31:00.000Z',
-    },
-  ],
-  mediationInvite: null,
-  ...overrides,
-});
+const incident = (overrides: Partial<IncidentDetail> = {}): IncidentDetail =>
+  incidentDetailOf(INCIDENT_ID, {
+    orderId: ORDER_ID,
+    createdAt: CREATED_AT,
+    updatedAt: NOTIFIED_AT,
+    description: 'The box arrived crushed',
+    events: [
+      event('created', {}),
+      event('evidence', { kind: 'evidence_uploaded', occurredAt: '2026-11-20T09:31:00.000Z' }),
+      event('notified', {
+        fromStatus: 'open',
+        toStatus: 'notified',
+        actor: 'agent',
+        reason: 'Internal note for the driver team',
+        occurredAt: NOTIFIED_AT,
+      }),
+      event('resent', {
+        kind: 'driver_notification_resent',
+        toStatus: 'notified',
+        actor: 'agent',
+        occurredAt: '2026-11-20T10:45:00.000Z',
+      }),
+    ],
+    evidence: [
+      {
+        id: EVIDENCE_ID,
+        incidentId: INCIDENT_ID,
+        storageKey: `incidents/${INCIDENT_ID}/${EVIDENCE_ID}`,
+        mimeType: 'image/jpeg',
+        sizeBytes: 1024,
+        status: 'ready',
+        createdAt: '2026-11-20T09:31:00.000Z',
+      },
+    ],
+    ...overrides,
+  });
 
 const evidenceDownload: EvidenceDownload = {
   id: EVIDENCE_ID,
@@ -91,8 +83,6 @@ const evidenceDownload: EvidenceDownload = {
 
 const incidentAnswers = (response: () => Response) =>
   http.get(apiUrl(`/incidents/${INCIDENT_ID}`), response);
-
-const incidentOf = (detail: IncidentDetail) => incidentAnswers(() => HttpResponse.json(detail));
 
 const evidenceOf = (items: EvidenceDownload[]) =>
   http.get(apiUrl(`/incidents/${INCIDENT_ID}/evidence`), () => HttpResponse.json(items));
