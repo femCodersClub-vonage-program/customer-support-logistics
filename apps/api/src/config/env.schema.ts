@@ -21,6 +21,10 @@ const baseEnvSchema = z.object({
   STORAGE_ACCESS_KEY: z.string().min(1),
   STORAGE_SECRET_KEY: z.string().min(1),
   STORAGE_FORCE_PATH_STYLE: z.stringbool(),
+  STORAGE_PUBLIC_FORCE_PATH_STYLE: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.stringbool().optional(),
+  ),
   EVIDENCE_IMAGE_MAX_BYTES: z.coerce
     .number()
     .int()

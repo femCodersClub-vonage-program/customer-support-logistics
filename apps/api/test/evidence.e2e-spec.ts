@@ -45,6 +45,8 @@ describe('Evidence uploads (e2e)', () => {
       `incidents/${ids.openIncident}/report.pdf`,
       `incidents/${ids.openIncident}/ready/report.jpg`,
       `incidents/${ids.openIncident}/ready/22222222-2222-4222-8222-222222222222.pdf`,
+      `incidents/${ids.openIncident}/ready/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.JPG`,
+      `incidents/${ids.openIncident}/ready/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA.jpg`,
     ];
     const pendingKey = `evidence-pending/${ids.openIncident}/pending.jpg`;
     for (const key of [readyKey, orphanKey, pendingKey, ...unrelatedKeys])
@@ -61,7 +63,13 @@ describe('Evidence uploads (e2e)', () => {
     expect(storage.objects.has(readyKey)).toBe(true);
     expect(storage.objects.has(pendingKey)).toBe(true);
     for (const key of unrelatedKeys) expect(storage.objects.has(key)).toBe(true);
-    expect(await reconcileEvidence(testApp.db, storage)).toBe(0);
+    const transaction = vi.spyOn(testApp.db, 'transaction');
+    try {
+      expect(await reconcileEvidence(testApp.db, storage)).toBe(0);
+      expect(transaction).not.toHaveBeenCalled();
+    } finally {
+      transaction.mockRestore();
+    }
   });
 
   it('waits for an in-flight completion before reconciling its final copy', async () => {

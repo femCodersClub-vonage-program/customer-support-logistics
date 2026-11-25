@@ -35,7 +35,9 @@ export const S3_SIGNING_CLIENT = Symbol('S3_SIGNING_CLIENT');
           ? new S3Client({
               endpoint,
               region: config.get('STORAGE_REGION', { infer: true }),
-              forcePathStyle: config.get('STORAGE_FORCE_PATH_STYLE', { infer: true }),
+              forcePathStyle:
+                config.get('STORAGE_PUBLIC_FORCE_PATH_STYLE', { infer: true }) ??
+                config.get('STORAGE_FORCE_PATH_STYLE', { infer: true }),
               requestChecksumCalculation: 'WHEN_REQUIRED',
               credentials: {
                 accessKeyId: config.get('STORAGE_ACCESS_KEY', { infer: true }),

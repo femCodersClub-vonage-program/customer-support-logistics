@@ -26,9 +26,11 @@ Upload URLs are signed for the declared content length. Completion copies the up
 
 After building the API, run `pnpm --filter @csl/api evidence:reconcile` with the target environment configured. Run this command periodically through the deployment's maintenance scheduler, or manually after an unknown completion outcome is logged. It scans `incidents/` with paginated storage listings and deletes final objects without a `ready` evidence reference. Temporary uploads remain covered by their separate lifecycle rule. The command uses a standalone application context; it does not start the HTTP server or mediation workers.
 
-For each final object, reconciliation locks its incident before reading evidence references and deleting the object. Completion uses the same lock from before copying until its database transaction commits, so reconciliation waits for in-flight completions before deciding whether a copy is orphaned. Failures stop the sweep and can be retried; existing ready objects are preserved. This is orphan reconciliation, not retention of valid evidence. Unexpected key formats are skipped.
+Reconciliation skips objects that already have a `ready` reference without locking the incident. For the remaining candidates, it locks the incident and checks the reference again before deleting. Completion holds the same lock from before copying through the database commit, so reconciliation waits for in-flight completions before deciding whether a copy is orphaned. Failures stop the sweep and can be retried. Unexpected key formats, including uppercase variants, are skipped.
 
 `STORAGE_PUBLIC_ENDPOINT` optionally selects the HTTPS storage endpoint used to sign browser PUT and GET URLs. Internal HEAD, reads, copies, listings and deletes continue through `STORAGE_ENDPOINT`. Without the public endpoint, signing also uses the internal endpoint. Configure both to reach the same bucket, and preserve signed host/path/query when proxying public requests.
+
+When a public endpoint is configured, `STORAGE_PUBLIC_FORCE_PATH_STYLE` can override its addressing style. Use `true` for `storage.example.com/evidence/...` or `false` for `evidence.storage.example.com/...`. When unset or empty, signing inherits `STORAGE_FORCE_PATH_STYLE`.
 
 ## Database
 
