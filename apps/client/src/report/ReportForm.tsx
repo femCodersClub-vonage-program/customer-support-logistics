@@ -13,7 +13,6 @@ import { api } from '../api.ts';
 import { useSession } from '../auth/session-context.ts';
 
 import { clearDraft, loadDraft, saveDraft } from './draft.ts';
-import { EvidencePicker } from './EvidencePicker.tsx';
 import './report.css';
 
 import type { IncidentType } from '@csl/shared-types';
@@ -56,7 +55,6 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
   const [initial] = useState(() => loadDraft(orderId));
   const [type, setType] = useState<IncidentType | null>(initial.type);
   const [description, setDescription] = useState(initial.description);
-  const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -230,13 +228,6 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
           </p>
         )}
       </div>
-
-      <EvidencePicker
-        files={files}
-        onChange={setFiles}
-        suggestPhoto={type === 'damaged' || type === 'wrong_item'}
-        disabled={submitting}
-      />
 
       {failure && (
         <p role="alert" className="report-form__error">

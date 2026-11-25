@@ -2,7 +2,7 @@ import { fireEvent, screen } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { SessionProvider } from '../auth/session.tsx';
 import { CUSTOMER, apiUrl, renderApp, sessionOf } from '../test/app.tsx';
@@ -82,12 +82,6 @@ function write(value: string) {
 
 function send() {
   fireEvent.click(screen.getByRole('button', { name: 'Send report' }));
-}
-
-function pick(name = 'photo.jpg') {
-  const file = new File(['x'], name, { type: 'image/jpeg' });
-
-  fireEvent.change(screen.getByLabelText('Choose from gallery'), { target: { files: [file] } });
 }
 
 beforeAll(() => {
@@ -389,69 +383,6 @@ describe('ReportForm', () => {
       write('Two days late');
 
       expect(loadDraft(ORDER_ID)).toEqual({ type: 'delayed', description: 'Two days late' });
-    });
-  });
-
-  describe('evidence', () => {
-    const suggestion = 'A photo of the problem helps us solve it faster.';
-
-    beforeEach(() => {
-      URL.createObjectURL = vi.fn(() => 'blob:preview');
-      URL.revokeObjectURL = vi.fn();
-    });
-
-    it('lets the customer take a photo or choose from the gallery', () => {
-      renderForm();
-
-      expect(screen.getByRole('group', { name: 'Photos and videos' })).toBeInTheDocument();
-      expect(screen.getByLabelText('Take a photo or video')).toBeInTheDocument();
-      expect(screen.getByLabelText('Choose from gallery')).toBeInTheDocument();
-    });
-
-    it.each(['Damaged', 'Wrong item'])('suggests a photo for the type %s', (name) => {
-      renderForm();
-
-      choose(name);
-
-      expect(screen.getByText(suggestion)).toBeInTheDocument();
-    });
-
-    it.each(['Not delivered', 'Delayed', 'Other'])(
-      'does not suggest a photo for the type %s',
-      (name) => {
-        renderForm();
-
-        choose(name);
-
-        expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
-      },
-    );
-
-    it('keeps the chosen files while the rest of the form is edited', () => {
-      renderForm();
-
-      pick();
-      choose('Damaged');
-      write('The box was crushed');
-
-      expect(screen.getByText('photo.jpg')).toBeInTheDocument();
-    });
-
-    it('blocks the picker while the report is being sent', async () => {
-      answerWith(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        return incidentCreated();
-      });
-      renderForm();
-
-      choose('Damaged');
-      pick();
-      send();
-
-      expect(screen.getByLabelText('Take a photo or video')).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'Remove photo.jpg' })).toBeDisabled();
-      expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
     });
   });
 
