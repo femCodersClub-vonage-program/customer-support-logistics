@@ -113,8 +113,8 @@ describe('Mediation (e2e)', () => {
       expect(call).toBeNull();
       expect(testApp.vonage.calls).toEqual([]);
       expect(await smsReservationsOf(ids.notifiedIncident)).toEqual([
-        expect.objectContaining({ toNumber: DRIVER_PHONE, status: 'pending' }),
         expect.objectContaining({ toNumber: CUSTOMER_PHONE, status: 'pending' }),
+        expect.objectContaining({ toNumber: DRIVER_PHONE, status: 'pending' }),
       ]);
       expect(await eventsOf(ids.notifiedIncident)).toEqual([
         expect.objectContaining({

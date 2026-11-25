@@ -26,6 +26,7 @@ const PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----
 
 const VONAGE_ENV = {
   PUBLIC_URL: 'https://example.ngrok-free.app',
+  CLIENT_PUBLIC_URL: 'https://client.example.app',
   VONAGE_API_KEY: 'key',
   VONAGE_API_SECRET: 'secret',
   VONAGE_APPLICATION_ID: 'app-id',
