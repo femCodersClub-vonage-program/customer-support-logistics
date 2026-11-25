@@ -11,9 +11,10 @@ import { listenForInstallPrompt } from './pwa/installPrompt.ts';
 import { InterruptionsProvider } from './pwa/InterruptionsProvider.tsx';
 import { OfflineBanner } from './pwa/OfflineBanner.tsx';
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx';
+import { shouldRetry } from './query-retry.ts';
 import '@csl/design-tokens';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: shouldRetry } } });
 
 const container = document.getElementById('root');
 

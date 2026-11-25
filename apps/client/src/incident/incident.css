@@ -1,0 +1,215 @@
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.incident-page {
+  width: 100%;
+  padding: 24px 16px;
+}
+
+.incident-page__container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.incident-page__title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.incident-page__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 8px;
+  background-color: var(--color-primary);
+  color: var(--color-surface);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.incident-page__button:visited {
+  color: var(--color-surface);
+}
+
+.incident-page__button:hover {
+  background-color: var(--color-primary-hover);
+  color: var(--color-surface);
+}
+
+.incident-page__button:focus-visible,
+.incident-page__back:focus-visible,
+.incident-evidence__item a:focus-visible {
+  outline: 3px solid var(--color-primary-hover);
+  outline-offset: 3px;
+}
+
+.incident-page__back {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 10px 0;
+  font-weight: 600;
+}
+
+.incident-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 16px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-card);
+  border-radius: 12px;
+}
+
+.incident-section__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.incident-progress__summary {
+  margin: 0;
+  font-weight: 600;
+}
+
+.incident-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.incident-progress__step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-text-muted);
+}
+
+.incident-progress__step svg {
+  flex-shrink: 0;
+}
+
+.incident-progress__step--done {
+  color: var(--status-resolved);
+}
+
+.incident-progress__step--current {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.incident-progress__step--current.incident-progress__step--resolved {
+  color: var(--status-resolved);
+}
+
+.incident-progress__step--current.incident-progress__step--escalated {
+  color: var(--status-escalated);
+}
+
+.incident-progress__label {
+  color: var(--color-text);
+}
+
+.incident-progress__next {
+  margin: 0;
+  padding: 12px;
+  background-color: var(--color-primary-soft);
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.incident-summary {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.incident-summary dt {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.incident-summary dd {
+  margin: 0 0 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.incident-evidence {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.incident-evidence__item img,
+.incident-evidence__item video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background-color: var(--color-bg);
+}
+
+.incident-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0 0 0 16px;
+  border-left: 2px solid var(--color-border);
+  list-style: none;
+}
+
+.incident-timeline__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.incident-timeline__text {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.incident-timeline__date {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 768px) {
+  .incident-page {
+    padding: 48px 32px;
+  }
+
+  .incident-section {
+    padding: 24px;
+  }
+}
