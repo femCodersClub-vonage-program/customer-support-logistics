@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   addFiles,
+  EVIDENCE_ACCEPT,
   EVIDENCE_MAX_FILES,
   EVIDENCE_MAX_IMAGE_BYTES,
   EVIDENCE_MAX_VIDEO_BYTES,
+  EVIDENCE_MIME_TYPES,
+  mimeTypeOf,
 } from './evidence-files.ts';
 
 function fileOf(name: string, type: string, size = 1024): File {
@@ -21,6 +24,7 @@ describe('addFiles', () => {
     ['photo.png', 'image/png'],
     ['photo.webp', 'image/webp'],
     ['photo.heic', 'image/heic'],
+    ['photo.heif', 'image/heif'],
     ['video.mp4', 'video/mp4'],
     ['video.mov', 'video/quicktime'],
   ])('accepts %s', (name, type) => {
@@ -102,5 +106,52 @@ describe('addFiles', () => {
 
     expect(files).toEqual([good]);
     expect(rejected).toEqual([{ name: 'animation.gif', reason: 'type' }]);
+  });
+});
+
+describe('files without a type', () => {
+  it.each(['photo.heic', 'PHOTO.HEIC', 'photo.heif', 'clip.mov', 'clip.mp4'])(
+    'accepts %s by its extension',
+    (name) => {
+      const file = fileOf(name, '');
+
+      expect(addFiles([], [file])).toEqual({ files: [file], rejected: [] });
+    },
+  );
+
+  it.each(['notes.pdf', 'animation.gif', 'heic', 'photo.heic.txt'])(
+    'rejects %s when the extension is not one of the accepted ones',
+    (name) => {
+      expect(addFiles([], [fileOf(name, '')]).rejected).toEqual([{ name, reason: 'type' }]);
+    },
+  );
+
+  it('applies the video limit to a MOV video and the photo limit to a HEIC photo', () => {
+    const video = fileOf('clip.mov', '', EVIDENCE_MAX_IMAGE_BYTES + 1);
+    const photo = fileOf('photo.heic', '', EVIDENCE_MAX_IMAGE_BYTES + 1);
+
+    expect(addFiles([], [video]).rejected).toEqual([]);
+    expect(addFiles([], [photo]).rejected).toEqual([{ name: 'photo.heic', reason: 'size' }]);
+  });
+});
+
+describe('mimeTypeOf', () => {
+  it('keeps the type the browser gives', () => {
+    expect(mimeTypeOf(fileOf('photo.heic', 'image/jpeg'))).toBe('image/jpeg');
+  });
+
+  it('guesses the type from the extension when the browser gives none', () => {
+    expect(mimeTypeOf(fileOf('photo.HEIC', ''))).toBe('image/heic');
+    expect(mimeTypeOf(fileOf('clip.mov', ''))).toBe('video/quicktime');
+  });
+
+  it('gives an empty type when it cannot guess it', () => {
+    expect(mimeTypeOf(fileOf('notes', ''))).toBe('');
+  });
+});
+
+describe('EVIDENCE_ACCEPT', () => {
+  it('lists the accepted types and the extensions some browsers need', () => {
+    expect(EVIDENCE_ACCEPT.split(',')).toEqual([...EVIDENCE_MIME_TYPES, '.heic', '.heif', '.mov']);
   });
 });
