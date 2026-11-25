@@ -12,7 +12,7 @@ Mobile PWA (`apps/client`).
 | 2    | `/orders`          | Selects the affected order.                          | Displays the customer's orders.           | —                        |
 | 3    | `/report/:orderId` | Describes the incident and attaches photos or video. | Creates an incident ticket.               | `open`                   |
 | 4    | `/incidents/:id`   | Checks the incident progress.                        | Displays the ticket status and updates.   | `open` / `notified`      |
-| 5    | `/call/:id`        | Joins a mediation call when requested.               | Connects the customer to the mediation.   | `in_mediation`           |
+| 5    | `/call/:id`        | Opens the link in the SMS and joins the call.        | Connects the customer to the mediation.   | `in_mediation`           |
 | 6    | `/incidents/:id`   | Reviews the final outcome.                           | Displays the outcome and sends an SMS.    | `resolved` / `escalated` |
 
 ## Alternative paths

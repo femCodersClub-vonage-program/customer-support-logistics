@@ -10,6 +10,8 @@ export const INCIDENT_EVENT_KINDS = [
   'assigned',
   'driver_notification_resent',
   'driver_replied',
+  'driver_joined',
+  'driver_unreachable',
 ] as const;
 
 export type IncidentEventKind = (typeof INCIDENT_EVENT_KINDS)[number];

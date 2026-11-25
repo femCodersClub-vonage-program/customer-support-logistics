@@ -64,7 +64,7 @@ If an SMS delivery receipt says the message wasn't delivered, the CRM alerts the
 
 The agent starts the mediation from the CRM. The customer and the agent join the conversation `inc-<id>` over WebRTC; the API calls the driver over PSTN, and the driver only joins after pressing 1, so a voicemail never joins the call.
 
-The diagram uses incident `1234`, so the conversation is `inc-1234`. The status change, the call to the driver ([#39]), the Client SDK JWTs and the customer's call from the PWA ([#36]) are in place. The SMS before the call, the agent's audio in the CRM, the notice to the customer, and the retries and fallback SMS when the driver doesn't answer are still _planned_.
+The diagram uses incident `1234`, so the conversation is `inc-1234`. The status change, the call to the driver ([#39]), the Client SDK JWTs and the customer's call from the PWA ([#36]) are in place, and so are the SMS before the call, the invite to the customer, and the retries and fallback SMS when the driver doesn't answer ([#85]). The agent's audio in the CRM and the agent alert are still _planned_.
 
 ```mermaid
 sequenceDiagram
@@ -80,10 +80,12 @@ sequenceDiagram
   Agent->>CRM: Start mediation
   CRM->>API: Start mediation for incident 1234
   API->>API: Status in_mediation, record IncidentEvent
+  API->>API: Schedule the call to the driver in 2 minutes
+  API-->>CRM: Incident in mediation, call scheduled
   API->>Vonage: SMS to driver: we will call you in 2 minutes
   Vonage->>Driver: SMS
-  API-->>CRM: Client SDK JWT for the agent
-  API->>Customer: Notice with a link to /call/1234
+  API->>Vonage: SMS to customer with a link to /call/1234
+  Vonage->>Customer: SMS
 
   par Agent joins
     CRM->>Vonage: Client SDK call with incident 1234 (WebRTC)
@@ -98,6 +100,7 @@ sequenceDiagram
     API-->>Vonage: NCCO conversation inc-1234
   end
 
+  Note over API: 2 minutes later
   API->>Vonage: Create outbound call to the driver with the NCCO talk + DTMF input
   Vonage->>Driver: Phone call (PSTN)
   Driver->>Vonage: Answers
@@ -113,7 +116,7 @@ sequenceDiagram
     API-->>Vonage: Hang up
     API->>API: Retry up to 2 times, 60 s apart
     API->>Vonage: After the last retry, fallback SMS to driver
-    API-->>CRM: Alert the agent to reschedule
+    API->>API: Record driver_unreachable for the agent
   end
 ```
 
@@ -149,19 +152,39 @@ Pressing `1` also moves a `notified` incident to `in_mediation` with `actor: dri
 
 Two agent-only endpoints in `apps/api` (`MediationService` in `apps/api/src/incidents/mediation.service.ts`) create the call to the driver:
 
-| Route                                       | What it does                                                                                                                                                                    | Response                              |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `POST /incidents/:id/mediation`             | Moves a `notified` incident to `in_mediation` with `actor: agent` (nothing changes if it is already in mediation), assigns it to the agent if it has none, and calls the driver | `201` with `{ incident, call }`       |
-| `POST /incidents/:id/mediation/driver-call` | Calls the driver again while the incident is `in_mediation`                                                                                                                     | `201` with the call (`Communication`) |
+| Route                                       | What it does                                                                                                                                                                                    | Response                              |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `POST /incidents/:id/mediation`             | Moves a `notified` incident to `in_mediation` with `actor: agent` (nothing changes if it is already in mediation), assigns it to the agent if it has none, and schedules the call to the driver | `201` with `{ incident, call: null }` |
+| `POST /incidents/:id/mediation/driver-call` | Calls the driver again while the incident is `in_mediation`                                                                                                                                     | `201` with the call (`Communication`) |
 
-Each call is stored as an outbound voice `Communication` in `queued`, with the Vonage call id as `vonageUuid`, and the event webhook updates it from there. The incident row is locked while the call is created, so two agents starting the mediation at once create a single call.
+Each call is stored as an outbound voice `Communication`, with the Vonage call id as `vonageUuid`, and the event webhook updates it from there. The incident row is locked while the mediation is started, so two agents starting it at once schedule it once: the second one gets `201` and nothing new happens.
 
 - **`403`:** the actor is not an agent.
 - **`404`:** the incident doesn't exist.
-- **`409`:** the incident can't move to `in_mediation` (`INVALID_TRANSITION`), `driver-call` was sent for an incident that isn't in mediation, the incident has no driver, or a call to the driver is still active. A call counts as active while it is `in_progress`, or while it is `queued` and less than 2 minutes old, so a call whose events never arrive doesn't block the agent.
-- **`502`** (`BAD_GATEWAY`): Vonage didn't create the call. The status change and the assignment are kept, nothing is stored for the call, and the agent can retry with either endpoint.
+- **`409`:** the incident can't move to `in_mediation` (`INVALID_TRANSITION`), `driver-call` was sent for an incident that isn't in mediation, the incident has no driver, or (`driver-call` only) a call to the driver is still active. A call counts as active while it is `in_progress`, or while it is `pending` or `queued` and less than 2 minutes old, so a call whose events never arrive doesn't block the agent.
+- **`502`** (`BAD_GATEWAY`, `driver-call` only): Vonage didn't create the call. Nothing is stored for it, and the agent can try again.
 
-Starting the mediation requires the incident to be `notified`, so it follows the "Notify driver" action ([#38]). Automatic retries when the driver doesn't answer are a follow-up of [#39].
+Starting the mediation requires the incident to be `notified`, so it follows the "Notify driver" action ([#38]).
+
+### SMS before the call, invite and retries
+
+Starting the mediation doesn't call Vonage during the request. In the same transaction as the status change it reserves two SMS and schedules the first call, as background jobs on pg-boss ([ADR 0013](../adr/0013-background-jobs-with-pg-boss.md), `apps/api/src/jobs`). Each SMS and call is reserved first as a `Communication` in `pending` with a unique `idempotencyKey`, so a job that runs twice, a repeated webhook or a restart never sends or calls twice for the same step:
+
+| Step          | `idempotencyKey`               | When                                                     | To       | Template          |
+| ------------- | ------------------------------ | -------------------------------------------------------- | -------- | ----------------- |
+| Call soon     | `mediation:<id>:call-soon`     | Right away                                               | Driver   | `callSoon`        |
+| Invite        | `mediation:<id>:invite`        | Right away                                               | Customer | `mediationInvite` |
+| Call 1        | `mediation:<id>:call:1`        | `MEDIATION_CALL_DELAY_SECONDS` (120) later               | Driver   | Driver prompt     |
+| Calls 2 and 3 | `mediation:<id>:call:<n>`      | `MEDIATION_RETRY_DELAY_SECONDS` (60) after a failed call | Driver   | Driver prompt     |
+| Fallback      | `mediation:<id>:call-fallback` | After the third failed call                              | Driver   | `callFallback`    |
+
+- **Locale.** Each SMS is in its recipient's `locale`. The invite links to `<CLIENT_PUBLIC_URL>/call/<id>`. `GET /incidents/:id` returns it as `mediationInvite` (`{ url, sentAt }`, or `null` before the mediation starts), so the PWA can show the "Join the call" card ([#34]).
+- **Failed call.** A call fails when its event is `busy`, `unanswered`, `rejected`, `failed`, `timeout` or `cancelled`, when the driver presses another key or nothing, or when Vonage doesn't create it. The event or input webhook schedules the next call in the same transaction that records the event.
+- **Skipped calls.** Before calling, the job locks the incident and does nothing if it is no longer `in_mediation`, if the driver has joined (pressed 1 on any call, or called in while the mediation was open: `IncidentEvent` `driver_joined`), or if a call the agent placed by hand is still active. If the driver has already joined when the mediation starts, only the customer gets an SMS.
+- **Fallback.** After the third failed call the driver gets `callFallback`, and the timeline gets an `IncidentEvent` `driver_unreachable` (`actor: system`, reason `no_answer_after_retries`) for the agent. The incident stays `in_mediation`, so the agent decides whether to call again or escalate.
+- **Vonage errors.** An SMS that Vonage rejects is stored as `failed` and not sent again. It doesn't undo the status change, and the call is still placed.
+- **Early events.** Vonage may send the first event of a call before the job has stored the call id. The event webhook then adopts the driver's `pending` call reservation instead of creating a second `Communication`.
+- **Call driver again** (`driver-call`) still calls right away, and its calls are not retried automatically.
 
 ### Joining from the browser
 
@@ -302,7 +325,9 @@ Confirm as well, since the SDK and Vonage docs don't say it clearly: that Vonage
 [#29]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/29
 [#30]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/30
 [#31]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/31
+[#34]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/34
 [#36]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/36
 [#38]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/38
 [#39]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/39
 [#40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40
+[#85]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/85

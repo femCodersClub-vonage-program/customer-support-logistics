@@ -63,6 +63,7 @@ export function buildIncidentDetail(overrides: Partial<IncidentDetail> = {}): In
     events: [buildEvent()],
     communications: [],
     evidence: [],
+    mediationInvite: null,
     ...overrides,
   };
 }

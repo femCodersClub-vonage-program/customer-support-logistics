@@ -29,6 +29,8 @@ export default defineConfig({
           globalSetup: ['test/setup/require-test-database.ts'],
           env: {
             PUBLIC_URL: 'https://csl.test',
+            CLIENT_PUBLIC_URL: 'https://pwa.csl.test',
+            JOBS_POLLING_INTERVAL_SECONDS: '3600',
             VONAGE_API_KEY: 'test-api-key',
             VONAGE_SIGNATURE_SECRET: 'test-signature-secret-0123456789abcdef',
             WEBHOOK_RATE_LIMIT_PER_MINUTE: '10000',

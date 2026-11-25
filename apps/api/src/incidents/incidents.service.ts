@@ -55,6 +55,7 @@ import {
 } from '../i18n/sms-templates.js';
 import { toOrder } from '../orders/orders.mapper.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
+import { buildCallUrl } from '../vonage/voice-urls.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 
 import { toIncident, toIncidentDetail, toIncidentListItem } from './incidents.mapper.js';
@@ -525,7 +526,14 @@ export class IncidentsService {
       events,
       communications: incidentCommunications,
       evidence: incidentEvidence,
+      callUrl: this.callUrl(id),
     });
+  }
+
+  private callUrl(incidentId: string): string | null {
+    const clientPublicUrl = this.config.get('CLIENT_PUBLIC_URL', { infer: true });
+
+    return clientPublicUrl === undefined ? null : buildCallUrl(clientPublicUrl, incidentId);
   }
 
   async changeStatus(

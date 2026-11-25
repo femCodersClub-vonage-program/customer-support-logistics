@@ -9,6 +9,7 @@ import {
   escalatedCustomerSms,
   incidentNoticeSms,
   invalidReplySms,
+  mediationInviteSms,
   resolvedCustomerSms,
   resolvedDriverSms,
 } from './sms-templates.js';
@@ -16,6 +17,9 @@ import {
 import type { Locale } from '@csl/shared-types';
 
 const orderId = 'A1B2C3D4';
+
+const inviteUrl =
+  'https://client-production-8cd55b5b.up.railway.app/call/0b7f6c1e-3d2a-4f5b-9c8d-7e6f5a4b3c2d';
 
 function allTemplates(locale: Locale) {
   return {
@@ -27,6 +31,7 @@ function allTemplates(locale: Locale) {
     ),
     callSoon: callSoonSms(locale, { orderId, minutes: 2 }),
     callFallback: callFallbackSms(locale, { orderId }),
+    mediationInvite: mediationInviteSms(locale, { orderId, url: inviteUrl }),
     invalidReply: invalidReplySms(locale),
     resolvedCustomer: resolvedCustomerSms(locale, { orderId }),
     resolvedDriver: resolvedDriverSms(locale, { orderId }),
@@ -62,6 +67,15 @@ describe('SMS templates', () => {
     );
     expect(callFallbackSms('en', { orderId })).toBe(
       "CSL: we couldn't reach you about order A1B2C3D4. We'll call you again later.",
+    );
+  });
+
+  it('builds the mediation invite with the call link', () => {
+    expect(mediationInviteSms('es', { orderId, url: inviteUrl })).toBe(
+      `CSL: entra a la llamada del pedido A1B2C3D4: ${inviteUrl}`,
+    );
+    expect(mediationInviteSms('en', { orderId, url: inviteUrl })).toBe(
+      `CSL: join the call about order A1B2C3D4: ${inviteUrl}`,
     );
   });
 
@@ -108,6 +122,7 @@ describe('SMS templates', () => {
           ),
           callSoon: measureSms(callSoonSms(locale, { orderId, minutes: 2 })),
           callFallback: measureSms(callFallbackSms(locale, { orderId })),
+          mediationInvite: measureSms(mediationInviteSms(locale, { orderId, url: inviteUrl })),
           invalidReply: measureSms(invalidReplySms(locale)),
           resolvedCustomer: measureSms(resolvedCustomerSms(locale, { orderId })),
           resolvedDriver: measureSms(resolvedDriverSms(locale, { orderId })),
@@ -121,6 +136,7 @@ describe('SMS templates', () => {
         incidentNotice: { encoding: 'GSM-7', length: 140, segments: 1 },
         callSoon: { encoding: 'GSM-7', length: 70, segments: 1 },
         callFallback: { encoding: 'GSM-7', length: 80, segments: 1 },
+        mediationInvite: { encoding: 'GSM-7', length: 136, segments: 1 },
         invalidReply: { encoding: 'GSM-7', length: 20, segments: 1 },
         resolvedCustomer: { encoding: 'GSM-7', length: 82, segments: 1 },
         resolvedDriver: { encoding: 'GSM-7', length: 76, segments: 1 },
@@ -130,6 +146,7 @@ describe('SMS templates', () => {
         incidentNotice: { encoding: 'GSM-7', length: 129, segments: 1 },
         callSoon: { encoding: 'GSM-7', length: 70, segments: 1 },
         callFallback: { encoding: 'GSM-7', length: 76, segments: 1 },
+        mediationInvite: { encoding: 'GSM-7', length: 132, segments: 1 },
         invalidReply: { encoding: 'GSM-7', length: 25, segments: 1 },
         resolvedCustomer: { encoding: 'GSM-7', length: 85, segments: 1 },
         resolvedDriver: { encoding: 'GSM-7', length: 79, segments: 1 },
