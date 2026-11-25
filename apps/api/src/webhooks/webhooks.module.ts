@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 
+import { BackgroundTasksModule } from '../common/background/background-tasks.module.js';
 import { VonageModule } from '../vonage/vonage.module.js';
 
-import { BackgroundTasks } from './background-tasks.js';
 import { VonageSignatureGuard } from './signature/vonage-signature.guard.js';
 import { WebhooksController } from './webhooks.controller.js';
 import { WebhooksService } from './webhooks.service.js';
@@ -15,6 +15,7 @@ export const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
 
 @Module({
   imports: [
+    BackgroundTasksModule,
     VonageModule,
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
@@ -27,6 +28,6 @@ export const WEBHOOK_RATE_LIMIT_WINDOW_MS = 60_000;
     }),
   ],
   controllers: [WebhooksController],
-  providers: [BackgroundTasks, VonageSignatureGuard, WebhooksService],
+  providers: [VonageSignatureGuard, WebhooksService],
 })
 export class WebhooksModule {}

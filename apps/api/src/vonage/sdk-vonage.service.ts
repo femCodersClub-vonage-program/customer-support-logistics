@@ -115,6 +115,19 @@ export class SdkVonageService implements VonageService {
     });
   }
 
+  async hangupCall(callId: string): Promise<void> {
+    await this.attempt<'hung_up' | 'already_ended'>({
+      operation: 'hangupCall',
+      target: `call ${callId}`,
+      request: async () => {
+        await this.client.voice.hangupCall(callId);
+        return 'hung_up';
+      },
+      recover: ({ status }) =>
+        status === HttpStatus.NOT_FOUND || status === HttpStatus.GONE ? 'already_ended' : undefined,
+    });
+  }
+
   async startVerification(
     phone: string,
     locale: Locale,

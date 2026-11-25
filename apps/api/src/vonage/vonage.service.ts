@@ -29,6 +29,7 @@ export interface VonageService {
   sendSms(to: string, text: string): Promise<SentSms>;
   createCall(to: string, ncco: NccoAction[]): Promise<CreatedCall>;
   transferCall(callId: string, ncco: NccoAction[]): Promise<void>;
+  hangupCall(callId: string): Promise<void>;
   startVerification(
     phone: string,
     locale: Locale,

@@ -3,13 +3,13 @@ import { asc, eq } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { BackgroundTasks } from '../src/common/background/background-tasks.js';
 import {
   communications,
   incidentEvents,
   incidents,
   webhookEvents,
 } from '../src/database/schema/index.js';
-import { BackgroundTasks } from '../src/webhooks/background-tasks.js';
 
 import { createTestApp, resetDatabase } from './fixtures/app.js';
 import { ids, seed } from './fixtures/seed.js';
@@ -389,6 +389,49 @@ describe('Webhooks (e2e)', () => {
       ).expect(200);
 
       expect(response.body).toEqual(joinNcco(ids.mediationIncident));
+    });
+
+    it('records the browser call in the incident so it can be hung up later', async () => {
+      const payload = vonageFixture('voice-answer-app');
+
+      await signedGet('/webhooks/voice/answer', payload).expect(200);
+      await signedGet('/webhooks/voice/answer', payload).expect(200);
+
+      expect(
+        await testApp.db
+          .select()
+          .from(communications)
+          .where(eq(communications.vonageUuid, payload.uuid as string)),
+      ).toEqual([
+        expect.objectContaining({
+          incidentId: ids.mediationIncident,
+          channel: 'voice',
+          direction: 'inbound',
+          status: 'queued',
+        }),
+      ]);
+    });
+
+    it('links a browser call that a voice event recorded first without an incident', async () => {
+      const payload = vonageFixture('voice-answer-app');
+      await testApp.db.insert(communications).values({
+        incidentId: null,
+        channel: 'voice',
+        direction: 'inbound',
+        vonageUuid: payload.uuid as string,
+        status: 'in_progress',
+      });
+
+      await signedGet('/webhooks/voice/answer', payload).expect(200);
+
+      expect(
+        await testApp.db
+          .select()
+          .from(communications)
+          .where(eq(communications.vonageUuid, payload.uuid as string)),
+      ).toEqual([
+        expect.objectContaining({ incidentId: ids.mediationIncident, status: 'in_progress' }),
+      ]);
     });
 
     it('accepts the incident id as an object in a POST answer webhook', async () => {

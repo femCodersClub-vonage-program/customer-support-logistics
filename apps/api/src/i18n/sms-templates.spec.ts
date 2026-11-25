@@ -6,8 +6,11 @@ import { measureSms } from '../vonage/sms-segments.js';
 import {
   callFallbackSms,
   callSoonSms,
+  escalatedCustomerSms,
   incidentNoticeSms,
   invalidReplySms,
+  resolvedCustomerSms,
+  resolvedDriverSms,
 } from './sms-templates.js';
 
 import type { Locale } from '@csl/shared-types';
@@ -25,6 +28,9 @@ function allTemplates(locale: Locale) {
     callSoon: callSoonSms(locale, { orderId, minutes: 2 }),
     callFallback: callFallbackSms(locale, { orderId }),
     invalidReply: invalidReplySms(locale),
+    resolvedCustomer: resolvedCustomerSms(locale, { orderId }),
+    resolvedDriver: resolvedDriverSms(locale, { orderId }),
+    escalatedCustomer: escalatedCustomerSms(locale, { orderId }),
   };
 }
 
@@ -59,6 +65,27 @@ describe('SMS templates', () => {
     );
   });
 
+  it('builds the closing SMS for the customer and the driver', () => {
+    expect(resolvedCustomerSms('es', { orderId })).toBe(
+      'CSL: hemos resuelto la incidencia de tu pedido A1B2C3D4. Gracias por tu paciencia.',
+    );
+    expect(resolvedDriverSms('es', { orderId })).toBe(
+      'CSL: la incidencia del pedido A1B2C3D4 se ha resuelto. Gracias por tu ayuda.',
+    );
+    expect(escalatedCustomerSms('es', { orderId })).toBe(
+      'CSL: seguimos trabajando en la incidencia de tu pedido A1B2C3D4. Te avisaremos por SMS.',
+    );
+    expect(resolvedCustomerSms('en', { orderId })).toBe(
+      "CSL: we've resolved the incident on your order A1B2C3D4. Thank you for your patience.",
+    );
+    expect(resolvedDriverSms('en', { orderId })).toBe(
+      'CSL: the incident on order A1B2C3D4 has been resolved. Thank you for your help.',
+    );
+    expect(escalatedCustomerSms('en', { orderId })).toBe(
+      "CSL: we're still working on the incident on your order A1B2C3D4. We'll keep you posted by SMS.",
+    );
+  });
+
   it('keeps the driver replies numeric in every locale', () => {
     for (const locale of SUPPORTED_LOCALES) {
       expect(invalidReplySms(locale)).toMatch(/1 (o|or) 2\.$/);
@@ -82,6 +109,9 @@ describe('SMS templates', () => {
           callSoon: measureSms(callSoonSms(locale, { orderId, minutes: 2 })),
           callFallback: measureSms(callFallbackSms(locale, { orderId })),
           invalidReply: measureSms(invalidReplySms(locale)),
+          resolvedCustomer: measureSms(resolvedCustomerSms(locale, { orderId })),
+          resolvedDriver: measureSms(resolvedDriverSms(locale, { orderId })),
+          escalatedCustomer: measureSms(escalatedCustomerSms(locale, { orderId })),
         },
       ]),
     );
@@ -92,12 +122,18 @@ describe('SMS templates', () => {
         callSoon: { encoding: 'GSM-7', length: 70, segments: 1 },
         callFallback: { encoding: 'GSM-7', length: 80, segments: 1 },
         invalidReply: { encoding: 'GSM-7', length: 20, segments: 1 },
+        resolvedCustomer: { encoding: 'GSM-7', length: 82, segments: 1 },
+        resolvedDriver: { encoding: 'GSM-7', length: 76, segments: 1 },
+        escalatedCustomer: { encoding: 'GSM-7', length: 87, segments: 1 },
       },
       en: {
         incidentNotice: { encoding: 'GSM-7', length: 129, segments: 1 },
         callSoon: { encoding: 'GSM-7', length: 70, segments: 1 },
         callFallback: { encoding: 'GSM-7', length: 76, segments: 1 },
         invalidReply: { encoding: 'GSM-7', length: 25, segments: 1 },
+        resolvedCustomer: { encoding: 'GSM-7', length: 85, segments: 1 },
+        resolvedDriver: { encoding: 'GSM-7', length: 79, segments: 1 },
+        escalatedCustomer: { encoding: 'GSM-7', length: 94, segments: 1 },
       },
     });
   });

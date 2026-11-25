@@ -14,6 +14,7 @@ SMS and phone calls (PSTN). No application required.
 | 3B   | SMS     | Option 2: Requests three-way mediation.                        | Sends an SMS announcing a call in 2 minutes.         | `in_mediation`       |
 | 4    | Phone   | Answers the call started by the agent and presses 1.           | Connects the driver to the customer and agent.       | `in_mediation`       |
 | 5    | Phone   | Participates in the mediation.                                 | Keeps the three participants connected.              | `in_mediation`       |
+| 6    | SMS     | Receives the confirmation when the incident is resolved.       | Ends the call and sends the confirmation SMS.        | `resolved`           |
 
 ## Alternative paths
 

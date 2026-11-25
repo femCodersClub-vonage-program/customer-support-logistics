@@ -20,6 +20,7 @@ export type RecordedVonageCall =
   | { operation: 'sendSms'; to: string; text: string }
   | { operation: 'createCall'; to: string; ncco: NccoAction[] }
   | { operation: 'transferCall'; callId: string; ncco: NccoAction[] }
+  | { operation: 'hangupCall'; callId: string }
   | {
       operation: 'startVerification';
       phone: string;
@@ -58,6 +59,10 @@ export class FakeVonageService implements VonageService {
 
   async transferCall(callId: string, ncco: NccoAction[]): Promise<void> {
     this.record({ operation: 'transferCall', callId, ncco });
+  }
+
+  async hangupCall(callId: string): Promise<void> {
+    this.record({ operation: 'hangupCall', callId });
   }
 
   async startVerification(
