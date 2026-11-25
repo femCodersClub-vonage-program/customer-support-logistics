@@ -123,7 +123,8 @@ export class SdkVonageService implements VonageService {
         await this.client.voice.hangupCall(callId);
         return 'hung_up';
       },
-      recover: ({ status }) => (status === HttpStatus.NOT_FOUND ? 'already_ended' : undefined),
+      recover: ({ status }) =>
+        status === HttpStatus.NOT_FOUND || status === HttpStatus.GONE ? 'already_ended' : undefined,
     });
   }
 

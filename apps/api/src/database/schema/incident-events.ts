@@ -1,7 +1,7 @@
 import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { id } from './columns.js';
-import { actor, incidentStatus } from './enums.js';
+import { actor, incidentEventKind, incidentStatus } from './enums.js';
 import { incidents } from './incidents.js';
 
 export const incidentEvents = pgTable(
@@ -11,6 +11,7 @@ export const incidentEvents = pgTable(
     incidentId: uuid()
       .notNull()
       .references(() => incidents.id, { onDelete: 'restrict' }),
+    kind: incidentEventKind().notNull().default('status_changed'),
     fromStatus: incidentStatus(),
     toStatus: incidentStatus().notNull(),
     actor: actor().notNull(),

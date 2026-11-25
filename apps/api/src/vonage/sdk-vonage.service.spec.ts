@@ -127,9 +127,9 @@ describe('SdkVonageService', () => {
       expect(client.voice.hangupCall).toHaveBeenCalledWith('call-1');
     });
 
-    it('accepts a call that is already over (404)', async () => {
+    it.each([404, 410])('accepts a call that has already ended (%i)', async (status) => {
       const { client, service } = createService();
-      client.voice.hangupCall.mockRejectedValue(httpError(404, { title: 'Call not found' }));
+      client.voice.hangupCall.mockRejectedValue(httpError(status, { title: 'Not Found' }));
 
       await expect(service.hangupCall('call-1')).resolves.toBeUndefined();
     });

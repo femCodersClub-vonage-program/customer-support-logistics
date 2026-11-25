@@ -7,6 +7,7 @@ export function buildEvent(overrides: Partial<IncidentEvent> = {}): IncidentEven
   return {
     id: '1a2b3c4d-0000-4000-8000-000000000001',
     incidentId: INCIDENT_ID,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'notified',
     actor: 'system',
@@ -28,6 +29,7 @@ export function buildCommunication(overrides: Partial<Communication> = {}): Comm
     vonageUuid: 'call-1',
     status: 'queued',
     durationSeconds: null,
+    createdAt: '2026-11-13T10:00:00.000Z',
     ...overrides,
   };
 }
@@ -60,6 +62,8 @@ export function buildIncidentDetail(overrides: Partial<IncidentDetail> = {}): In
     driver: { id: '5e6f7081-0000-4000-8000-000000000001', name: 'Luis Pérez' },
     events: [buildEvent()],
     communications: [],
+    evidence: [],
+    mediationInvite: null,
     ...overrides,
   };
 }

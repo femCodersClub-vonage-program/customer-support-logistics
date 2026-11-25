@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@csl/config": "workspace:*",
+    "@opentelemetry/api": "1.10.0",
     "prettier": "3.9.10",
     "turbo": "2.11.10"
   },

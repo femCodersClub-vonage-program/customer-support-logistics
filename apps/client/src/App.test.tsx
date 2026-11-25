@@ -3,11 +3,11 @@ import { HttpResponse, http } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { CUSTOMER, apiUrl, renderApp, sessionOf } from './test/app.tsx';
+import { CUSTOMER, apiUrl, ordersOf, renderApp, sessionOf } from './test/app.tsx';
 
 const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
 
-const server = setupServer(sessionOf(CUSTOMER));
+const server = setupServer(sessionOf(CUSTOMER), ordersOf());
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 afterEach(() => server.resetHandlers());

@@ -37,11 +37,11 @@ describe('latestDriverCall', () => {
 
 describe('latestDriverReply', () => {
   it('returns the last driver event with a reason', () => {
-    const reply = buildEvent({ id: 'b', actor: 'driver', reason: 'customer_not_home' });
+    const reply = buildEvent({ id: 'b', actor: 'driver', reason: 'request_mediation' });
 
     expect(
       latestDriverReply([
-        buildEvent({ id: 'a', actor: 'driver', reason: 'delivered' }),
+        buildEvent({ id: 'a', actor: 'driver', reason: 'resolve_with_store' }),
         reply,
         buildEvent({ id: 'c', actor: 'agent', reason: 'note' }),
         buildEvent({ id: 'd', actor: 'driver', reason: null }),
@@ -58,7 +58,10 @@ describe('guards', () => {
   });
 
   it('recognises the known driver replies', () => {
-    expect(isDriverReplyReason('address_not_found')).toBe(true);
+    expect(isDriverReplyReason('resolve_with_store')).toBe(true);
+    expect(isDriverReplyReason('request_mediation')).toBe(true);
+    expect(isDriverReplyReason('accepted_call')).toBe(true);
+    expect(isDriverReplyReason('address_not_found')).toBe(false);
     expect(isDriverReplyReason('something else')).toBe(false);
     expect(isDriverReplyReason(null)).toBe(false);
   });

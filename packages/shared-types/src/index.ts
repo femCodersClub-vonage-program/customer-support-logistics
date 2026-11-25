@@ -7,6 +7,7 @@ export * from './evidence.js';
 export * from './health.js';
 export * from './incident.js';
 export * from './incident-event.js';
+export * from './incident-stream-event.js';
 export * from './incident-transitions.js';
 export * from './locale.js';
 export * from './order.js';

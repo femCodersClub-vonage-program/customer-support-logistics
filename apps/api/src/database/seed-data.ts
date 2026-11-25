@@ -168,7 +168,7 @@ const seededIncidents: IncidentRow[] = [
     agentId: null,
     resolution: null,
     createdAt: at(2, '16:00'),
-    updatedAt: at(2, '16:01'),
+    updatedAt: at(2, '16:05'),
     closedAt: null,
   },
   {
@@ -243,6 +243,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x201),
     incidentId: ids.openIncident,
+    kind: 'status_changed',
     fromStatus: null,
     toStatus: 'open',
     actor: 'customer',
@@ -253,6 +254,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x202),
     incidentId: ids.notifiedIncident,
+    kind: 'status_changed',
     fromStatus: null,
     toStatus: 'open',
     actor: 'customer',
@@ -263,6 +265,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x203),
     incidentId: ids.notifiedIncident,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'notified',
     actor: 'system',
@@ -271,8 +274,20 @@ const seededIncidentEvents: IncidentEventRow[] = [
     occurredAt: at(2, '16:01'),
   },
   {
+    id: seedId(0x218),
+    incidentId: ids.notifiedIncident,
+    kind: 'driver_replied',
+    fromStatus: 'notified',
+    toStatus: 'notified',
+    actor: 'driver',
+    actorId: ids.driver,
+    reason: 'resolve_with_store',
+    occurredAt: at(2, '16:05'),
+  },
+  {
     id: seedId(0x204),
     incidentId: ids.systemMediationIncident,
+    kind: 'status_changed',
     fromStatus: null,
     toStatus: 'open',
     actor: 'customer',
@@ -283,6 +298,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x205),
     incidentId: ids.systemMediationIncident,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'notified',
     actor: 'system',
@@ -293,6 +309,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x206),
     incidentId: ids.systemMediationIncident,
+    kind: 'status_changed',
     fromStatus: 'notified',
     toStatus: 'in_mediation',
     actor: 'system',
@@ -303,6 +320,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x207),
     incidentId: ids.agentMediationIncident,
+    kind: 'status_changed',
     fromStatus: null,
     toStatus: 'open',
     actor: 'customer',
@@ -313,6 +331,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x208),
     incidentId: ids.agentMediationIncident,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'notified',
     actor: 'system',
@@ -323,6 +342,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x209),
     incidentId: ids.agentMediationIncident,
+    kind: 'status_changed',
     fromStatus: 'notified',
     toStatus: 'in_mediation',
     actor: 'agent',
@@ -333,6 +353,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x20a),
     incidentId: ids.systemEscalatedIncident,
+    kind: 'status_changed',
     fromStatus: null,
     toStatus: 'open',
     actor: 'customer',
@@ -343,6 +364,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x20b),
     incidentId: ids.systemEscalatedIncident,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'escalated',
     actor: 'system',
@@ -353,6 +375,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x20c),
     incidentId: ids.agentEscalatedIncident,
+    kind: 'status_changed',
     fromStatus: null,
     toStatus: 'open',
     actor: 'customer',
@@ -363,6 +386,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x20d),
     incidentId: ids.agentEscalatedIncident,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'notified',
     actor: 'system',
@@ -373,6 +397,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x20e),
     incidentId: ids.agentEscalatedIncident,
+    kind: 'status_changed',
     fromStatus: 'notified',
     toStatus: 'in_mediation',
     actor: 'agent',
@@ -383,6 +408,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x20f),
     incidentId: ids.agentEscalatedIncident,
+    kind: 'status_changed',
     fromStatus: 'in_mediation',
     toStatus: 'escalated',
     actor: 'agent',
@@ -393,6 +419,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x210),
     incidentId: ids.resolvedFromMediationIncident,
+    kind: 'status_changed',
     fromStatus: null,
     toStatus: 'open',
     actor: 'customer',
@@ -403,6 +430,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x211),
     incidentId: ids.resolvedFromMediationIncident,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'notified',
     actor: 'system',
@@ -413,6 +441,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x212),
     incidentId: ids.resolvedFromMediationIncident,
+    kind: 'status_changed',
     fromStatus: 'notified',
     toStatus: 'in_mediation',
     actor: 'agent',
@@ -423,6 +452,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x213),
     incidentId: ids.resolvedFromMediationIncident,
+    kind: 'status_changed',
     fromStatus: 'in_mediation',
     toStatus: 'resolved',
     actor: 'agent',
@@ -433,6 +463,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x214),
     incidentId: ids.resolvedFromEscalationIncident,
+    kind: 'status_changed',
     fromStatus: null,
     toStatus: 'open',
     actor: 'customer',
@@ -443,6 +474,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x215),
     incidentId: ids.resolvedFromEscalationIncident,
+    kind: 'status_changed',
     fromStatus: 'open',
     toStatus: 'notified',
     actor: 'system',
@@ -453,6 +485,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x216),
     incidentId: ids.resolvedFromEscalationIncident,
+    kind: 'status_changed',
     fromStatus: 'notified',
     toStatus: 'escalated',
     actor: 'system',
@@ -463,6 +496,7 @@ const seededIncidentEvents: IncidentEventRow[] = [
   {
     id: seedId(0x217),
     incidentId: ids.resolvedFromEscalationIncident,
+    kind: 'status_changed',
     fromStatus: 'escalated',
     toStatus: 'resolved',
     actor: 'agent',
@@ -482,6 +516,16 @@ const seededCommunications: CommunicationRow[] = [
     status: 'completed',
     durationSeconds: null,
     createdAt: at(2, '16:01'),
+  },
+  {
+    id: seedId(0x307),
+    incidentId: ids.notifiedIncident,
+    channel: 'sms',
+    direction: 'inbound',
+    vonageUuid: seedId(0x407),
+    status: 'completed',
+    durationSeconds: null,
+    createdAt: at(2, '16:05'),
   },
   {
     id: seedId(0x302),

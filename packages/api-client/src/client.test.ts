@@ -86,6 +86,7 @@ describe('listIncidents', () => {
 
 describe('incidents', () => {
   const incidentId = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
+  const incident = { id: incidentId, status: 'open' };
 
   it('creates an incident with a JSON body', async () => {
     const fetchMock = vi
@@ -108,30 +109,97 @@ describe('incidents', () => {
     expect(init?.body).toBe(JSON.stringify(body));
   });
 
-  it('gets an incident by id', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: incidentId }));
+  it('gets an incident detail using an encoded ID', async () => {
+    const detail = { ...incident, events: [], communications: [] };
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(detail));
     const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
 
-    await expect(client.getIncident(incidentId)).resolves.toEqual({ id: incidentId });
+    await expect(client.getIncident('incident/123')).resolves.toEqual(detail);
 
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
-
-    expect(url).toBe(`/api/incidents/${incidentId}`);
-    expect(init?.method).toBe('GET');
+    expect(requestFrom(fetchMock).url).toBe('/api/incidents/incident%2F123');
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('GET');
   });
 
-  it('patches the status with a JSON body', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ id: incidentId }));
+  it('assigns an incident to the current agent', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(incident));
     const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
 
-    await client.changeIncidentStatus(incidentId, { status: 'resolved', reason: 'resolved: ok' });
+    await client.assignIncidentToMe(incidentId);
 
-    const [url, init] = fetchMock.mock.calls[0] ?? [];
+    expect(requestFrom(fetchMock).url).toBe(`/api/incidents/${incidentId}/assign-to-me`);
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST');
+  });
 
+  it('notifies the driver', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(incident));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await client.notifyDriver(incidentId);
+
+    expect(requestFrom(fetchMock).url).toBe(`/api/incidents/${incidentId}/notify-driver`);
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST');
+  });
+
+  it('resends a driver notification with an idempotency key', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(incident));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await client.notifyDriverAgain(incidentId, 'retry-key-123');
+
+    const { url, headers } = requestFrom(fetchMock);
+    expect(url).toBe(`/api/incidents/${incidentId}/notify-driver/again`);
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST');
+    expect(headers.get('Idempotency-Key')).toBe('retry-key-123');
+  });
+
+  it('changes the incident status to resolved with a JSON body', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(incident));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    const body = { status: 'resolved' as const, reason: 'resolved: ok' };
+
+    await client.changeIncidentStatus(incidentId, body);
+
+    const { url, headers } = requestFrom(fetchMock);
     expect(url).toBe(`/api/incidents/${incidentId}/status`);
-    expect(init?.method).toBe('PATCH');
-    expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
-    expect(init?.body).toBe(JSON.stringify({ status: 'resolved', reason: 'resolved: ok' }));
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('PATCH');
+    expect(headers.get('Content-Type')).toBe('application/json');
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify(body));
+  });
+  it('changes the incident status with a JSON body', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(incident));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+    const body = {
+      status: 'in_mediation' as const,
+      reason: 'The agent contacted the customer',
+    };
+
+    await client.changeIncidentStatus(incidentId, body);
+
+    const { url, headers } = requestFrom(fetchMock);
+    expect(url).toBe(`/api/incidents/${incidentId}/status`);
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('PATCH');
+    expect(headers.get('Content-Type')).toBe('application/json');
+    expect(fetchMock.mock.calls[0]?.[1]?.body).toBe(JSON.stringify(body));
+  });
+});
+
+describe('incident action API errors', () => {
+  it('preserves an HTTP 409 error when resending a driver notification', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ message: 'Conflict' }, 409));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    const error = await client
+      .notifyDriverAgain('incident-123', 'retry-key-123')
+      .catch((reason: unknown) => reason);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({
+      status: 409,
+      body: { message: 'Conflict' },
+    });
   });
 });
 

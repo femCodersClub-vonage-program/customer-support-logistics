@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 describe('allowedTransitions', () => {
   it.each([
     ['open', ['notified', 'escalated']],
-    ['notified', ['in_mediation', 'escalated']],
+    ['notified', ['in_mediation', 'resolved', 'escalated']],
     ['in_mediation', ['resolved', 'escalated']],
     ['escalated', ['resolved']],
     ['resolved', []],
@@ -19,6 +19,7 @@ describe('allowedTransitions', () => {
     ['open', 'agent', ['escalated']],
     ['notified', 'customer', []],
     ['notified', 'driver', ['in_mediation']],
+    ['notified', 'agent', ['in_mediation', 'resolved', 'escalated']],
     ['in_mediation', 'driver', []],
     ['escalated', 'driver', []],
   ] as const)('filters the targets from %s by what %s may do', (from, actor, expected) => {
@@ -37,6 +38,10 @@ describe('canTransition', () => {
 
   it('accepts a valid transition for an allowed actor', () => {
     expect(canTransition('escalated', 'resolved', 'agent')).toBe(true);
+  });
+
+  it('rejects open to notified for an agent', () => {
+    expect(canTransition('open', 'notified', 'agent')).toBe(false);
   });
 
   it('rejects a valid transition for an actor without permission', () => {
