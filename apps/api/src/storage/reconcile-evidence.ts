@@ -11,7 +11,7 @@ export async function reconcileEvidence(db: Database, storage: StorageService): 
   let deleted = 0;
   for await (const key of storage.listKeys('incidents/')) {
     const match =
-      /^incidents\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/(?:ready\/)?[^/]+$/i.exec(
+      /^incidents\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/ready\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:jpg|png|webp|heic|mp4|mov)$/i.exec(
         key,
       );
     if (!match) continue;

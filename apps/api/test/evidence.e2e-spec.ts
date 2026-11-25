@@ -39,10 +39,15 @@ describe('Evidence uploads (e2e)', () => {
   });
 
   it('reconciles orphaned copies while keeping ready evidence and temporary uploads', async () => {
-    const readyKey = `incidents/${ids.openIncident}/ready/kept.jpg`;
-    const orphanKey = `incidents/${ids.openIncident}/ready/orphan.jpg`;
+    const readyKey = `incidents/${ids.openIncident}/ready/11111111-1111-4111-8111-111111111111.jpg`;
+    const orphanKey = `incidents/${ids.openIncident}/ready/22222222-2222-4222-8222-222222222222.jpg`;
+    const unrelatedKeys = [
+      `incidents/${ids.openIncident}/report.pdf`,
+      `incidents/${ids.openIncident}/ready/report.jpg`,
+      `incidents/${ids.openIncident}/ready/22222222-2222-4222-8222-222222222222.pdf`,
+    ];
     const pendingKey = `evidence-pending/${ids.openIncident}/pending.jpg`;
-    for (const key of [readyKey, orphanKey, pendingKey])
+    for (const key of [readyKey, orphanKey, pendingKey, ...unrelatedKeys])
       storage.objects.set(key, { sizeBytes: 4, contentType: 'image/jpeg' });
     await testApp.db.insert(evidence).values({
       incidentId: ids.openIncident,
@@ -55,6 +60,7 @@ describe('Evidence uploads (e2e)', () => {
     expect(storage.objects.has(orphanKey)).toBe(false);
     expect(storage.objects.has(readyKey)).toBe(true);
     expect(storage.objects.has(pendingKey)).toBe(true);
+    for (const key of unrelatedKeys) expect(storage.objects.has(key)).toBe(true);
     expect(await reconcileEvidence(testApp.db, storage)).toBe(0);
   });
 
