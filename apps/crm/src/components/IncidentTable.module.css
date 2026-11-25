@@ -106,3 +106,24 @@
   text-align: center;
   box-shadow: var(--shadow-xs);
 }
+
+.row[data-highlight='true'] {
+  animation: highlight-fade 3s ease-out;
+}
+
+@keyframes highlight-fade {
+  from {
+    background-color: var(--color-primary-soft);
+  }
+
+  to {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row[data-highlight='true'] {
+    animation: none;
+    background-color: var(--color-primary-soft);
+  }
+}

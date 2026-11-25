@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import { useEvents } from '../lib/events/EventsProvider';
+import { highlight } from '../lib/events/highlights';
 import { INCIDENT_EVENT_TYPES } from '../lib/events/types';
 
 import styles from './InboxLive.module.css';
@@ -43,6 +44,7 @@ export function InboxLive() {
       }
 
       if (REFRESH_EVENTS.has(message.event.type)) {
+        highlight([message.event.incidentId]);
         refreshSoon();
         return;
       }
@@ -74,6 +76,7 @@ export function InboxLive() {
   }, [subscribe, t, router]);
 
   const showNew = () => {
+    highlight([...knownIdsRef.current]);
     knownIdsRef.current.clear();
     setPending(0);
     router.refresh();

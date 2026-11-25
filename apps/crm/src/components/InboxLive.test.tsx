@@ -2,6 +2,7 @@ import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useEvents } from '../lib/events/EventsProvider';
+import { isHighlighted, resetHighlights } from '../lib/events/highlights';
 import { renderWithIntl } from '../test/render';
 
 import { InboxLive } from './InboxLive';
@@ -31,6 +32,8 @@ function created(incidentId: string): StreamMessage {
 
 beforeEach(() => {
   refresh.mockReset();
+  resetHighlights();
+
   vi.mocked(useEvents).mockReturnValue({
     state: 'connected',
     subscribe: (listener) => {
@@ -174,5 +177,34 @@ describe('InboxLive', () => {
     });
 
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('highlights the incident whose status changed', () => {
+    renderWithIntl(<InboxLive />);
+
+    act(() => {
+      emit({
+        kind: 'event',
+        event: {
+          type: 'incident.status_changed',
+          incidentId: 'a',
+          status: 'notified',
+          updatedAt: '2026-11-21T10:00:00Z',
+        },
+      });
+    });
+
+    expect(isHighlighted('a')).toBe(true);
+  });
+
+  it('highlights the new incidents only when the banner is clicked', () => {
+    renderWithIntl(<InboxLive />);
+    act(() => emit(created('a')));
+
+    expect(isHighlighted('a')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(isHighlighted('a')).toBe(true);
   });
 });
