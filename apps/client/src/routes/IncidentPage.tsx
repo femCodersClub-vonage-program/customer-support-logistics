@@ -41,9 +41,11 @@ function IncidentNotFound() {
 
   return (
     <IncidentLayout>
-      <h1 className="incident-page__title">{t('title')}</h1>
-      <p>{t('description')}</p>
-      <BackToOrders />
+      <section className="incident-section">
+        <h1 className="incident-page__title">{t('title')}</h1>
+        <p className="incident-section__text">{t('description')}</p>
+        <BackToOrders />
+      </section>
     </IncidentLayout>
   );
 }
@@ -114,10 +116,16 @@ function IncidentDetails({ id }: { id: string }) {
       <IncidentLayout>
         <h1 className="incident-page__title">{t('title')}</h1>
         {isPending ? (
-          <p role="status">{t('loading')}</p>
+          <div className="incident-section">
+            <p role="status" className="incident-section__text">
+              {t('loading')}
+            </p>
+          </div>
         ) : (
-          <div>
-            <p role="alert">{t('error')}</p>
+          <div className="incident-section incident-section--error">
+            <p role="alert" className="incident-section__error">
+              {t('error')}
+            </p>
             <button type="button" className="incident-page__button" onClick={() => void refetch()}>
               {t('retry')}
             </button>
