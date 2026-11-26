@@ -8,8 +8,8 @@ import { validateEnv } from '../config/env.schema.js';
 import { DATABASE } from '../database/database.constants.js';
 import { DatabaseModule } from '../database/database.module.js';
 
-import { reconcileEvidence } from './reconcile-evidence.js';
 import { shouldApplyReconciliation } from './reconcile-evidence-target.js';
+import { reconcileEvidence } from './reconcile-evidence.js';
 import { StorageModule } from './storage.module.js';
 import { STORAGE_SERVICE } from './storage.service.js';
 
