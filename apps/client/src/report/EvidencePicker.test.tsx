@@ -163,7 +163,7 @@ describe('EvidencePicker', () => {
       pick(gallery(), fileOf('animation.gif', 'image/gif'));
 
       expect(screen.getByRole('alert')).toHaveTextContent(
-        'animation.gif was not added. Only photos (JPEG, PNG, WebP, HEIC) and videos (MP4, MOV) can be attached.',
+        'animation.gif was not added. Only photos (JPEG, PNG, WebP, HEIC, HEIF) and videos (MP4, MOV) can be attached.',
       );
       expect(screen.queryByRole('button', { name: /Remove/ })).not.toBeInTheDocument();
     });

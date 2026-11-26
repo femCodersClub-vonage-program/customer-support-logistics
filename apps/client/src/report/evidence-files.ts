@@ -1,16 +1,16 @@
-export const EVIDENCE_MAX_FILES = 5;
-export const EVIDENCE_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-export const EVIDENCE_MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+import {
+  EVIDENCE_MAX_FILES,
+  EVIDENCE_MAX_IMAGE_BYTES,
+  EVIDENCE_MAX_VIDEO_BYTES,
+  EVIDENCE_MIME_TYPES,
+} from '@csl/contracts';
 
-export const EVIDENCE_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-  'video/mp4',
-  'video/quicktime',
-] as const;
+export {
+  EVIDENCE_MAX_FILES,
+  EVIDENCE_MAX_IMAGE_BYTES,
+  EVIDENCE_MAX_VIDEO_BYTES,
+  EVIDENCE_MIME_TYPES,
+};
 
 export const EVIDENCE_ACCEPT = [...EVIDENCE_MIME_TYPES, '.heic', '.heif', '.mov'].join(',');
 

@@ -1,3 +1,4 @@
+import { apiErrorResponseSchema } from '@csl/contracts';
 import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,6 +42,7 @@ describe('Evidence uploads (e2e)', () => {
   it('reconciles orphaned copies while keeping ready evidence and temporary uploads', async () => {
     const readyKey = `incidents/${ids.openIncident}/ready/11111111-1111-4111-8111-111111111111.jpg`;
     const orphanKey = `incidents/${ids.openIncident}/ready/22222222-2222-4222-8222-222222222222.jpg`;
+    const heifOrphanKey = `incidents/${ids.openIncident}/ready/33333333-3333-4333-8333-333333333333.heif`;
     const unrelatedKeys = [
       `incidents/${ids.openIncident}/report.pdf`,
       `incidents/${ids.openIncident}/ready/report.jpg`,
@@ -49,7 +51,7 @@ describe('Evidence uploads (e2e)', () => {
       `incidents/${ids.openIncident}/ready/AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA.jpg`,
     ];
     const pendingKey = `evidence-pending/${ids.openIncident}/pending.jpg`;
-    for (const key of [readyKey, orphanKey, pendingKey, ...unrelatedKeys])
+    for (const key of [readyKey, orphanKey, heifOrphanKey, pendingKey, ...unrelatedKeys])
       storage.objects.set(key, { sizeBytes: 4, contentType: 'image/jpeg' });
     await testApp.db.insert(evidence).values({
       incidentId: ids.openIncident,
@@ -59,12 +61,16 @@ describe('Evidence uploads (e2e)', () => {
       status: 'ready',
     });
     const onCandidate = vi.fn();
-    expect(await reconcileEvidence(testApp.db, storage, { mode: 'preview', onCandidate })).toBe(1);
-    expect(onCandidate).toHaveBeenCalledExactlyOnceWith(orphanKey);
+    expect(await reconcileEvidence(testApp.db, storage, { mode: 'preview', onCandidate })).toBe(2);
+    expect(onCandidate).toHaveBeenCalledTimes(2);
+    expect(onCandidate).toHaveBeenCalledWith(orphanKey);
+    expect(onCandidate).toHaveBeenCalledWith(heifOrphanKey);
     expect(storage.objects.has(orphanKey)).toBe(true);
+    expect(storage.objects.has(heifOrphanKey)).toBe(true);
 
-    expect(await reconcileEvidence(testApp.db, storage, { mode: 'apply' })).toBe(1);
+    expect(await reconcileEvidence(testApp.db, storage, { mode: 'apply' })).toBe(2);
     expect(storage.objects.has(orphanKey)).toBe(false);
+    expect(storage.objects.has(heifOrphanKey)).toBe(false);
     expect(storage.objects.has(readyKey)).toBe(true);
     expect(storage.objects.has(pendingKey)).toBe(true);
     for (const key of unrelatedKeys) expect(storage.objects.has(key)).toBe(true);
@@ -152,11 +158,14 @@ describe('Evidence uploads (e2e)', () => {
   });
 
   it('rejects an unsupported type and an oversized image', async () => {
-    await http()
+    const unsupported = await http()
       .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
       .set('Cookie', cookie.ana)
       .send({ fileName: 'x.pdf', mimeType: 'application/pdf', sizeBytes: 1 })
       .expect(400);
+    const { error } = apiErrorResponseSchema.parse(unsupported.body);
+    expect(error.code).toBe('VALIDATION_FAILED');
+    expect(error.details?.map(({ path }) => path)).toEqual(['mimeType']);
     await http()
       .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
       .set('Cookie', cookie.ana)
@@ -361,6 +370,22 @@ describe('Evidence uploads (e2e)', () => {
       new Uint8Array([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]),
     ],
     [
+      'image/heic',
+      'x.heic',
+      new Uint8Array([
+        0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31, 0, 0, 0, 0, 0x6d, 0x69, 0x66,
+        0x31, 0x68, 0x65, 0x69, 0x63,
+      ]),
+    ],
+    [
+      'image/heif',
+      'x.heif',
+      new Uint8Array([
+        0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31, 0, 0, 0, 0, 0x6d, 0x69, 0x66,
+        0x31, 0x68, 0x65, 0x69, 0x63,
+      ]),
+    ],
+    [
       'video/mp4',
       'x.mp4',
       new Uint8Array([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]),
@@ -383,5 +408,24 @@ describe('Evidence uploads (e2e)', () => {
       .post(`/incidents/${ids.openIncident}/evidence/${body.evidenceId}/complete`)
       .set('Cookie', cookie.ana)
       .expect(201);
+  });
+
+  it('rejects an AVIF file declared as HEIF', async () => {
+    const avif = new Uint8Array([
+      0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31, 0, 0, 0, 0, 0x6d, 0x69, 0x61,
+      0x66, 0x61, 0x76, 0x69, 0x66,
+    ]);
+    const { body } = await http()
+      .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
+      .set('Cookie', cookie.ana)
+      .send({ fileName: 'x.heif', mimeType: 'image/heif', sizeBytes: avif.length })
+      .expect(201);
+    const [row] = await testApp.db.select().from(evidence).where(eq(evidence.id, body.evidenceId));
+    storage.objects.set(row!.storageKey, { contentType: 'image/heif', sizeBytes: avif.length });
+    storage.prefixes.set(row!.storageKey, avif);
+    await http()
+      .post(`/incidents/${ids.openIncident}/evidence/${body.evidenceId}/complete`)
+      .set('Cookie', cookie.ana)
+      .expect(400);
   });
 });
