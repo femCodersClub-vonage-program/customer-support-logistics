@@ -327,7 +327,7 @@ export class IncidentsService {
         const source = await this.storage.headObject(row.evidence.storageKey);
         if (!source) throw new ConflictException('Evidence object was not uploaded');
         uploadKey = row.evidence.storageKey;
-        copiedKey = `incidents/${incidentId}/ready/${randomUUID()}.${evidenceExtension(row.evidence.mimeType)}`;
+        copiedKey = `incidents/${locked.id}/ready/${randomUUID()}.${evidenceExtension(row.evidence.mimeType)}`;
         await this.storage.copyObject(uploadKey, copiedKey);
         const object = await this.storage.headObject(copiedKey);
         if (!object) throw new ConflictException('Evidence object was not uploaded');
