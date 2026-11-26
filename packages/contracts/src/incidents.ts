@@ -178,9 +178,25 @@ export const evidenceIdParamsSchema = incidentIdParamsSchema.extend({ evidenceId
 
 export type EvidenceIdParams = z.infer<typeof evidenceIdParamsSchema>;
 
+export const EVIDENCE_MAX_FILES = 5;
+export const EVIDENCE_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+export const EVIDENCE_MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+
+export const EVIDENCE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'video/mp4',
+  'video/quicktime',
+] as const;
+
+export type EvidenceMimeType = (typeof EVIDENCE_MIME_TYPES)[number];
+
 export const requestEvidenceUploadBodySchema = z.object({
   fileName: z.string().trim().min(1).max(255),
-  mimeType: z.string().trim().min(1).max(127),
+  mimeType: z.enum(EVIDENCE_MIME_TYPES),
   sizeBytes: z.number().int().positive(),
 });
 

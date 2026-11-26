@@ -953,13 +953,11 @@ export class IncidentsService {
     };
   }
 
-  private async sendReservedSms(
-    reservation: {
-      communicationId: string;
-      phone: string;
-      message: string;
-    },
-  ): Promise<Awaited<ReturnType<VonageService['sendSms']>>> {
+  private async sendReservedSms(reservation: {
+    communicationId: string;
+    phone: string;
+    message: string;
+  }): Promise<Awaited<ReturnType<VonageService['sendSms']>>> {
     try {
       return await this.vonage.sendSms(reservation.phone, reservation.message);
     } catch (error) {
