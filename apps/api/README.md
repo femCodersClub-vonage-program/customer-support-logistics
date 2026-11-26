@@ -24,13 +24,21 @@ Upload URLs are signed for the declared content length. Completion copies the up
 
 ### Orphaned evidence maintenance
 
-After building the API, run `pnpm --filter @csl/api evidence:reconcile` with the target environment configured. Run this command periodically through the deployment's maintenance scheduler, or manually after an unknown completion outcome is logged. It scans `incidents/` with paginated storage listings and deletes final objects without a `ready` evidence reference. Temporary uploads remain covered by their separate lifecycle rule. The command uses a standalone application context; it does not start the HTTP server or mediation workers.
+After building the API, run `pnpm --filter @csl/api evidence:reconcile` with the target environment configured. By default the command scans `incidents/` with paginated storage listings and prints final keys without a `ready` evidence reference, without deleting anything. Use a database and bucket from the same environment. Shell variables take precedence over `.env`, so preview the candidates and verify the target before enabling deletion.
+
+To delete, pass `--apply` and explicitly name the intended database host, port, database name, and bucket. The command aborts on a mismatch with the effective configuration. For example, for the default local development target:
+
+```sh
+pnpm --filter @csl/api evidence:reconcile --apply --expect-database=localhost:5432/customer_support_logistics --expect-bucket=evidence
+```
+
+Pin the expected target explicitly in any scheduled job. Temporary uploads remain covered by their separate lifecycle rule. The command uses a standalone application context; it does not start the HTTP server or mediation workers.
 
 Reconciliation skips objects that already have a `ready` reference without locking the incident. For the remaining candidates, it locks the incident and checks the reference again before deleting. Completion holds the same lock from before copying through the database commit, so reconciliation waits for in-flight completions before deciding whether a copy is orphaned. Failures stop the sweep and can be retried. Unexpected key formats, including uppercase variants, are skipped.
 
 `STORAGE_PUBLIC_ENDPOINT` optionally selects the HTTPS storage endpoint used to sign browser PUT and GET URLs. Internal HEAD, reads, copies, listings and deletes continue through `STORAGE_ENDPOINT`. Without the public endpoint, signing also uses the internal endpoint. Configure both to reach the same bucket, and preserve signed host/path/query when proxying public requests.
 
-When a public endpoint is configured, `STORAGE_PUBLIC_FORCE_PATH_STYLE` can override its addressing style. Use `true` for `storage.example.com/evidence/...` or `false` for `evidence.storage.example.com/...`. When unset or empty, signing inherits `STORAGE_FORCE_PATH_STYLE`.
+When a public endpoint is configured, `STORAGE_PUBLIC_FORCE_PATH_STYLE` can override its addressing style. Use `true` for `storage.example.com/evidence/...` or `false` for `evidence.storage.example.com/...`. When unset or empty, signing inherits `STORAGE_FORCE_PATH_STYLE`. A bucket name containing dots requires path-style addressing with the public HTTPS endpoint.
 
 ## Database
 

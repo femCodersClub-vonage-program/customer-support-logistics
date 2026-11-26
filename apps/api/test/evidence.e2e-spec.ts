@@ -58,14 +58,19 @@ describe('Evidence uploads (e2e)', () => {
       sizeBytes: 4,
       status: 'ready',
     });
-    expect(await reconcileEvidence(testApp.db, storage)).toBe(1);
+    const onCandidate = vi.fn();
+    expect(await reconcileEvidence(testApp.db, storage, { mode: 'preview', onCandidate })).toBe(1);
+    expect(onCandidate).toHaveBeenCalledExactlyOnceWith(orphanKey);
+    expect(storage.objects.has(orphanKey)).toBe(true);
+
+    expect(await reconcileEvidence(testApp.db, storage, { mode: 'apply' })).toBe(1);
     expect(storage.objects.has(orphanKey)).toBe(false);
     expect(storage.objects.has(readyKey)).toBe(true);
     expect(storage.objects.has(pendingKey)).toBe(true);
     for (const key of unrelatedKeys) expect(storage.objects.has(key)).toBe(true);
     const transaction = vi.spyOn(testApp.db, 'transaction');
     try {
-      expect(await reconcileEvidence(testApp.db, storage)).toBe(0);
+      expect(await reconcileEvidence(testApp.db, storage, { mode: 'apply' })).toBe(0);
       expect(transaction).not.toHaveBeenCalled();
     } finally {
       transaction.mockRestore();
@@ -105,7 +110,7 @@ describe('Evidence uploads (e2e)', () => {
       .set('Cookie', cookie.ana)
       .then((result) => result);
     await copyReady;
-    const sweep = reconcileEvidence(testApp.db, storage);
+    const sweep = reconcileEvidence(testApp.db, storage, { mode: 'apply' });
     try {
       await vi.waitFor(async () => {
         const waiting = await testApp.db.execute(

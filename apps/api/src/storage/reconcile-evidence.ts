@@ -13,8 +13,15 @@ async function hasReadyEvidence(db: Pick<Database, 'select'>, key: string): Prom
   return row !== undefined;
 }
 
-export async function reconcileEvidence(db: Database, storage: StorageService): Promise<number> {
-  let deleted = 0;
+type ReconciliationMode =
+  { mode: 'apply' } | { mode: 'preview'; onCandidate: (key: string) => void };
+
+export async function reconcileEvidence(
+  db: Database,
+  storage: StorageService,
+  options: ReconciliationMode,
+): Promise<number> {
+  let count = 0;
   for await (const key of storage.listKeys('incidents/')) {
     const match =
       /^incidents\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/ready\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:jpg|png|webp|heic|mp4|mov)$/.exec(
@@ -22,6 +29,11 @@ export async function reconcileEvidence(db: Database, storage: StorageService): 
       );
     if (!match) continue;
     if (await hasReadyEvidence(db, key)) continue;
+    if (options.mode === 'preview') {
+      options.onCandidate(key);
+      count++;
+      continue;
+    }
     await db.transaction(async (tx) => {
       // Completion holds this lock from before CopyObject through COMMIT.
       await tx
@@ -31,8 +43,8 @@ export async function reconcileEvidence(db: Database, storage: StorageService): 
         .for('update');
       if (await hasReadyEvidence(tx, key)) return;
       await storage.deleteObject(key);
-      deleted++;
+      count++;
     });
   }
-  return deleted;
+  return count;
 }
