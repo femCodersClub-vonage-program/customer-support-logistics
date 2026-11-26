@@ -99,6 +99,58 @@
       "damaged": "Damaged",
       "wrong_item": "Wrong item",
       "other": "Other"
+    },
+    "summary": "Summary",
+    "loading": "Loading your incident…",
+    "error": "We couldn't load your incident. Please try again.",
+    "retry": "Try again",
+    "backToOrders": "Go to my orders",
+    "joinCall": "Join the call",
+    "notFound": {
+      "title": "We can't find this incident",
+      "description": "It may not exist or it may belong to another account."
+    },
+    "progress": {
+      "step": "Step {current} of {total}: {label}",
+      "states": {
+        "done": "Completed",
+        "current": "Current step",
+        "upcoming": "Pending"
+      },
+      "steps": {
+        "reported": "Reported",
+        "notified": "Driver notified",
+        "in_mediation": "In mediation",
+        "resolved": "Resolved",
+        "escalated": "Escalated"
+      },
+      "next": {
+        "open": "We've received your report. Next, we'll let the driver know so they can check what happened.",
+        "notified": "The driver knows about your incident. Next, we'll set up a call with you, the driver and our support team.",
+        "in_mediation": "We're setting up a call with you, the driver and our support team. We'll send you an SMS when it's ready.",
+        "in_mediation_call": "Your call is ready. Join it to sort out the incident with the driver and our support team.",
+        "resolved": "Your incident is resolved. There's nothing else you need to do.",
+        "escalated": "We've passed your incident to a specialist team. They'll contact you to sort it out."
+      }
+    },
+    "evidence": {
+      "title": "Photos and videos",
+      "photo": "Photo {number}",
+      "video": "Video {number}",
+      "processing": "{count, plural, one {We're still processing # file.} other {We're still processing # files.}}",
+      "error": "We couldn't load your photos and videos."
+    },
+    "events": {
+      "status": {
+        "open": "You reported the incident",
+        "notified": "We notified the driver",
+        "in_mediation": "We started setting up a call to sort it out",
+        "resolved": "The incident was resolved",
+        "escalated": "We passed the incident to a specialist team"
+      },
+      "evidence_uploaded": "You added a photo or video",
+      "assigned": "A support agent is reviewing your incident",
+      "driver_joined": "The driver joined the call"
     }
   },
   "call": {
