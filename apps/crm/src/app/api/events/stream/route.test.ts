@@ -31,10 +31,20 @@ describe('GET /api/events/stream', () => {
     expect(await response.text()).toBe('data: {}\n\n');
   });
 
-  it('passes the upstream status through (for example 401)', async () => {
-    fetchMock.mockResolvedValue(new Response(null, { status: 401 }));
+  it('passes other upstream errors through', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 404 }));
 
-    expect((await call()).status).toBe(401);
+    expect((await call()).status).toBe(404);
+  });
+
+  it.each([401, 403])('turns a %i into an unauthorized event', async (status) => {
+    fetchMock.mockResolvedValue(new Response(null, { status }));
+
+    const response = await call();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toBe('text/event-stream');
+    expect(await response.text()).toContain('event: unauthorized');
   });
 
   it('answers 502 when the API is unreachable', async () => {

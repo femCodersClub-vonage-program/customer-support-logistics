@@ -1,4 +1,4 @@
-const API_URL = process.env.API_URL ?? 'http://localhost:3000';
+import { API_URL } from '../../../../lib/api-config';
 
 export async function GET(request: Request) {
   const headers = new Headers({ accept: 'text/event-stream' });
@@ -23,6 +23,15 @@ export async function GET(request: Request) {
     });
   } catch {
     return new Response(null, { status: 502 });
+  }
+
+  if (upstream.status === 401 || upstream.status === 403) {
+    return new Response('event: unauthorized\ndata: {}\n\n', {
+      headers: {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-cache, no-transform',
+      },
+    });
   }
 
   if (!upstream.ok || !upstream.body) {

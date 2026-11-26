@@ -1,8 +1,10 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { INCIDENT_EVENT_TYPES } from './types';
+import { SESSION_EXPIRED_PATH } from '../session';
 
 import type { ConnectionState, IncidentStreamEvent, StreamMessage } from './types';
 import type { ReactNode } from 'react';
@@ -44,6 +46,7 @@ function parseEvent(data: string): IncidentStreamEvent | null {
 }
 
 export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const { push } = useRouter();
   const [state, setState] = useState<ConnectionState>('connecting');
   const listenersRef = useRef(new Set<Listener>());
 
@@ -57,14 +60,27 @@ export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) 
 
   useEffect(() => {
     let source: EventSource | null = null;
+    let unauthorizedSource: EventSource | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let closedByUs = false;
     let lostConnection = false;
+    let hasConnected = false;
     let attempt = 0;
 
     const emit = (message: StreamMessage) => {
       listenersRef.current.forEach((listener) => listener(message));
     };
+
+    function onUnauthorized() {
+      closedByUs = true;
+      clearTimeout(timer);
+      source?.removeEventListener('unauthorized', onUnauthorized);
+      source?.close();
+
+      const next = `${window.location.pathname}${window.location.search}`;
+
+      push(`${SESSION_EXPIRED_PATH}?next=${encodeURIComponent(next)}`);
+    }
 
     const connect = () => {
       const current = new EventSource(STREAM_URL);
@@ -72,6 +88,7 @@ export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) 
       source = current;
 
       current.onopen = () => {
+        hasConnected = true;
         attempt = 0;
         setState('connected');
 
@@ -89,17 +106,19 @@ export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) 
         }
       };
 
+      unauthorizedSource = current;
+      unauthorizedSource.addEventListener('unauthorized', onUnauthorized);
+
       current.onerror = () => {
         if (closedByUs) {
           return;
         }
 
-        lostConnection = true;
+        lostConnection = hasConnected;
         setState('reconnecting');
 
-        // CLOSED means the browser gave up (for example a 502 from the proxy),
-        // so it will not retry by itself: we do it, with a growing delay.
         if (current.readyState === EventSource.CLOSED) {
+          current.removeEventListener('unauthorized', onUnauthorized);
           current.close();
           const delay = RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length - 1)];
 
@@ -113,10 +132,11 @@ export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) 
 
     return () => {
       closedByUs = true;
+      unauthorizedSource?.removeEventListener('unauthorized', onUnauthorized);
       clearTimeout(timer);
       source?.close();
     };
-  }, []);
+  }, [push]);
 
   const value = useMemo(() => ({ state, subscribe }), [state, subscribe]);
 
