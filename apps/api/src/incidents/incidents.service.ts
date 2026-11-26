@@ -114,6 +114,7 @@ const ALLOWED_TYPES = new Set([
   'image/png',
   'image/webp',
   'image/heic',
+  'image/heif',
   'video/mp4',
   'video/quicktime',
 ]);
@@ -125,15 +126,38 @@ function evidenceExtension(mimeType: string): string {
       'image/png': 'png',
       'image/webp': 'webp',
       'image/heic': 'heic',
+      'image/heif': 'heif',
       'video/mp4': 'mp4',
       'video/quicktime': 'mov',
     } as Record<string, string>
   )[mimeType]!;
 }
 
+const HEIF_BRANDS = new Set([
+  'heic',
+  'heix',
+  'hevc',
+  'hevx',
+  'heim',
+  'heis',
+  'hevm',
+  'hevs',
+  'heif',
+  'mif1',
+  'msf1',
+]);
+
 function hasPrefix(bytes: Uint8Array, values: number[]): boolean {
   return values.every((value, index) => bytes[index] === value);
 }
+
+function isHeif(bytes: Uint8Array): boolean {
+  return (
+    String.fromCharCode(...bytes.slice(4, 8)) === 'ftyp' &&
+    HEIF_BRANDS.has(String.fromCharCode(...bytes.slice(8, 12)))
+  );
+}
+
 function contentMatchesMimeType(bytes: Uint8Array, mimeType: string): boolean {
   if (mimeType === 'image/jpeg') return hasPrefix(bytes, [0xff, 0xd8, 0xff]);
   if (mimeType === 'image/png')
@@ -143,7 +167,7 @@ function contentMatchesMimeType(bytes: Uint8Array, mimeType: string): boolean {
       hasPrefix(bytes, [0x52, 0x49, 0x46, 0x46]) &&
       String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP'
     );
-  if (mimeType === 'image/heic') return String.fromCharCode(...bytes.slice(4, 12)).includes('heic');
+  if (mimeType === 'image/heic' || mimeType === 'image/heif') return isHeif(bytes);
   if (mimeType === 'video/mp4' || mimeType === 'video/quicktime')
     return String.fromCharCode(...bytes.slice(4, 8)) === 'ftyp';
   return false;

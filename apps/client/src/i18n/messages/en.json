@@ -76,7 +76,7 @@
       "remove": "Remove",
       "removeFile": "Remove {name}",
       "rejected": {
-        "type": "{name} was not added. Only photos (JPEG, PNG, WebP, HEIC) and videos (MP4, MOV) can be attached.",
+        "type": "{name} was not added. Only photos (JPEG, PNG, WebP, HEIC, HEIF) and videos (MP4, MOV) can be attached.",
         "size": "{name} was not added because it is too big. Photos can be up to {imageMb} MB and videos up to {videoMb} MB.",
         "tooMany": "{name} was not added. You can attach up to {maxFiles} files."
       }
