@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { LogOut } from 'lucide-react';
+import { Check, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTranslations } from 'use-intl';
 
@@ -13,7 +13,7 @@ import { InstallPrompt } from '../pwa/InstallPrompt.tsx';
 export function OrdersPage() {
   const t = useTranslations('orders');
   const navigate = useNavigate();
-  const { logOut } = useSession();
+  const { state, logOut } = useSession();
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['orders'],
@@ -21,6 +21,7 @@ export function OrdersPage() {
   });
 
   const orders = data?.items ?? [];
+  const customerName = state.status === 'ready' ? (state.user?.name ?? '') : '';
 
   const logOutAndLeave = async () => {
     await logOut().catch(() => undefined);
@@ -30,6 +31,16 @@ export function OrdersPage() {
   return (
     <main className="orders-page">
       <div className="orders-page__container">
+        {customerName && (
+          <div className="orders-page__welcome">
+            <p className="orders-page__greeting">{t('greeting', { name: customerName })}</p>
+            <span className="orders-page__verified">
+              <Check size={14} strokeWidth={2.5} aria-hidden="true" />
+              <span>{t('verified')}</span>
+            </span>
+          </div>
+        )}
+
         <header className="orders-page__header">
           <h1 className="orders-page__title">{t('title')}</h1>
           <button type="button" className="log-out" onClick={logOutAndLeave}>

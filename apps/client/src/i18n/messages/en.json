@@ -2,7 +2,15 @@
   "localeSwitcher": {
     "label": "Language"
   },
+  "nav": {
+    "label": "Main navigation",
+    "orders": "Orders",
+    "incidents": "Incidents",
+    "profile": "Profile"
+  },
   "orders": {
+    "greeting": "Hi, {name}",
+    "verified": "Verified number",
     "title": "My orders",
     "reportProblem": "Report a problem",
     "viewIncident": "View my incident",
@@ -152,6 +160,23 @@
       "assigned": "A support agent is reviewing your incident",
       "driver_joined": "The driver joined the call"
     }
+  },
+  "incidentsList": {
+    "title": "My incidents",
+    "subtitle": "Check the status of your recent incidents.",
+    "loading": "Loading your incidents…",
+    "empty": "You don't have any recorded incidents yet. You can report a problem from your orders.",
+    "goToOrders": "Go to my orders",
+    "order": "Order {id}",
+    "viewDetails": "View tracking"
+  },
+  "profile": {
+    "title": "My profile",
+    "verifiedPhone": "Verified number",
+    "shortcuts": "Quick links",
+    "settings": "Preferences",
+    "language": "App language",
+    "logOut": "Log out"
   },
   "call": {
     "title": "Mediation call",

@@ -2,15 +2,18 @@ import { ApiError } from '@csl/api-client';
 import { uuidSchema } from '@csl/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { PhoneCall } from 'lucide-react';
+import { useEffect } from 'react';
 import { Link, useParams } from 'react-router';
 import { useFormatter, useTranslations } from 'use-intl';
 
 import { api } from '../api.ts';
+import { useSession } from '../auth/session-context.ts';
 import { DATE_TIME_FORMAT } from '../incident/date-format.ts';
 import '../incident/incident.css';
 import { IncidentEvidence } from '../incident/IncidentEvidence.tsx';
 import { IncidentProgress } from '../incident/IncidentProgress.tsx';
 import { IncidentTimeline } from '../incident/IncidentTimeline.tsx';
+import { rememberCustomerIncident } from '../incident/known-incidents.ts';
 import { canJoinCall } from '../incident/progress.ts';
 
 import type { IncidentDetail } from '@csl/contracts';
@@ -96,6 +99,8 @@ function IncidentSummary({ incident }: { incident: IncidentDetail }) {
 
 function IncidentDetails({ id }: { id: string }) {
   const t = useTranslations('incident');
+  const { state: sessionState } = useSession();
+  const customerId = sessionState.status === 'ready' ? (sessionState.user?.id ?? null) : null;
 
   const {
     data: incident,
@@ -106,6 +111,12 @@ function IncidentDetails({ id }: { id: string }) {
     queryKey: ['incidents', id],
     queryFn: ({ signal }) => api.getIncident(id, { signal }),
   });
+
+  useEffect(() => {
+    if (customerId && incident) {
+      rememberCustomerIncident(customerId, incident.id);
+    }
+  }, [customerId, incident]);
 
   if (isNotFound(error)) {
     return <IncidentNotFound />;
