@@ -5,13 +5,12 @@ import {
   EVIDENCE_MIME_TYPES,
 } from '@csl/contracts';
 
-// Re-exported so existing client imports from this module keep working.
 export {
   EVIDENCE_MAX_FILES,
   EVIDENCE_MAX_IMAGE_BYTES,
   EVIDENCE_MAX_VIDEO_BYTES,
   EVIDENCE_MIME_TYPES,
-} from '@csl/contracts';
+};
 
 export const EVIDENCE_ACCEPT = [...EVIDENCE_MIME_TYPES, '.heic', '.heif', '.mov'].join(',');
 

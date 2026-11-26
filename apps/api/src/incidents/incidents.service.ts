@@ -79,6 +79,7 @@ import type {
   ListIncidentsResponse,
   EvidenceUploadUrl,
   EvidenceDownload,
+  EvidenceMimeType,
   RequestEvidenceUploadBody,
 } from '@csl/contracts';
 import type { Incident, IncidentStatus } from '@csl/shared-types';
@@ -109,31 +110,21 @@ interface Closing {
 function isClosingStatus(status: IncidentStatus): status is ClosingStatus {
   return status === 'resolved' || status === 'escalated';
 }
-const ALLOWED_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-  'video/mp4',
-  'video/quicktime',
-]);
+const EVIDENCE_EXTENSIONS = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+  'video/mp4': 'mp4',
+  'video/quicktime': 'mov',
+} satisfies Record<EvidenceMimeType, string>;
 
 function evidenceExtension(mimeType: string): string {
-  return (
-    {
-      'image/jpeg': 'jpg',
-      'image/png': 'png',
-      'image/webp': 'webp',
-      'image/heic': 'heic',
-      'image/heif': 'heif',
-      'video/mp4': 'mp4',
-      'video/quicktime': 'mov',
-    } as Record<string, string>
-  )[mimeType]!;
+  return EVIDENCE_EXTENSIONS[mimeType as EvidenceMimeType];
 }
 
-const HEIF_BRANDS = new Set([
+const HEIF_CODEC_BRANDS = new Set([
   'heic',
   'heix',
   'hevc',
@@ -143,19 +134,31 @@ const HEIF_BRANDS = new Set([
   'hevm',
   'hevs',
   'heif',
-  'mif1',
-  'msf1',
 ]);
+
+const HEIF_STRUCTURAL_BRANDS = new Set(['mif1', 'msf1']);
 
 function hasPrefix(bytes: Uint8Array, values: number[]): boolean {
   return values.every((value, index) => bytes[index] === value);
 }
 
+function fourCharCodeAt(bytes: Uint8Array, offset: number): string {
+  return String.fromCharCode(...bytes.slice(offset, offset + 4));
+}
+
 function isHeif(bytes: Uint8Array): boolean {
-  return (
-    String.fromCharCode(...bytes.slice(4, 8)) === 'ftyp' &&
-    HEIF_BRANDS.has(String.fromCharCode(...bytes.slice(8, 12)))
+  if (fourCharCodeAt(bytes, 4) !== 'ftyp') return false;
+  const majorBrand = fourCharCodeAt(bytes, 8);
+  if (HEIF_CODEC_BRANDS.has(majorBrand)) return true;
+  if (!HEIF_STRUCTURAL_BRANDS.has(majorBrand)) return false;
+  const boxEnd = Math.min(
+    new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0),
+    bytes.length,
   );
+  for (let offset = 16; offset + 4 <= boxEnd; offset += 4) {
+    if (HEIF_CODEC_BRANDS.has(fourCharCodeAt(bytes, offset))) return true;
+  }
+  return false;
 }
 
 function contentMatchesMimeType(bytes: Uint8Array, mimeType: string): boolean {
@@ -244,8 +247,6 @@ export class IncidentsService {
     body: RequestEvidenceUploadBody,
   ): Promise<EvidenceUploadUrl> {
     const customerId = requireCustomerId(actor);
-    if (!ALLOWED_TYPES.has(body.mimeType))
-      throw new BadRequestException('Unsupported evidence type');
     const limit = body.mimeType.startsWith('image/')
       ? this.config.get('EVIDENCE_IMAGE_MAX_BYTES', { infer: true })
       : this.config.get('EVIDENCE_VIDEO_MAX_BYTES', { infer: true });

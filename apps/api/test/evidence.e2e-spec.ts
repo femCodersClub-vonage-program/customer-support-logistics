@@ -1,3 +1,4 @@
+import { apiErrorResponseSchema } from '@csl/contracts';
 import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -157,11 +158,14 @@ describe('Evidence uploads (e2e)', () => {
   });
 
   it('rejects an unsupported type and an oversized image', async () => {
-    await http()
+    const unsupported = await http()
       .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
       .set('Cookie', cookie.ana)
       .send({ fileName: 'x.pdf', mimeType: 'application/pdf', sizeBytes: 1 })
       .expect(400);
+    const { error } = apiErrorResponseSchema.parse(unsupported.body);
+    expect(error.code).toBe('VALIDATION_FAILED');
+    expect(error.details?.map(({ path }) => path)).toEqual(['mimeType']);
     await http()
       .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
       .set('Cookie', cookie.ana)
@@ -368,12 +372,18 @@ describe('Evidence uploads (e2e)', () => {
     [
       'image/heic',
       'x.heic',
-      new Uint8Array([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31]),
+      new Uint8Array([
+        0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31, 0, 0, 0, 0, 0x6d, 0x69, 0x66,
+        0x31, 0x68, 0x65, 0x69, 0x63,
+      ]),
     ],
     [
       'image/heif',
       'x.heif',
-      new Uint8Array([0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31]),
+      new Uint8Array([
+        0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31, 0, 0, 0, 0, 0x6d, 0x69, 0x66,
+        0x31, 0x68, 0x65, 0x69, 0x63,
+      ]),
     ],
     [
       'video/mp4',
@@ -398,5 +408,24 @@ describe('Evidence uploads (e2e)', () => {
       .post(`/incidents/${ids.openIncident}/evidence/${body.evidenceId}/complete`)
       .set('Cookie', cookie.ana)
       .expect(201);
+  });
+
+  it('rejects an AVIF file declared as HEIF', async () => {
+    const avif = new Uint8Array([
+      0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31, 0, 0, 0, 0, 0x6d, 0x69, 0x61,
+      0x66, 0x61, 0x76, 0x69, 0x66,
+    ]);
+    const { body } = await http()
+      .post(`/incidents/${ids.openIncident}/evidence/upload-url`)
+      .set('Cookie', cookie.ana)
+      .send({ fileName: 'x.heif', mimeType: 'image/heif', sizeBytes: avif.length })
+      .expect(201);
+    const [row] = await testApp.db.select().from(evidence).where(eq(evidence.id, body.evidenceId));
+    storage.objects.set(row!.storageKey, { contentType: 'image/heif', sizeBytes: avif.length });
+    storage.prefixes.set(row!.storageKey, avif);
+    await http()
+      .post(`/incidents/${ids.openIncident}/evidence/${body.evidenceId}/complete`)
+      .set('Cookie', cookie.ana)
+      .expect(400);
   });
 });
