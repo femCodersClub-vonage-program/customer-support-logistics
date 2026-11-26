@@ -7,6 +7,8 @@ import { useState } from 'react';
 
 import { api } from '../lib/api';
 
+import styles from './IncidentActions.module.css';
+
 import type { IncidentStatus } from '@csl/shared-types';
 
 interface IncidentActionsProps {
@@ -126,129 +128,187 @@ export function IncidentActions({
   const needsSmsConfirmation = pendingAction === 'notify' || pendingAction === 'notifyAgain';
 
   return (
-    <section aria-labelledby="incident-actions-heading">
-      <h2 id="incident-actions-heading">{t('title')}</h2>
+    <section className={styles.card} aria-labelledby="incident-actions-heading">
+      <h2 id="incident-actions-heading" className={styles.title}>
+        {t('title')}
+      </h2>
 
-      {!assignedToMe && (
-        <button type="button" onClick={assignToMe} disabled={loading}>
-          {t('assign')}
-        </button>
-      )}
+      {assignedToMe && <p className={styles.assigned}>{t('assigned')}</p>}
 
-      {assignedToMe && <p>{t('assigned')}</p>}
-
-      {status === 'open' && hasDriver && (
-        <button type="button" onClick={() => setPendingAction('notify')} disabled={loading}>
-          {t('notify')}
-        </button>
-      )}
-
-      {status === 'notified' && hasDriver && (
-        <button
-          type="button"
-          onClick={() => {
-            setNotifyAgainIdempotencyKey(globalThis.crypto.randomUUID());
-            setPendingAction('notifyAgain');
-          }}
-          disabled={loading}
-        >
-          {t('notifyAgain')}
-        </button>
-      )}
-
-      {status === 'notified' && (
-        <button type="button" onClick={() => setPendingAction('mediation')} disabled={loading}>
-          {t('mediation')}
-        </button>
-      )}
-
-      {(status === 'open' || status === 'notified' || status === 'in_mediation') && (
-        <button type="button" onClick={() => setPendingAction('escalate')} disabled={loading}>
-          {t('escalate')}
-        </button>
-      )}
-
-      {(status === 'notified' || status === 'in_mediation' || status === 'escalated') && (
-        <button type="button" onClick={() => setPendingAction('resolve')} disabled={loading}>
-          {t('resolve')}
-        </button>
-      )}
-
-      {needsSmsConfirmation && (
-        <div>
-          <p>{pendingAction === 'notify' ? t('confirmNotify') : t('confirmNotifyAgain')}</p>
-
-          <button type="button" onClick={executeAction} disabled={loading}>
-            {loading ? t('sending') : t('submit')}
+      <div className={styles.bar}>
+        {!assignedToMe && (
+          <button type="button" className={styles.button} onClick={assignToMe} disabled={loading}>
+            {t('assign')}
           </button>
+        )}
 
+        {status === 'open' && hasDriver && (
           <button
             type="button"
+            className={`${styles.button} ${styles.primary}`}
+            onClick={() => setPendingAction('notify')}
+            disabled={loading}
+          >
+            {t('notify')}
+          </button>
+        )}
+
+        {status === 'notified' && hasDriver && (
+          <button
+            type="button"
+            className={styles.button}
             onClick={() => {
-              setPendingAction(null);
-              setNotifyAgainIdempotencyKey(null);
+              setNotifyAgainIdempotencyKey(globalThis.crypto.randomUUID());
+              setPendingAction('notifyAgain');
             }}
             disabled={loading}
           >
-            {t('cancel')}
+            {t('notifyAgain')}
           </button>
+        )}
+
+        {status === 'notified' && (
+          <button
+            type="button"
+            className={`${styles.button} ${styles.primary}`}
+            onClick={() => setPendingAction('mediation')}
+            disabled={loading}
+          >
+            {t('mediation')}
+          </button>
+        )}
+
+        {(status === 'notified' || status === 'in_mediation' || status === 'escalated') && (
+          <button
+            type="button"
+            className={`${styles.button} ${styles.primary}`}
+            onClick={() => setPendingAction('resolve')}
+            disabled={loading}
+          >
+            {t('resolve')}
+          </button>
+        )}
+
+        {(status === 'open' || status === 'notified' || status === 'in_mediation') && (
+          <button
+            type="button"
+            className={`${styles.button} ${styles.danger}`}
+            onClick={() => setPendingAction('escalate')}
+            disabled={loading}
+          >
+            {t('escalate')}
+          </button>
+        )}
+      </div>
+
+      {needsSmsConfirmation && (
+        <div className={styles.panel}>
+          <p>{pendingAction === 'notify' ? t('confirmNotify') : t('confirmNotifyAgain')}</p>
+
+          <div className={styles.panelActions}>
+            <button
+              type="button"
+              className={`${styles.button} ${styles.primary}`}
+              onClick={executeAction}
+              disabled={loading}
+            >
+              {loading ? t('sending') : t('submit')}
+            </button>
+
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => {
+                setPendingAction(null);
+                setNotifyAgainIdempotencyKey(null);
+              }}
+              disabled={loading}
+            >
+              {t('cancel')}
+            </button>
+          </div>
         </div>
       )}
 
       {needsReason && (
-        <div>
+        <div className={styles.panel}>
           <label htmlFor="incident-action-reason">
             {pendingAction === 'resolve' ? t('resolution') : t('escalationReason')}
           </label>
 
           <textarea
             id="incident-action-reason"
+            className={styles.textarea}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             required
             maxLength={1000}
           />
 
-          <button type="button" onClick={executeAction} disabled={loading || !reason.trim()}>
-            {loading ? t('sending') : t('submit')}
-          </button>
+          <div className={styles.panelActions}>
+            <button
+              type="button"
+              className={`${styles.button} ${styles.primary}`}
+              onClick={executeAction}
+              disabled={loading || !reason.trim()}
+            >
+              {loading ? t('sending') : t('submit')}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setPendingAction(null);
-              setReason('');
-            }}
-            disabled={loading}
-          >
-            {t('cancel')}
-          </button>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => {
+                setPendingAction(null);
+                setReason('');
+              }}
+              disabled={loading}
+            >
+              {t('cancel')}
+            </button>
+          </div>
         </div>
       )}
 
       {pendingAction === 'mediation' && (
-        <div>
+        <div className={styles.panel}>
           <p>{t('mediation')}</p>
 
-          <button type="button" onClick={executeAction} disabled={loading}>
-            {loading ? t('sending') : t('submit')}
-          </button>
+          <div className={styles.panelActions}>
+            <button
+              type="button"
+              className={`${styles.button} ${styles.primary}`}
+              onClick={executeAction}
+              disabled={loading}
+            >
+              {loading ? t('sending') : t('submit')}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setPendingAction(null);
-              setNotifyAgainIdempotencyKey(null);
-            }}
-            disabled={loading}
-          >
-            {t('cancel')}
-          </button>
+            <button
+              type="button"
+              className={styles.button}
+              onClick={() => {
+                setPendingAction(null);
+                setNotifyAgainIdempotencyKey(null);
+              }}
+              disabled={loading}
+            >
+              {t('cancel')}
+            </button>
+          </div>
         </div>
       )}
 
-      {success && <p role="status">{t('success')}</p>}
-      {error && <p role="alert">{t('error')}</p>}
+      {success && (
+        <p role="status" className={styles.success}>
+          {t('success')}
+        </p>
+      )}
+      {error && (
+        <p role="alert" className={styles.error}>
+          {t('error')}
+        </p>
+      )}
     </section>
   );
 }

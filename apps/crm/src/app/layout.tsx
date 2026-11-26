@@ -1,3 +1,4 @@
+import { Space_Grotesk } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
@@ -11,6 +12,13 @@ import styles from './layout.module.css';
 
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-space-grotesk',
+  display: 'swap',
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('metadata');
@@ -26,14 +34,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const signedIn = (await cookies()).has(SESSION_COOKIE);
 
   return (
-    <html lang={locale}>
+    <html lang={locale} className={spaceGrotesk.variable}>
       <body>
         <NextIntlClientProvider>
           {signedIn ? (
             <div className={styles.shell}>
               <TopBar />
               <SideNav />
-              <main className={styles.content}>{children}</main>
+              <main className={styles.content}>
+                <div className={styles.inner}>{children}</div>
+              </main>
             </div>
           ) : (
             children

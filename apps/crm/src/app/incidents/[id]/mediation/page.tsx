@@ -39,8 +39,10 @@ export default async function MediationPage({ params }: MediationPageProps) {
 
   return (
     <>
-      <h1>{t('title')}</h1>
-      <p>{t('incident', { id: shortId(incident.id) })}</p>
+      <header className={styles.header}>
+        <h1 className={styles.title}>{t('title')}</h1>
+        <p className={styles.incidentRef}>{t('incident', { id: shortId(incident.id) })}</p>
+      </header>
 
       <div className={styles.layout}>
         <IncidentSummary incident={incident} />

@@ -1,3 +1,4 @@
+import { Phone } from 'lucide-react';
 import { useTranslations } from 'use-intl';
 
 import { useFocusOnMount } from './useFocusOnMount.ts';
@@ -11,8 +12,8 @@ export function PreCall({ onJoin }: { onJoin: () => void }) {
       <h1 ref={heading} tabIndex={-1}>
         {t('title')}
       </h1>
-      <p>{t('intro')}</p>
-      <section aria-labelledby="call-participants">
+      <p className="call-intro">{t('intro')}</p>
+      <section className="call-section" aria-labelledby="call-participants">
         <h2 id="call-participants">{t('participantsTitle')}</h2>
         <ul className="call-participants">
           <li>{t('participants.you')}</li>
@@ -20,12 +21,13 @@ export function PreCall({ onJoin }: { onJoin: () => void }) {
           <li>{t('participants.driver')}</li>
         </ul>
       </section>
-      <section aria-labelledby="call-microphone">
+      <section className="call-section" aria-labelledby="call-microphone">
         <h2 id="call-microphone">{t('microphoneTitle')}</h2>
         <p>{t('microphoneIntro')}</p>
       </section>
       <div className="call-actions">
         <button type="button" className="call-primary" onClick={onJoin}>
+          <Phone size={18} strokeWidth={2} aria-hidden="true" />
           {t('join')}
         </button>
       </div>
