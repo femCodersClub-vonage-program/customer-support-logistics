@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventsProvider, STREAM_URL, useEvents } from './EventsProvider';
 
-import type { StreamMessage } from './types';
+import type { StreamMessage } from './EventsProvider';
 
 const { mockPush } = vi.hoisted(() => ({
   mockPush: vi.fn(),
@@ -95,7 +95,11 @@ describe('EventsProvider', () => {
       </EventsProvider>,
     );
 
-    const event = { type: 'incident.created', incidentId: 'a', updatedAt: '2026-11-21T10:00:00Z' };
+    const event = {
+      type: 'incident.created',
+      incidentId: '550e8400-e29b-41d4-a716-446655440000',
+      updatedAt: '2026-11-21T10:00:00Z',
+    };
 
     act(() => {
       latest().onmessage?.({ data: JSON.stringify(event) });
@@ -104,6 +108,26 @@ describe('EventsProvider', () => {
     });
 
     expect(onMessage).toHaveBeenCalledTimes(1);
+    expect(onMessage).toHaveBeenCalledWith({ kind: 'event', event });
+  });
+
+  it('accepts communication updated events', () => {
+    const onMessage = vi.fn();
+
+    render(
+      <EventsProvider>
+        <Probe onMessage={onMessage} />
+      </EventsProvider>,
+    );
+
+    const event = {
+      type: 'incident.communication_updated',
+      incidentId: '550e8400-e29b-41d4-a716-446655440000',
+      updatedAt: '2026-11-21T10:00:00Z',
+    };
+
+    act(() => latest().onmessage?.({ data: JSON.stringify(event) }));
+
     expect(onMessage).toHaveBeenCalledWith({ kind: 'event', event });
   });
 

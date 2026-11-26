@@ -1,13 +1,17 @@
 'use client';
 
+import { incidentStreamEventSchema } from '@csl/contracts';
 import { useRouter } from 'next/navigation';
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { INCIDENT_EVENT_TYPES } from './types';
 import { SESSION_EXPIRED_PATH } from '../session';
 
-import type { ConnectionState, IncidentStreamEvent, StreamMessage } from './types';
+import type { IncidentStreamEvent } from '@csl/shared-types';
 import type { ReactNode } from 'react';
+
+type ConnectionState = 'connecting' | 'connected' | 'reconnecting';
+
+export type StreamMessage = { kind: 'event'; event: IncidentStreamEvent } | { kind: 'reconnected' };
 
 export const STREAM_URL = '/api/events/stream';
 const RETRY_DELAYS_MS = [1000, 2000, 5000, 10000] as const;
@@ -21,28 +25,14 @@ interface EventsContextValue {
 
 const EventsContext = createContext<EventsContextValue | null>(null);
 
-const KNOWN_TYPES = new Set<string>(Object.values(INCIDENT_EVENT_TYPES));
-
 function parseEvent(data: string): IncidentStreamEvent | null {
   try {
-    const value: unknown = JSON.parse(data);
+    const result = incidentStreamEventSchema.safeParse(JSON.parse(data));
 
-    if (
-      typeof value === 'object' &&
-      value !== null &&
-      'type' in value &&
-      typeof value.type === 'string' &&
-      KNOWN_TYPES.has(value.type) &&
-      'incidentId' in value &&
-      typeof value.incidentId === 'string'
-    ) {
-      return value as IncidentStreamEvent;
-    }
+    return result.success ? result.data : null;
   } catch {
-    // Ignore malformed messages: one bad event must not break the stream.
+    return null;
   }
-
-  return null;
 }
 
 export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) {
