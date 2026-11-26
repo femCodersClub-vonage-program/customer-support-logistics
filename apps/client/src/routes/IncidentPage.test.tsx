@@ -243,7 +243,7 @@ describe('/incidents/:id', () => {
     server.use(incidentOf(incident()));
     openIncident('es');
 
-    const timeline = await screen.findByRole('region', { name: 'Cronología de la incidencia' });
+    const timeline = await screen.findByRole('region', { name: 'Seguimiento de la incidencia' });
     const expected = new Intl.DateTimeFormat('es', DATE_TIME_FORMAT).format(new Date(NOTIFIED_AT));
 
     expect(within(timeline).getByText(expected)).toHaveAttribute('dateTime', NOTIFIED_AT);
