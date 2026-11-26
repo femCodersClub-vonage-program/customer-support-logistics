@@ -50,7 +50,6 @@ export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) 
 
   useEffect(() => {
     let source: EventSource | null = null;
-    let unauthorizedSource: EventSource | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let closedByUs = false;
     let lostConnection = false;
@@ -96,8 +95,7 @@ export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) 
         }
       };
 
-      unauthorizedSource = current;
-      unauthorizedSource.addEventListener('unauthorized', onUnauthorized);
+      source.addEventListener('unauthorized', onUnauthorized);
 
       current.onerror = () => {
         if (closedByUs) {
@@ -122,7 +120,7 @@ export function EventsProvider({ children }: Readonly<{ children: ReactNode }>) 
 
     return () => {
       closedByUs = true;
-      unauthorizedSource?.removeEventListener('unauthorized', onUnauthorized);
+      source?.removeEventListener('unauthorized', onUnauthorized);
       clearTimeout(timer);
       source?.close();
     };
