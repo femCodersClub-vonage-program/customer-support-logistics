@@ -2,7 +2,15 @@
   "localeSwitcher": {
     "label": "Language"
   },
+  "nav": {
+    "label": "Main navigation",
+    "orders": "Orders",
+    "incidents": "Incidents",
+    "profile": "Profile"
+  },
   "orders": {
+    "greeting": "Hi, {name}",
+    "verified": "Verified number",
     "title": "My orders",
     "reportProblem": "Report a problem",
     "viewIncident": "View my incident",
@@ -153,6 +161,23 @@
       "driver_joined": "The driver joined the call"
     }
   },
+  "incidentsList": {
+    "title": "My incidents",
+    "subtitle": "Check the status of your recent incidents.",
+    "loading": "Loading your incidents…",
+    "empty": "You don't have any recorded incidents yet. You can report a problem from your orders.",
+    "goToOrders": "Go to my orders",
+    "order": "Order {id}",
+    "viewDetails": "View tracking"
+  },
+  "profile": {
+    "title": "My profile",
+    "verifiedPhone": "Verified number",
+    "shortcuts": "Quick links",
+    "settings": "Preferences",
+    "language": "App language",
+    "logOut": "Log out"
+  },
   "call": {
     "title": "Mediation call",
     "incident": "Incident {id}",
@@ -175,6 +200,17 @@
       "failed": "The call couldn't connect"
     },
     "duration": "Duration",
+    "privacy": "Protected call · hidden numbers",
+    "evidenceNote": "The agent can see your photos and video during the call.",
+    "inCallParticipants": {
+      "support": "Support",
+      "supportRole": "Support agent",
+      "driver": "Driver",
+      "driverRole": "Connected by phone",
+      "you": "You",
+      "micActive": "Microphone active",
+      "micMuted": "Microphone muted"
+    },
     "mute": "Mute microphone",
     "hangUp": "Hang up",
     "ended": {

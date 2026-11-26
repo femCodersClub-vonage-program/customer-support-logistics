@@ -34,8 +34,8 @@
 .pwa-toast-region {
   position: fixed;
   inset-inline: 1rem;
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  z-index: 20;
+  bottom: calc(5rem + env(safe-area-inset-bottom));
+  z-index: 40;
 }
 
 .pwa-card--toast {

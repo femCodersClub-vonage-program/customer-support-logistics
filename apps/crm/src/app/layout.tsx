@@ -2,6 +2,7 @@ import { Space_Grotesk } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { Suspense } from 'react';
 
 import { SideNav } from '../components/SideNav';
 import { TopBar } from '../components/TopBar';
@@ -42,7 +43,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <EventsProvider>
               <div className={styles.shell}>
                 <TopBar />
-                <SideNav />
+                <Suspense fallback={null}>
+                  <SideNav />
+                </Suspense>
                 <main className={styles.content}>
                   <div className={styles.inner}>{children}</div>
                 </main>

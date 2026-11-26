@@ -5,6 +5,8 @@
   },
   "topBar": {
     "brand": "CSL <accent>Support</accent>",
+    "searchLabel": "Search order, customer or incident",
+    "searchPlaceholder": "Search order, customer or incident",
     "logOut": "Log out",
     "logOutFailed": "Couldn't log out. Check the connection and try again.",
     "connection": {
@@ -28,7 +30,10 @@
   },
   "nav": {
     "label": "Main",
-    "inbox": "Inbox"
+    "inbox": "Inbox",
+    "myTickets": "My tickets",
+    "escalated": "Escalated",
+    "resolved": "Resolved"
   },
   "localeSwitcher": {
     "label": "Language"
@@ -79,6 +84,8 @@
     "updatedAt": "Last updated",
     "assignedAgent": "Assigned agent",
     "unassigned": "Unassigned",
+    "backToInbox": "Back to inbox",
+    "openMediation": "Open mediation",
     "sections": {
       "order": "Order",
       "customer": "Customer",
@@ -161,6 +168,25 @@
   "mediation": {
     "title": "Mediation",
     "incident": "Incident {id}",
+    "backToInbox": "Inbox",
+    "viewIncident": "View full incident",
+    "participants": {
+      "title": "Participants",
+      "customerRole": "Customer · browser",
+      "driverRole": "Phone · hidden number",
+      "agentName": "Support agent",
+      "agentRole": "Support · CRM"
+    },
+    "connectionSteps": {
+      "title": "Driver connection",
+      "sms": "Notice SMS",
+      "outboundCall": "Outbound call",
+      "driverReply": "Driver reply",
+      "inMediation": "In mediation",
+      "completed": "Completed",
+      "active": "In progress",
+      "pending": "Pending"
+    },
     "summary": {
       "title": "Incident summary",
       "type": "Type",

@@ -9,6 +9,34 @@
   margin: 0 auto;
 }
 
+.orders-page__welcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.orders-page__greeting {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.orders-page__verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-pill);
+  background-color: var(--status-resolved-bg);
+  color: var(--status-resolved);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 .orders-page__header {
   display: flex;
   flex-wrap: wrap;

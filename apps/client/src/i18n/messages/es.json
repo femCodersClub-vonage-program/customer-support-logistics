@@ -2,7 +2,15 @@
   "localeSwitcher": {
     "label": "Idioma"
   },
+  "nav": {
+    "label": "Navegación principal",
+    "orders": "Pedidos",
+    "incidents": "Incidencias",
+    "profile": "Perfil"
+  },
   "orders": {
+    "greeting": "Hola, {name}",
+    "verified": "Número verificado",
     "title": "Mis pedidos",
     "reportProblem": "Comunicar un problema",
     "viewIncident": "Ver mi incidencia",
@@ -153,6 +161,23 @@
       "driver_joined": "El repartidor se ha unido a la llamada"
     }
   },
+  "incidentsList": {
+    "title": "Mis incidencias",
+    "subtitle": "Consulta el estado de tus incidencias recientes.",
+    "loading": "Cargando tus incidencias…",
+    "empty": "Todavía no tienes incidencias registradas. Puedes reportar un problema desde tus pedidos.",
+    "goToOrders": "Ir a mis pedidos",
+    "order": "Pedido {id}",
+    "viewDetails": "Ver seguimiento"
+  },
+  "profile": {
+    "title": "Mi perfil",
+    "verifiedPhone": "Número verificado",
+    "shortcuts": "Accesos rápidos",
+    "settings": "Preferencias",
+    "language": "Idioma de la aplicación",
+    "logOut": "Cerrar sesión"
+  },
   "call": {
     "title": "Llamada de mediación",
     "incident": "Incidencia {id}",
@@ -175,6 +200,17 @@
       "failed": "No se ha podido conectar la llamada"
     },
     "duration": "Duración",
+    "privacy": "Llamada protegida · números ocultos",
+    "evidenceNote": "El agente puede ver tus fotos y vídeo durante la llamada.",
+    "inCallParticipants": {
+      "support": "Soporte",
+      "supportRole": "Agente de soporte",
+      "driver": "Repartidor",
+      "driverRole": "Conectado por teléfono",
+      "you": "Tú",
+      "micActive": "Micrófono activo",
+      "micMuted": "Micrófono silenciado"
+    },
     "mute": "Silenciar micrófono",
     "hangUp": "Colgar",
     "ended": {
