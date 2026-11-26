@@ -9,10 +9,20 @@ import {
 
 const DATABASE_URL = 'postgresql://app:password@localhost:5432/customer_support_logistics';
 
+const STORAGE_ENV = {
+  STORAGE_ENDPOINT: 'http://localhost:8333',
+  STORAGE_REGION: 'us-east-1',
+  STORAGE_BUCKET: 'evidence',
+  STORAGE_ACCESS_KEY: 'admin',
+  STORAGE_SECRET_KEY: 'secret',
+  STORAGE_FORCE_PATH_STYLE: 'true',
+};
+
 const PRIVATE_KEY = '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n';
 
 const VONAGE_ENV = {
   PUBLIC_URL: 'https://example.ngrok-free.app',
+  CLIENT_PUBLIC_URL: 'https://client.example.app',
   VONAGE_API_KEY: 'key',
   VONAGE_API_SECRET: 'secret',
   VONAGE_APPLICATION_ID: 'app-id',
@@ -21,15 +31,83 @@ const VONAGE_ENV = {
   VONAGE_SIGNATURE_SECRET: 'signature',
 };
 
-const DISABLED = { DATABASE_URL, VONAGE_ENABLED: 'false' };
+const DISABLED = { DATABASE_URL, VONAGE_ENABLED: 'false', ...STORAGE_ENV };
 
 describe('validateEnv', () => {
+  it('requires path-style public HTTPS signing for bucket names containing dots', () => {
+    const env = {
+      ...DISABLED,
+      STORAGE_BUCKET: 'evidence.example',
+      STORAGE_PUBLIC_ENDPOINT: 'https://storage.example.com',
+    };
+    expect(() => validateEnv({ ...env, STORAGE_PUBLIC_FORCE_PATH_STYLE: 'false' })).toThrow(
+      /STORAGE_PUBLIC_FORCE_PATH_STYLE/,
+    );
+    expect(() => validateEnv({ ...env, STORAGE_FORCE_PATH_STYLE: 'false' })).toThrow(
+      /STORAGE_PUBLIC_FORCE_PATH_STYLE/,
+    );
+    expect(validateEnv(env).STORAGE_BUCKET).toBe('evidence.example');
+  });
+
+  it('accepts an optional public HTTPS storage endpoint and treats empty as unset', () => {
+    expect(
+      validateEnv({ ...DISABLED, STORAGE_PUBLIC_ENDPOINT: 'https://storage.example.com' })
+        .STORAGE_PUBLIC_ENDPOINT,
+    ).toBe('https://storage.example.com');
+    expect(
+      validateEnv({ ...DISABLED, STORAGE_PUBLIC_ENDPOINT: '' }).STORAGE_PUBLIC_ENDPOINT,
+    ).toBeUndefined();
+    expect(() =>
+      validateEnv({ ...DISABLED, STORAGE_PUBLIC_ENDPOINT: 'http://storage.example.com' }),
+    ).toThrow(/STORAGE_PUBLIC_ENDPOINT/);
+  });
+  it('rejects a pending evidence TTL shorter than the upload URL TTL', () => {
+    expect(() =>
+      validateEnv({
+        ...DISABLED,
+        EVIDENCE_PENDING_TTL_SECONDS: '899',
+        EVIDENCE_UPLOAD_URL_TTL_SECONDS: '900',
+      }),
+    ).toThrow(/EVIDENCE_PENDING_TTL_SECONDS/);
+  });
+
+  it('accepts a pending evidence TTL with a one-minute margin', () => {
+    expect(
+      validateEnv({
+        ...DISABLED,
+        EVIDENCE_PENDING_TTL_SECONDS: '960',
+        EVIDENCE_UPLOAD_URL_TTL_SECONDS: '900',
+      }).EVIDENCE_PENDING_TTL_SECONDS,
+    ).toBe(960);
+  });
+
+  it('rejects a pending TTL longer than 12 hours', () => {
+    expect(() => validateEnv({ ...DISABLED, EVIDENCE_PENDING_TTL_SECONDS: '43201' })).toThrow(
+      /EVIDENCE_PENDING_TTL_SECONDS/,
+    );
+  });
+
   it('applies defaults when optional variables are missing', () => {
     expect(validateEnv(DISABLED)).toEqual({
       NODE_ENV: 'development',
       PORT: 3000,
       DATABASE_URL,
+      ...Object.fromEntries(
+        Object.entries(STORAGE_ENV).map(([key, value]) => [
+          key,
+          key === 'STORAGE_FORCE_PATH_STYLE' ? true : value,
+        ]),
+      ),
       VONAGE_ENABLED: false,
+      EVIDENCE_IMAGE_MAX_BYTES: 10 * 1024 * 1024,
+      EVIDENCE_VIDEO_MAX_BYTES: 50 * 1024 * 1024,
+      EVIDENCE_MAX_FILES_PER_INCIDENT: 5,
+      EVIDENCE_UPLOAD_URL_TTL_SECONDS: 15 * 60,
+      EVIDENCE_PENDING_TTL_SECONDS: 60 * 60,
+      EVIDENCE_DOWNLOAD_URL_TTL_SECONDS: 5 * 60,
+      JOBS_POLLING_INTERVAL_SECONDS: 2,
+      MEDIATION_CALL_DELAY_SECONDS: 2 * 60,
+      MEDIATION_RETRY_DELAY_SECONDS: 60,
       WEBHOOK_RATE_LIMIT_PER_MINUTE: 120,
     });
   });
@@ -81,9 +159,9 @@ describe('validateEnv', () => {
     });
 
     it('throws while Vonage is enabled, where it would be ignored', () => {
-      expect(() => validateEnv({ DATABASE_URL, ...VONAGE_ENV, DEV_VERIFY_CODE: '123456' })).toThrow(
-        /DEV_VERIFY_CODE only works while Vonage is disabled/,
-      );
+      expect(() =>
+        validateEnv({ DATABASE_URL, ...STORAGE_ENV, ...VONAGE_ENV, DEV_VERIFY_CODE: '123456' }),
+      ).toThrow(/DEV_VERIFY_CODE only works while Vonage is disabled/);
     });
   });
 
@@ -109,6 +187,13 @@ describe('validateEnv', () => {
     });
   });
 
+  it('requires storage configuration', () => {
+    const env: Record<string, string> = { ...DISABLED };
+    delete env.STORAGE_ENDPOINT;
+
+    expect(() => validateEnv(env)).toThrow(/STORAGE_ENDPOINT/);
+  });
+
   it('coerces WEBHOOK_RATE_LIMIT_PER_MINUTE to a positive integer', () => {
     expect(validateEnv({ ...DISABLED, WEBHOOK_RATE_LIMIT_PER_MINUTE: '5' })).toMatchObject({
       WEBHOOK_RATE_LIMIT_PER_MINUTE: 5,
@@ -124,9 +209,25 @@ describe('validateEnv', () => {
     );
   });
 
+  it('throws when a mediation delay is negative', () => {
+    expect(() => validateEnv({ ...DISABLED, MEDIATION_RETRY_DELAY_SECONDS: '-1' })).toThrow(
+      /MEDIATION_RETRY_DELAY_SECONDS/,
+    );
+  });
+
+  it('accepts an HTTP CLIENT_PUBLIC_URL for local development', () => {
+    expect(validateEnv({ ...DISABLED, CLIENT_PUBLIC_URL: 'http://localhost:5173' })).toMatchObject({
+      CLIENT_PUBLIC_URL: 'http://localhost:5173',
+    });
+  });
+
+  it('treats an empty CLIENT_PUBLIC_URL as unset', () => {
+    expect(validateEnv({ ...DISABLED, CLIENT_PUBLIC_URL: '' }).CLIENT_PUBLIC_URL).toBeUndefined();
+  });
+
   describe('Vonage', () => {
     it('accepts the full Vonage configuration', () => {
-      expect(validateEnv({ DATABASE_URL, ...VONAGE_ENV })).toMatchObject({
+      expect(validateEnv({ DATABASE_URL, ...STORAGE_ENV, ...VONAGE_ENV })).toMatchObject({
         VONAGE_ENABLED: true,
         ...VONAGE_ENV,
       });
@@ -136,7 +237,7 @@ describe('validateEnv', () => {
       expect.assertions(VONAGE_REQUIRED_VARIABLES.length);
 
       for (const variable of VONAGE_REQUIRED_VARIABLES) {
-        const env: Record<string, string> = { DATABASE_URL, ...VONAGE_ENV };
+        const env: Record<string, string> = { DATABASE_URL, ...STORAGE_ENV, ...VONAGE_ENV };
         delete env[variable];
 
         expect(() => validateEnv(env)).toThrow(
@@ -146,7 +247,7 @@ describe('validateEnv', () => {
     });
 
     it('lists every missing Vonage variable at once', () => {
-      expect(() => validateEnv({ DATABASE_URL })).toThrow(
+      expect(() => validateEnv({ DATABASE_URL, ...STORAGE_ENV })).toThrow(
         /VONAGE_API_KEY[\s\S]*VONAGE_SIGNATURE_SECRET[\s\S]*PUBLIC_URL/,
       );
     });
@@ -156,7 +257,7 @@ describe('validateEnv', () => {
     });
 
     it('does not require Vonage variables when NODE_ENV is test', () => {
-      expect(validateEnv({ DATABASE_URL, NODE_ENV: 'test' })).toMatchObject({
+      expect(validateEnv({ DATABASE_URL, ...STORAGE_ENV, NODE_ENV: 'test' })).toMatchObject({
         VONAGE_ENABLED: true,
       });
     });
@@ -183,7 +284,12 @@ describe('validateEnv', () => {
 
     it('throws when VONAGE_VIRTUAL_NUMBER is not E.164', () => {
       expect(() =>
-        validateEnv({ DATABASE_URL, ...VONAGE_ENV, VONAGE_VIRTUAL_NUMBER: '34600000000' }),
+        validateEnv({
+          DATABASE_URL,
+          ...STORAGE_ENV,
+          ...VONAGE_ENV,
+          VONAGE_VIRTUAL_NUMBER: '34600000000',
+        }),
       ).toThrow(/VONAGE_VIRTUAL_NUMBER/);
     });
   });

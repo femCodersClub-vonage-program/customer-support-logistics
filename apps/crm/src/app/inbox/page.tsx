@@ -6,6 +6,8 @@ import { Pagination } from '../../components/Pagination';
 import { currentAgentId, serverApi } from '../../lib/api.server';
 import { ASSIGNEE_ME, parseInboxQuery } from '../../lib/inbox-query';
 
+import styles from './page.module.css';
+
 import type { SearchParams } from '../../lib/inbox-query';
 
 export default async function InboxPage({
@@ -19,7 +21,9 @@ export default async function InboxPage({
 
   return (
     <>
-      <h1>{t('title')}</h1>
+      <header className={styles.header}>
+        <h1 className={styles.title}>{t('title')}</h1>
+      </header>
       <InboxFilters params={params} status={query.status ?? []} counts={statusCounts} />
       <IncidentTable items={items} params={params} sort={query.sort} order={query.order} />
       {total > 0 && <Pagination params={params} total={total} limit={limit} offset={offset} />}

@@ -4,8 +4,21 @@
   },
   "orders": {
     "title": "Mis pedidos",
+    "reportProblem": "Reportar un problema",
+    "viewIncident": "Ver mi incidencia",
     "empty": "Todavía no tienes pedidos.",
-    "logOut": "Cerrar sesión"
+    "order": "Pedido {id}",
+    "address": "Dirección",
+    "loading": "Cargando tus pedidos...",
+    "error": "No hemos podido cargar tus pedidos. Inténtalo de nuevo.",
+    "retry": "Reintentar",
+    "logOut": "Cerrar sesión",
+    "statuses": {
+      "pending": "Pendiente",
+      "in_transit": "En camino",
+      "delivered": "Entregado",
+      "failed": "No entregado"
+    }
   },
   "login": {
     "title": "Iniciar sesión",
@@ -52,17 +65,92 @@
       "descriptionTooLong": "La descripción es demasiado larga. Usa como máximo {max} caracteres.",
       "orderNotFound": "No hemos encontrado este pedido.",
       "generic": "No hemos podido enviar el reporte. Inténtalo de nuevo en un momento."
+    },
+    "evidence": {
+      "title": "Fotos y vídeos",
+      "camera": "Hacer una foto o vídeo",
+      "gallery": "Elegir de la galería",
+      "hint": "Hasta {maxFiles} archivos. Fotos de hasta {imageMb} MB y vídeos de hasta {videoMb} MB.",
+      "suggestPhoto": "Una foto del problema nos ayuda a resolverlo más rápido.",
+      "selected": "Archivos seleccionados",
+      "remove": "Quitar",
+      "removeFile": "Quitar {name}",
+      "rejected": {
+        "type": "{name} no se ha añadido. Solo se pueden adjuntar fotos (JPEG, PNG, WebP, HEIC) y vídeos (MP4, MOV).",
+        "size": "{name} no se ha añadido porque pesa demasiado. Las fotos pueden pesar hasta {imageMb} MB y los vídeos hasta {videoMb} MB.",
+        "tooMany": "{name} no se ha añadido. Puedes adjuntar hasta {maxFiles} archivos."
+      }
     }
   },
   "incident": {
     "title": "Incidencia",
     "reference": "Incidencia {id}",
+    "order": "Pedido",
+    "typeLabel": "Tipo de incidencia",
+    "status": "Estado actual",
+    "description": "Descripción",
+    "resolution": "Resolución",
+    "timeline": "Cronología de la incidencia",
+    "createdAt": "Fecha de apertura",
+    "closedAt": "Fecha de cierre",
     "type": {
       "not_delivered": "No entregado",
       "delayed": "Retrasado",
       "damaged": "Dañado",
       "wrong_item": "Artículo incorrecto",
       "other": "Otro"
+    },
+    "summary": "Resumen",
+    "loading": "Cargando tu incidencia…",
+    "error": "No hemos podido cargar tu incidencia. Vuelve a intentarlo.",
+    "retry": "Volver a intentarlo",
+    "backToOrders": "Ir a mis pedidos",
+    "joinCall": "Unirme a la llamada",
+    "notFound": {
+      "title": "No encontramos esta incidencia",
+      "description": "Puede que no exista o que pertenezca a otra cuenta."
+    },
+    "progress": {
+      "step": "Paso {current} de {total}: {label}",
+      "states": {
+        "done": "Completado",
+        "current": "Paso actual",
+        "upcoming": "Pendiente"
+      },
+      "steps": {
+        "reported": "Registrada",
+        "notified": "Repartidor avisado",
+        "in_mediation": "En mediación",
+        "resolved": "Resuelta",
+        "escalated": "Escalada"
+      },
+      "next": {
+        "open": "Hemos recibido tu aviso. Ahora avisaremos al repartidor para que revise qué ha pasado.",
+        "notified": "El repartidor ya conoce tu incidencia. Ahora prepararemos una llamada contigo, el repartidor y nuestro equipo de soporte.",
+        "in_mediation": "Estamos preparando una llamada contigo, el repartidor y nuestro equipo de soporte. Te enviaremos un SMS cuando esté lista.",
+        "in_mediation_call": "Tu llamada está lista. Únete para resolver la incidencia con el repartidor y nuestro equipo de soporte.",
+        "resolved": "Tu incidencia está resuelta. No tienes que hacer nada más.",
+        "escalated": "Hemos pasado tu incidencia a un equipo especializado. Se pondrán en contacto contigo para resolverla."
+      }
+    },
+    "evidence": {
+      "title": "Fotos y vídeos",
+      "photo": "Foto {number}",
+      "video": "Vídeo {number}",
+      "processing": "{count, plural, one {Todavía estamos procesando # archivo.} other {Todavía estamos procesando # archivos.}}",
+      "error": "No hemos podido cargar tus fotos y vídeos."
+    },
+    "events": {
+      "status": {
+        "open": "Has registrado la incidencia",
+        "notified": "Hemos avisado al repartidor",
+        "in_mediation": "Hemos empezado a preparar una llamada para resolverlo",
+        "resolved": "La incidencia se ha resuelto",
+        "escalated": "Hemos pasado la incidencia a un equipo especializado"
+      },
+      "evidence_uploaded": "Has añadido una foto o un vídeo",
+      "assigned": "Un agente de soporte está revisando tu incidencia",
+      "driver_joined": "El repartidor se ha unido a la llamada"
     }
   },
   "call": {

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
@@ -10,7 +11,10 @@ import { listenForInstallPrompt } from './pwa/installPrompt.ts';
 import { InterruptionsProvider } from './pwa/InterruptionsProvider.tsx';
 import { OfflineBanner } from './pwa/OfflineBanner.tsx';
 import { UpdatePrompt } from './pwa/UpdatePrompt.tsx';
+import { shouldRetry } from './query-retry.ts';
 import '@csl/design-tokens';
+
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: shouldRetry } } });
 
 const container = document.getElementById('root');
 
@@ -22,17 +26,19 @@ listenForInstallPrompt();
 
 createRoot(container).render(
   <StrictMode>
-    <LocaleProvider>
-      <InterruptionsProvider>
-        <OfflineBanner />
-        <LocaleSwitcher />
-        <BrowserRouter>
-          <SessionProvider>
-            <App />
-          </SessionProvider>
-        </BrowserRouter>
-        <UpdatePrompt />
-      </InterruptionsProvider>
-    </LocaleProvider>
+    <QueryClientProvider client={queryClient}>
+      <LocaleProvider>
+        <InterruptionsProvider>
+          <OfflineBanner />
+          <LocaleSwitcher />
+          <BrowserRouter>
+            <SessionProvider>
+              <App />
+            </SessionProvider>
+          </BrowserRouter>
+          <UpdatePrompt />
+        </InterruptionsProvider>
+      </LocaleProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );

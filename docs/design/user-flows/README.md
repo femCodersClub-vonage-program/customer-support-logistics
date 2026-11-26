@@ -31,8 +31,6 @@ The incident management flow has been reviewed and validated by the team.
 - [View the incident flow (PDF)](incident-management.pdf)
 - [Edit the incident flow (draw.io)](incident-management.drawio)
 
-
-
 ## Scope
 
 These documents describe user actions, communication channels, ticket states and alternative paths.

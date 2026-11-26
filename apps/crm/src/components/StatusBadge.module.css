@@ -1,33 +1,50 @@
 .badge {
   --badge-color: var(--color-text-muted);
+  --badge-bg: var(--color-bg);
 
-  display: inline-block;
-  padding: 0.125rem 0.5rem;
-  border: 1px solid currentcolor;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-pill);
   color: var(--badge-color);
-  background: color-mix(in srgb, var(--badge-color) 12%, var(--color-surface));
+  background: var(--badge-bg);
   font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1.2;
   white-space: nowrap;
+}
+
+.badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background-color: currentcolor;
+  flex-shrink: 0;
 }
 
 .badge[data-status='open'] {
   --badge-color: var(--status-open);
+  --badge-bg: var(--status-open-bg);
 }
 
 .badge[data-status='notified'] {
   --badge-color: var(--status-notified);
+  --badge-bg: var(--status-notified-bg);
 }
 
 .badge[data-status='in_mediation'] {
   --badge-color: var(--status-in-mediation);
+  --badge-bg: var(--status-in-mediation-bg);
 }
 
 .badge[data-status='resolved'] {
   --badge-color: var(--status-resolved);
+  --badge-bg: var(--status-resolved-bg);
 }
 
 .badge[data-status='escalated'] {
   --badge-color: var(--status-escalated);
+  --badge-bg: var(--status-escalated-bg);
 }

@@ -7,7 +7,58 @@ const baseEnvSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   REDIS_URL: z.url({ protocol: /^rediss?$/ }).optional(),
+  STORAGE_ENDPOINT: z.url({ protocol: /^https?$/ }),
+  STORAGE_PUBLIC_ENDPOINT: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.url({ protocol: /^https$/ }).optional(),
+  ),
+  STORAGE_REGION: z.string().min(1),
+  STORAGE_BUCKET: z
+    .string()
+    .min(3)
+    .max(63)
+    .regex(/^[a-z0-9][a-z0-9.-]*[a-z0-9]$/),
+  STORAGE_ACCESS_KEY: z.string().min(1),
+  STORAGE_SECRET_KEY: z.string().min(1),
+  STORAGE_FORCE_PATH_STYLE: z.stringbool(),
+  STORAGE_PUBLIC_FORCE_PATH_STYLE: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.stringbool().optional(),
+  ),
+  EVIDENCE_IMAGE_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10 * 1024 * 1024),
+  EVIDENCE_VIDEO_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(50 * 1024 * 1024),
+  EVIDENCE_MAX_FILES_PER_INCIDENT: z.coerce.number().int().positive().default(5),
+  EVIDENCE_UPLOAD_URL_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15 * 60),
+  EVIDENCE_PENDING_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60),
+  EVIDENCE_DOWNLOAD_URL_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(5 * 60),
   PUBLIC_URL: z.url({ protocol: /^https$/ }).optional(),
+  CLIENT_PUBLIC_URL: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.url({ protocol: /^https?$/ }).optional(),
+  ),
+  JOBS_POLLING_INTERVAL_SECONDS: z.coerce.number().min(0.5).default(2),
+  MEDIATION_CALL_DELAY_SECONDS: z.coerce.number().int().min(0).default(120),
+  MEDIATION_RETRY_DELAY_SECONDS: z.coerce.number().int().min(0).default(60),
   VONAGE_ENABLED: z.stringbool().default(true),
   VONAGE_API_KEY: z.string().min(1).optional(),
   VONAGE_API_SECRET: z.string().min(1).optional(),
@@ -52,6 +103,7 @@ export const VONAGE_REQUIRED_VARIABLES = [
   'VONAGE_VIRTUAL_NUMBER',
   'VONAGE_SIGNATURE_SECRET',
   'PUBLIC_URL',
+  'CLIENT_PUBLIC_URL',
 ] as const;
 
 export function isVonageEnabled(env: Pick<Env, 'NODE_ENV' | 'VONAGE_ENABLED'>): boolean {
@@ -59,6 +111,34 @@ export function isVonageEnabled(env: Pick<Env, 'NODE_ENV' | 'VONAGE_ENABLED'>): 
 }
 
 export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
+  if (
+    env.STORAGE_PUBLIC_ENDPOINT &&
+    !(env.STORAGE_PUBLIC_FORCE_PATH_STYLE ?? env.STORAGE_FORCE_PATH_STYLE) &&
+    env.STORAGE_BUCKET.includes('.')
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['STORAGE_PUBLIC_FORCE_PATH_STYLE'],
+      message: 'HTTPS signing for bucket names containing dots requires path-style addressing',
+    });
+  }
+
+  if (env.EVIDENCE_PENDING_TTL_SECONDS < env.EVIDENCE_UPLOAD_URL_TTL_SECONDS + 60) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['EVIDENCE_PENDING_TTL_SECONDS'],
+      message: 'Must exceed EVIDENCE_UPLOAD_URL_TTL_SECONDS by at least 60 seconds',
+    });
+  }
+  if (env.EVIDENCE_PENDING_TTL_SECONDS > 12 * 60 * 60) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['EVIDENCE_PENDING_TTL_SECONDS'],
+      message:
+        'Must not exceed 12 hours, so pending uploads expire before storage lifecycle cleanup',
+    });
+  }
+
   if (env.DEV_VERIFY_CODE !== undefined && env.NODE_ENV === 'production') {
     ctx.addIssue({
       code: 'custom',

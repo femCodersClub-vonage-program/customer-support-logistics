@@ -21,9 +21,12 @@
     "db:check": "drizzle-kit check",
     "db:seed": "node --env-file-if-exists=.env dist/database/seed.js",
     "agent:create": "node --env-file-if-exists=.env dist/auth/create-agent.js",
+    "evidence:reconcile": "node --env-file-if-exists=.env dist/storage/reconcile-evidence-cli.js",
     "vonage:send-test-sms": "node --env-file-if-exists=.env dist/vonage/send-test-sms.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1169.0",
+    "@aws-sdk/s3-request-presigner": "^3.1169.0",
     "@csl/contracts": "workspace:*",
     "@csl/i18n": "workspace:*",
     "@csl/shared-types": "workspace:*",
@@ -38,6 +41,7 @@
     "@vonage/verify2": "1.22.1",
     "drizzle-orm": "0.45.4",
     "pg": "8.23.1",
+    "pg-boss": "12.39.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "use-intl": "4.14.9",

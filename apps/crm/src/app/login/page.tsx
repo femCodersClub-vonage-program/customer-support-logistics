@@ -17,8 +17,10 @@ export default async function LoginPage({
       <div className={styles.toolbar}>
         <LocaleSwitcher />
       </div>
-      <h1>{t('title')}</h1>
-      <LoginForm next={safeNextPath(typeof next === 'string' ? next : undefined)} />
+      <section className={styles.card}>
+        <h1 className={styles.title}>{t('title')}</h1>
+        <LoginForm next={safeNextPath(typeof next === 'string' ? next : undefined)} />
+      </section>
     </main>
   );
 }

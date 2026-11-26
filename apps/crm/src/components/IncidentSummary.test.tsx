@@ -23,16 +23,16 @@ describe('IncidentSummary', () => {
 
   it('shows the last driver reply, translated when it is a known option', () => {
     const events = [
-      buildEvent({ id: 'a', actor: 'driver', reason: 'delivered' }),
-      buildEvent({ id: 'b', actor: 'driver', reason: 'address_not_found' }),
+      buildEvent({ id: 'a', actor: 'driver', reason: 'resolve_with_store' }),
+      buildEvent({ id: 'b', actor: 'driver', reason: 'request_mediation' }),
     ];
 
     renderWithIntl(<IncidentSummary incident={buildIncidentDetail({ events })} />, {
       locale: 'es',
     });
 
-    expect(screen.getByText(/No encuentra la dirección/)).toBeInTheDocument();
-    expect(screen.queryByText(/Dice que lo entregó/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Pide una llamada a tres/)).toBeInTheDocument();
+    expect(screen.queryByText(/Lo resuelve con la tienda/)).not.toBeInTheDocument();
   });
 
   it('shows an unknown driver reply as it is', () => {

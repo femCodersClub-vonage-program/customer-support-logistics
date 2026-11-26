@@ -1,4 +1,3 @@
-
 # Agent User Flow
 
 ## Interface
@@ -7,22 +6,25 @@ Desktop CRM (`apps/crm`).
 
 ## Main flow
 
-| Step | Screen | Agent action | System response | Ticket state |
-|---|---|---|---|---|
-| 1 | `/inbox` | Reviews incoming incidents. | Displays reported incidents. | `open` |
-| 2 | `/incidents/[id]` | Opens a case and reviews the evidence. | Displays the incident details and attachments. | `open` |
-| 3 | `/incidents/[id]` | Requests contact with the driver. | Sends an incident notification by SMS. | `notified` |
-| 4 | `/incidents/[id]` | Reviews the driver's response. | Displays the response or contact failure. | `notified` |
-| 5 | `/incidents/[id]` | Determines whether three-way mediation is needed. | Continues with direct resolution or mediation. | `notified` |
-| 6 | `/incidents/[id]/mediation` | Starts three-way mediation when required. | Sends an advance SMS and calls the driver. | `in_mediation` |
-| 7 | `/incidents/[id]/mediation` | Moderates the conversation. | Connects customer and agent via WebRTC and driver via PSTN. | `in_mediation` |
-| 8 | `/incidents/[id]` | Records the outcome. | Updates the ticket and notifies the customer. | `resolved` / `escalated` |
+| Step | Screen                      | Agent action                                      | System response                                             | Ticket state             |
+| ---- | --------------------------- | ------------------------------------------------- | ----------------------------------------------------------- | ------------------------ |
+| 1    | `/inbox`                    | Reviews incoming incidents.                       | Displays reported incidents.                                | `open`                   |
+| 2    | `/incidents/[id]`           | Opens a case and reviews the evidence.            | Displays the incident details and attachments.              | `open`                   |
+| 3    | `/incidents/[id]`           | Requests contact with the driver.                 | Sends an incident notification by SMS.                      | `notified`               |
+| 4    | `/incidents/[id]`           | Reviews the driver's response.                    | Displays the response or contact failure.                   | `notified`               |
+| 5    | `/incidents/[id]`           | Determines whether three-way mediation is needed. | Continues with direct resolution or mediation.              | `notified`               |
+| 6    | `/incidents/[id]/mediation` | Starts three-way mediation when required.         | Texts the driver and the customer, and calls the driver.    | `in_mediation`           |
+| 7    | `/incidents/[id]/mediation` | Moderates the conversation.                       | Connects customer and agent via WebRTC and driver via PSTN. | `in_mediation`           |
+| 8    | `/incidents/[id]`           | Records the outcome.                              | Updates the ticket, ends the call and notifies by SMS.      | `resolved` / `escalated` |
 
 ## Alternative paths
 
-- **No mediation needed:** The agent records the resolution and closes the incident.
+- **No mediation needed:** The agent records the resolution and closes the incident. The customer and the driver receive a confirmation SMS.
+- **Outcome recorded:** Resolving sends an SMS to the customer and to the driver; escalating sends one to the customer. Each is in the recipient's language and doesn't include the agent's note.
 - **Driver does not respond to the initial SMS:** The contact attempt is recorded and the incident remains pending further handling.
-- **Driver does not answer the mediation call or press 1:** Two retries are made, 60 seconds apart, followed by a fallback SMS.
+- **Starting the mediation:** The driver gets an SMS announcing the call and the customer an SMS with the link to `/call/:id`. The driver is called 2 minutes later.
+- **Driver does not answer the mediation call or press 1:** The call is retried twice, 60 seconds apart (3 calls in total), then the driver gets a fallback SMS. The timeline shows that the driver could not be reached, and the incident stays in mediation.
+- **Call driver again:** The agent can call the driver at once. That call is not retried automatically.
 - **Mediation cannot proceed:** The agent reschedules or escalates the incident.
 - **Driver calls or texts the virtual number:** The system associates the contact with the active incident or logs it and notifies the agent.
 - **Escalation:** The agent can escalate an unresolved incident before it reaches `resolved`.

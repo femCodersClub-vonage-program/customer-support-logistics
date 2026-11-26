@@ -4,6 +4,8 @@ import {
   COMMUNICATION_CHANNELS,
   COMMUNICATION_DIRECTIONS,
   COMMUNICATION_STATUSES,
+  EVIDENCE_STATUSES,
+  INCIDENT_EVENT_KINDS,
   INCIDENT_STATUSES,
   INCIDENT_TYPES,
   ORDER_STATUSES,
@@ -19,6 +21,8 @@ export const incidentStatus = pgEnum('incident_status', INCIDENT_STATUSES);
 
 export const incidentType = pgEnum('incident_type', INCIDENT_TYPES);
 
+export const incidentEventKind = pgEnum('incident_event_kind', INCIDENT_EVENT_KINDS);
+
 export const actor = pgEnum('actor', ACTORS);
 
 export const agentRole = pgEnum('agent_role', AGENT_ROLES);
@@ -28,6 +32,8 @@ export const communicationChannel = pgEnum('communication_channel', COMMUNICATIO
 export const communicationDirection = pgEnum('communication_direction', COMMUNICATION_DIRECTIONS);
 
 export const communicationStatus = pgEnum('communication_status', COMMUNICATION_STATUSES);
+
+export const evidenceStatus = pgEnum('evidence_status', EVIDENCE_STATUSES);
 
 export const WEBHOOK_EVENT_SOURCES = [
   'messages_inbound',

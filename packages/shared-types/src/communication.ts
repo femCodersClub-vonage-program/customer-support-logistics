@@ -6,7 +6,7 @@ export const COMMUNICATION_DIRECTIONS = ['inbound', 'outbound'] as const;
 
 export type CommunicationDirection = (typeof COMMUNICATION_DIRECTIONS)[number];
 
-export const COMMUNICATION_STATUSES = ['queued', 'in_progress', 'completed', 'failed'] as const;
+export const COMMUNICATION_STATUSES = ['pending', 'queued', 'in_progress', 'completed', 'failed'] as const;
 
 export type CommunicationStatus = (typeof COMMUNICATION_STATUSES)[number];
 
@@ -17,7 +17,8 @@ export interface Communication {
   direction: CommunicationDirection;
   fromNumber: string | null;
   toNumber: string | null;
-  vonageUuid: string;
+  vonageUuid: string | null;
   status: CommunicationStatus;
   durationSeconds: number | null;
+  createdAt: string;
 }

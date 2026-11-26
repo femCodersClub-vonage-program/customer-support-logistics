@@ -5,14 +5,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { goTo, isOnWifi } from '../auth/browser.ts';
 import { readPendingLogin, savePendingLogin } from '../auth/pending-login.ts';
-import { CUSTOMER, apiError, apiUrl, renderApp, sessionOf } from '../test/app.tsx';
+import { CUSTOMER, apiError, apiUrl, ordersOf, renderApp, sessionOf } from '../test/app.tsx';
 
 vi.mock('../auth/browser.ts', () => ({ goTo: vi.fn(), isOnWifi: vi.fn(() => false) }));
 
 const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
 const REPORT_PATH = `/report/${ORDER_ID}`;
 const CHECK_URL = 'https://verify.test/silent-auth/req-1';
-const server = setupServer();
+const server = setupServer(ordersOf());
 
 let smsCalls = 0;
 let checkBodies: unknown[] = [];

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { MemoryRouter } from 'react-router';
@@ -5,7 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { App } from '../App.tsx';
 import { SessionProvider } from '../auth/session.tsx';
-import { CUSTOMER, sessionOf } from '../test/app.tsx';
+import { CUSTOMER, ordersOf, sessionOf } from '../test/app.tsx';
 
 import { LOCALE_KEY } from './locale.ts';
 import { LocaleProvider } from './LocaleProvider.tsx';
@@ -13,7 +14,7 @@ import { LocaleSwitcher } from './LocaleSwitcher.tsx';
 
 const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
 
-const server = setupServer(sessionOf(CUSTOMER));
+const server = setupServer(sessionOf(CUSTOMER), ordersOf());
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 afterAll(() => server.close());
@@ -23,15 +24,19 @@ function setBrowserLanguages(languages: string[]) {
 }
 
 function renderAppAt(path: string) {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   return render(
-    <LocaleProvider>
-      <LocaleSwitcher />
-      <MemoryRouter initialEntries={[path]}>
-        <SessionProvider>
-          <App />
-        </SessionProvider>
-      </MemoryRouter>
-    </LocaleProvider>,
+    <QueryClientProvider client={queryClient}>
+      <LocaleProvider>
+        <LocaleSwitcher />
+        <MemoryRouter initialEntries={[path]}>
+          <SessionProvider>
+            <App />
+          </SessionProvider>
+        </MemoryRouter>
+      </LocaleProvider>
+    </QueryClientProvider>,
   );
 }
 

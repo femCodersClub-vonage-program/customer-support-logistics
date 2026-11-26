@@ -33,10 +33,15 @@ describe('seed data', () => {
 
           expect(event.fromStatus).toBe(previous?.toStatus);
           expect(event.occurredAt.getTime()).toBeGreaterThan(previous?.occurredAt.getTime() ?? 0);
-          expect(
-            event.fromStatus !== null &&
-              canTransition(event.fromStatus, event.toStatus, event.actor),
-          ).toBe(true);
+
+          if (event.kind === 'status_changed') {
+            expect(
+              event.fromStatus !== null &&
+                canTransition(event.fromStatus, event.toStatus, event.actor),
+            ).toBe(true);
+          } else {
+            expect(event.toStatus).toBe(event.fromStatus);
+          }
         }
       });
 

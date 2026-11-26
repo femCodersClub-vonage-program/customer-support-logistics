@@ -1,17 +1,24 @@
 .bar {
   grid-area: top;
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
-  height: 56px;
+  gap: 12px;
+  min-height: 60px;
   padding: 0 24px;
+  border-bottom: 1px solid var(--color-dark-border);
   background-color: var(--color-dark-bg);
   color: var(--color-surface);
+  box-shadow: var(--shadow-xs);
 }
 
 .brand {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .accent {
@@ -19,18 +26,42 @@
 }
 
 .logOutError:not(:empty) {
-  margin-left: 16px;
-  font-size: 0.875rem;
+  margin-left: 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-alert);
+  color: var(--color-surface);
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .logOut {
-  margin-left: 16px;
-  padding: 4px 8px;
-  border: 1px solid var(--color-dark-accent);
-  border-radius: 4px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-dark-border);
+  border-radius: var(--radius-sm);
   background-color: var(--color-dark-surface);
   color: var(--color-surface);
   font: inherit;
   font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.logOut:hover:not(:disabled) {
+  border-color: var(--color-dark-accent);
+  background-color: var(--color-dark-surface-hover);
+}
+
+.logOut:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.logOut:focus-visible {
+  outline: 3px solid var(--color-dark-accent);
+  outline-offset: 2px;
 }

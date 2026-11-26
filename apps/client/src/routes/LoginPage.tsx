@@ -42,19 +42,21 @@ export function LoginPage() {
 
   return (
     <main className="login">
-      <h1>{t('title')}</h1>
-      {phone === null ? (
-        <PhoneStep next={next} initialError={initial.error} onSent={setPhone} />
-      ) : (
-        <CodeStep
-          phone={phone}
-          onLoggedIn={(user) => {
-            logIn(user);
-            void navigate(next, { replace: true });
-          }}
-          onChangeNumber={() => setPhone(null)}
-        />
-      )}
+      <div className="login-card">
+        <h1>{t('title')}</h1>
+        {phone === null ? (
+          <PhoneStep next={next} initialError={initial.error} onSent={setPhone} />
+        ) : (
+          <CodeStep
+            phone={phone}
+            onLoggedIn={(user) => {
+              logIn(user);
+              void navigate(next, { replace: true });
+            }}
+            onChangeNumber={() => setPhone(null)}
+          />
+        )}
+      </div>
     </main>
   );
 }

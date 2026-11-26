@@ -4,8 +4,21 @@
   },
   "orders": {
     "title": "My orders",
+    "reportProblem": "Report a problem",
+    "viewIncident": "View my incident",
     "empty": "You have no orders yet.",
-    "logOut": "Log out"
+    "order": "Order {id}",
+    "address": "Address",
+    "loading": "Loading your orders...",
+    "error": "We couldn't load your orders. Please try again.",
+    "retry": "Try again",
+    "logOut": "Log out",
+    "statuses": {
+      "pending": "Pending",
+      "in_transit": "On the way",
+      "delivered": "Delivered",
+      "failed": "Not delivered"
+    }
   },
   "login": {
     "title": "Log in",
@@ -52,17 +65,92 @@
       "descriptionTooLong": "The description is too long. Use at most {max} characters.",
       "orderNotFound": "We could not find this order.",
       "generic": "We could not send the report. Try again in a moment."
+    },
+    "evidence": {
+      "title": "Photos and videos",
+      "hint": "Up to {maxFiles} files. Photos up to {imageMb} MB, videos up to {videoMb} MB.",
+      "camera": "Take a photo or video",
+      "gallery": "Choose from gallery",
+      "suggestPhoto": "A photo of the problem helps us solve it faster.",
+      "selected": "Selected files",
+      "remove": "Remove",
+      "removeFile": "Remove {name}",
+      "rejected": {
+        "type": "{name} was not added. Only photos (JPEG, PNG, WebP, HEIC) and videos (MP4, MOV) can be attached.",
+        "size": "{name} was not added because it is too big. Photos can be up to {imageMb} MB and videos up to {videoMb} MB.",
+        "tooMany": "{name} was not added. You can attach up to {maxFiles} files."
+      }
     }
   },
   "incident": {
     "title": "Incident",
     "reference": "Incident {id}",
+    "order": "Order",
+    "typeLabel": "Incident type",
+    "status": "Current status",
+    "description": "Description",
+    "resolution": "Resolution",
+    "timeline": "Incident timeline",
+    "createdAt": "Opening date",
+    "closedAt": "Closing date",
     "type": {
       "not_delivered": "Not delivered",
       "delayed": "Delayed",
       "damaged": "Damaged",
       "wrong_item": "Wrong item",
       "other": "Other"
+    },
+    "summary": "Summary",
+    "loading": "Loading your incident…",
+    "error": "We couldn't load your incident. Please try again.",
+    "retry": "Try again",
+    "backToOrders": "Go to my orders",
+    "joinCall": "Join the call",
+    "notFound": {
+      "title": "We can't find this incident",
+      "description": "It may not exist or it may belong to another account."
+    },
+    "progress": {
+      "step": "Step {current} of {total}: {label}",
+      "states": {
+        "done": "Completed",
+        "current": "Current step",
+        "upcoming": "Pending"
+      },
+      "steps": {
+        "reported": "Reported",
+        "notified": "Driver notified",
+        "in_mediation": "In mediation",
+        "resolved": "Resolved",
+        "escalated": "Escalated"
+      },
+      "next": {
+        "open": "We've received your report. Next, we'll let the driver know so they can check what happened.",
+        "notified": "The driver knows about your incident. Next, we'll set up a call with you, the driver and our support team.",
+        "in_mediation": "We're setting up a call with you, the driver and our support team. We'll send you an SMS when it's ready.",
+        "in_mediation_call": "Your call is ready. Join it to sort out the incident with the driver and our support team.",
+        "resolved": "Your incident is resolved. There's nothing else you need to do.",
+        "escalated": "We've passed your incident to a specialist team. They'll contact you to sort it out."
+      }
+    },
+    "evidence": {
+      "title": "Photos and videos",
+      "photo": "Photo {number}",
+      "video": "Video {number}",
+      "processing": "{count, plural, one {We're still processing # file.} other {We're still processing # files.}}",
+      "error": "We couldn't load your photos and videos."
+    },
+    "events": {
+      "status": {
+        "open": "You reported the incident",
+        "notified": "We notified the driver",
+        "in_mediation": "We started setting up a call to sort it out",
+        "resolved": "The incident was resolved",
+        "escalated": "We passed the incident to a specialist team"
+      },
+      "evidence_uploaded": "You added a photo or video",
+      "assigned": "A support agent is reviewing your incident",
+      "driver_joined": "The driver joined the call"
     }
   },
   "call": {

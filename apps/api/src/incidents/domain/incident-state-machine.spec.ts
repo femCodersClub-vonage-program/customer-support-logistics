@@ -11,6 +11,7 @@ const VALID_TRANSITIONS: ReadonlyArray<[IncidentStatus, IncidentStatus]> = [
   ['open', 'notified'],
   ['open', 'escalated'],
   ['notified', 'in_mediation'],
+  ['notified', 'resolved'],
   ['notified', 'escalated'],
   ['in_mediation', 'resolved'],
   ['in_mediation', 'escalated'],
@@ -81,6 +82,7 @@ describe('transition', () => {
     expect(result.event).toEqual({
       id: 'event-1',
       incidentId: 'incident-1',
+      kind: 'status_changed',
       fromStatus: from,
       toStatus: to,
       actor,

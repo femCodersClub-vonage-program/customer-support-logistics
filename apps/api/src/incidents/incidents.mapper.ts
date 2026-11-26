@@ -1,18 +1,22 @@
+import { mediationKeys } from './mediation-keys.js';
+
 import type {
   communications,
   customers,
   drivers,
+  evidence,
   incidentEvents,
   incidents,
 } from '../database/schema/index.js';
 import type { IncidentDetail, IncidentListItem } from '@csl/contracts';
-import type { Communication, Incident, IncidentEvent, Order } from '@csl/shared-types';
+import type { Communication, Evidence, Incident, IncidentEvent, Order } from '@csl/shared-types';
 
 export type IncidentRow = typeof incidents.$inferSelect;
 
 export type IncidentEventRow = typeof incidentEvents.$inferSelect;
 
 export type CommunicationRow = typeof communications.$inferSelect;
+export type EvidenceRow = typeof evidence.$inferSelect;
 
 export type CustomerRow = typeof customers.$inferSelect;
 
@@ -43,6 +47,7 @@ export function toIncidentEvent(row: IncidentEventRow): IncidentEvent {
   return {
     id: row.id,
     incidentId: row.incidentId,
+    kind: row.kind,
     fromStatus: row.fromStatus,
     toStatus: row.toStatus,
     actor: row.actor,
@@ -63,6 +68,19 @@ export function toCommunication(row: CommunicationRow): Communication {
     vonageUuid: row.vonageUuid,
     status: row.status,
     durationSeconds: row.durationSeconds,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export function toEvidence(row: EvidenceRow): Evidence {
+  return {
+    id: row.id,
+    incidentId: row.incidentId,
+    storageKey: row.storageKey,
+    mimeType: row.mimeType,
+    sizeBytes: row.sizeBytes,
+    status: row.status,
+    createdAt: row.createdAt.toISOString(),
   };
 }
 
@@ -73,6 +91,8 @@ export interface IncidentDetailRows {
   driver: DriverRow | null;
   events: IncidentEventRow[];
   communications: CommunicationRow[];
+  evidence: EvidenceRow[];
+  callUrl: string | null;
 }
 
 export function toIncidentDetail(rows: IncidentDetailRows): IncidentDetail {
@@ -89,5 +109,22 @@ export function toIncidentDetail(rows: IncidentDetailRows): IncidentDetail {
     driver: rows.driver ? { id: rows.driver.id, name: rows.driver.name } : null,
     events: rows.events.map(toIncidentEvent),
     communications: rows.communications.map(toCommunication),
+    evidence: rows.evidence.map(toEvidence),
+    mediationInvite: toMediationInvite(rows),
   };
+}
+
+function toMediationInvite({
+  incident,
+  communications: rows,
+  callUrl,
+}: IncidentDetailRows): IncidentDetail['mediationInvite'] {
+  const inviteKey = mediationKeys.invite(incident.id);
+  const invite = rows.find((row) => row.idempotencyKey === inviteKey);
+
+  if (invite === undefined || callUrl === null) {
+    return null;
+  }
+
+  return { url: callUrl, sentAt: invite.createdAt.toISOString() };
 }
