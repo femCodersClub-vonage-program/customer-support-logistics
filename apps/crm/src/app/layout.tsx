@@ -5,6 +5,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { SideNav } from '../components/SideNav';
 import { TopBar } from '../components/TopBar';
+import { EventsProvider } from '../lib/events/EventsProvider';
 import { SESSION_COOKIE } from '../lib/session';
 import '@csl/design-tokens';
 
@@ -38,13 +39,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body>
         <NextIntlClientProvider>
           {signedIn ? (
-            <div className={styles.shell}>
-              <TopBar />
-              <SideNav />
-              <main className={styles.content}>
-                <div className={styles.inner}>{children}</div>
-              </main>
-            </div>
+            <EventsProvider>
+              <div className={styles.shell}>
+                <TopBar />
+                <SideNav />
+                <main className={styles.content}>
+                  <div className={styles.inner}>{children}</div>
+                </main>
+              </div>
+            </EventsProvider>
           ) : (
             children
           )}

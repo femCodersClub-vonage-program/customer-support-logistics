@@ -1,0 +1,20 @@
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 0 16px;
+  font-size: 0.75rem;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-dark-accent);
+}
+
+.status[data-state='connecting'] .dot,
+.status[data-state='reconnecting'] .dot {
+  background-color: transparent;
+  border: 1px solid currentColor;
+}
