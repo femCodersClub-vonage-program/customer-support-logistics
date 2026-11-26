@@ -4,7 +4,7 @@
   },
   "orders": {
     "title": "Mis pedidos",
-    "reportProblem": "Reportar un problema",
+    "reportProblem": "Comunicar un problema",
     "viewIncident": "Ver mi incidencia",
     "empty": "Todavía no tienes pedidos.",
     "order": "Pedido {id}",
@@ -90,7 +90,7 @@
     "status": "Estado actual",
     "description": "Descripción",
     "resolution": "Resolución",
-    "timeline": "Cronología de la incidencia",
+    "timeline": "Seguimiento de la incidencia",
     "createdAt": "Fecha de apertura",
     "closedAt": "Fecha de cierre",
     "type": {
