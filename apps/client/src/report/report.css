@@ -1,12 +1,49 @@
+.report-page {
+  width: 100%;
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0.75rem 1rem 3rem;
+}
+
+.report-page__card {
+  padding: 1.5rem 1.25rem;
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.report-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border-card);
+}
+
+.report-page__title {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: 600;
+}
+
+.report-page__order {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
 .report-form {
   display: grid;
   gap: 1.5rem;
-  margin-block: 1rem;
 }
 
 .report-form__group {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.625rem;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -16,18 +53,18 @@
 .report-form__legend {
   padding: 0;
   margin-bottom: 0.5rem;
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 
 .report-form__label {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 
 .report-form__types {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -50,26 +87,38 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
-  min-height: 5.5rem;
-  padding: 0.75rem;
-  border: 2px solid var(--color-border-input);
-  border-radius: 0.75rem;
+  gap: 0.375rem;
+  min-height: 5.75rem;
+  padding: 0.875rem 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
   background-color: var(--color-surface);
   color: var(--color-text);
+  font-size: 0.9375rem;
   font-weight: 600;
   text-align: center;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.report-type:hover .report-type__card {
+  border-color: var(--color-primary);
+  background-color: var(--color-surface-subtle);
 }
 
 .report-type__icon {
-  font-size: 2rem;
+  font-size: 1.75rem;
   line-height: 1;
 }
 
 .report-type__input:checked + .report-type__card {
   border-color: var(--color-primary);
   background-color: var(--color-primary-soft);
-  box-shadow: 0 0 0 2px var(--color-primary);
+  color: var(--color-primary-hover);
+  box-shadow: 0 0 0 1.5px var(--color-primary);
 }
 
 .report-type__input:focus-visible + .report-type__card {
@@ -78,17 +127,24 @@
 }
 
 .report-form__textarea {
-  min-height: 7rem;
-  padding: 0.75rem;
+  min-height: 7.5rem;
+  padding: 0.875rem;
   border: 1px solid var(--color-border-input);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
   background-color: var(--color-surface);
   color: var(--color-text);
   font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
   resize: vertical;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .report-form__textarea:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-focus);
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;
 }
@@ -103,17 +159,46 @@
   font-size: 0.875rem;
 }
 
+.report-form__hint:empty {
+  display: none;
+}
+
 .report-form__error {
   margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-error);
+  border-inline-start: 4px solid var(--color-error);
+  border-radius: var(--radius-md);
+  background-color: var(--color-error-bg);
   color: var(--color-error);
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
 .report-form__submit {
   width: 100%;
+  min-height: 48px;
 }
 
 .report-form__submit:disabled {
   cursor: progress;
-  opacity: 0.6;
+  opacity: 0.65;
+}
+
+@media (min-width: 640px) {
+  .report-page {
+    padding: 1.5rem 2rem 4rem;
+  }
+
+  .report-page__card {
+    padding: 2rem;
+  }
+
+  .report-page__title {
+    font-size: 1.875rem;
+  }
+
+  .report-form__types {
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  }
 }
