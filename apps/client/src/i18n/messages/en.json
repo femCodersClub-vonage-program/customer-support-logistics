@@ -200,6 +200,17 @@
       "failed": "The call couldn't connect"
     },
     "duration": "Duration",
+    "privacy": "Protected call · hidden numbers",
+    "evidenceNote": "The agent can see your photos and video during the call.",
+    "inCallParticipants": {
+      "support": "Support",
+      "supportRole": "Support agent",
+      "driver": "Driver",
+      "driverRole": "Connected by phone",
+      "you": "You",
+      "micActive": "Microphone active",
+      "micMuted": "Microphone muted"
+    },
     "mute": "Mute microphone",
     "hangUp": "Hang up",
     "ended": {

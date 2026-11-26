@@ -200,6 +200,17 @@
       "failed": "No se ha podido conectar la llamada"
     },
     "duration": "Duración",
+    "privacy": "Llamada protegida · números ocultos",
+    "evidenceNote": "El agente puede ver tus fotos y vídeo durante la llamada.",
+    "inCallParticipants": {
+      "support": "Soporte",
+      "supportRole": "Agente de soporte",
+      "driver": "Repartidor",
+      "driverRole": "Conectado por teléfono",
+      "you": "Tú",
+      "micActive": "Micrófono activo",
+      "micMuted": "Micrófono silenciado"
+    },
     "mute": "Silenciar micrófono",
     "hangUp": "Colgar",
     "ended": {
