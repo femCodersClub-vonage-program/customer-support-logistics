@@ -1,4 +1,5 @@
 :root {
+  /* Brand and actions */
   --color-primary: #871eff;
   --color-primary-hover: #6405d1;
   --color-primary-soft: #f5f0fd;
@@ -6,13 +7,20 @@
   --color-secondary: #d6219c;
   --color-accent: #fa7454;
 
+  /* Feedback (semantic) */
   --color-success: #1c8731;
+  --color-success-bg: #e1f8e5;
   --color-warning: #be5702;
+  --color-warning-bg: #fdf5d4;
   --color-error: #cd0d0d;
+  --color-error-bg: #fdecec;
   --color-info: #0276d5;
+  --color-info-bg: #e8f4fb;
 
+  /* Surfaces and text */
   --color-bg: #f2f2f2;
   --color-surface: #ffffff;
+  --color-surface-subtle: #fafafa;
   --color-text: #0d0d0d;
   --color-text-muted: #666666;
   --color-border: #cccccc;
@@ -20,18 +28,44 @@
   --color-border-card: #e6e6e6;
   --color-border-button-secondary: #929292;
 
+  /* Ticket statuses */
   --status-open: #a64c03;
   --status-open-bg: #fdf5d4;
   --status-notified: #0e65c2;
   --status-notified-bg: #e8f4fb;
   --status-in-mediation: #871eff;
+  --status-in-mediation-bg: #f5f0fd;
   --status-resolved: #167629;
   --status-resolved-bg: #e1f8e5;
   --status-escalated: #cd0d0d;
+  --status-escalated-bg: #fdecec;
 
+  /* Alert */
   --color-alert: #cd0d0d;
+  --color-alert-hover: #a80a0a;
 
+  /* Dark surfaces (in-call screen & CRM header) */
   --color-dark-bg: #191828;
   --color-dark-surface: #31304f;
+  --color-dark-surface-hover: #3e3d63;
+  --color-dark-border: #47466e;
+  --color-dark-text-muted: #b8b6d4;
   --color-dark-accent: #cba1fa;
+
+  /* Typography */
+  --font-sans: var(--font-space-grotesk, 'Space Grotesk'), system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-pill: 9999px;
+
+  /* Elevation */
+  --shadow-xs: 0 1px 2px rgb(13 13 13 / 5%);
+  --shadow-sm: 0 2px 8px rgb(13 13 13 / 6%);
+  --shadow-md: 0 8px 24px rgb(13 13 13 / 10%);
+  --shadow-focus: 0 0 0 3px rgb(135 30 255 / 22%);
 }
