@@ -220,6 +220,24 @@ The CRM page `/incidents/:id/mediation` (`apps/crm/src/app/incidents/[id]/mediat
 
 The Client SDK JWT is available ([#36], see [Joining from the browser](#joining-from-the-browser)). The agent's audio, the participants panel and the call controls in the CRM are still _planned_.
 
+### Ending the call and removing a participant
+
+Two more agent-only endpoints in `MediationService` take people off the conversation while the incident stays `in_mediation` ([#84]). Both use `VonageService.hangupCall` (`PUT /v1/calls/:uuid`, `action: hangup`), the same call that [closing the call](#closing-the-call) uses, so the API does it and not the Client SDK: the server knows every leg of `inc-<id>` and doesn't depend on what the agent's browser can reach.
+
+| Route                                                            | What it does                                                                                             | Response |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------- |
+| `POST /incidents/:id/mediation/end`                              | Hangs up every leg of the incident: the driver's call and the browser legs of the customer and the agent | `204`    |
+| `POST /incidents/:id/mediation/participants/:participant/remove` | Hangs up the legs of one participant, `customer` or `driver`, and leaves the others on the call          | `204`    |
+
+- **Which legs.** The voice `Communication`s of the incident that are `queued` or `in_progress` and have a Vonage call id; a `queued` one is a call that is still ringing. The customer's legs are the ones from `cust-<customerId>` (the browser leg stored by the answer URL, see [Joining from the browser](#joining-from-the-browser)); the driver's are the calls to their phone and the ones they placed to the virtual number. The agent's own leg only goes with `end`.
+- **Identifying the participant.** By role in the path, not by Vonage call id, so the CRM never handles Vonage ids and can't ask the API to hang up a call of another incident. Any other value answers `400`.
+- **Nothing is stored.** A hang-up doesn't touch the incident or the `Communication`s: the voice event webhook marks each leg `completed` when Vonage reports it, as with any other call. A repeated request hangs up again, which is harmless because `hangupCall` treats Vonage's `404` and `410` as a call that had already ended.
+- **`403`:** the actor is not an agent. **`401`:** no session. **`404`:** the incident doesn't exist.
+- **`409`:** no leg is on the call (for `remove`, none of that participant's, or the incident has no driver). The incident status is not checked, so an agent can still hang up a leg that was left over after the incident was closed.
+- **`502`** (`BAD_GATEWAY`): Vonage failed to hang up at least one leg. The others are still hung up, nothing is stored and the agent can try again; the legs that were already hung up answer `404` or `410` on the retry.
+
+The CRM buttons and confirmations, the confirmation SMS after closing and the automatic driver retries are separate tasks. Note that ending the call doesn't cancel a retry that is already scheduled for the driver: while the incident is `in_mediation`, the job still calls them unless they have joined.
+
 ### Closing the call
 
 The mediation form records the outcome with `PATCH /incidents/:id/status`, which adds an `IncidentEvent` to the timeline:
@@ -330,4 +348,5 @@ Confirm as well, since the SDK and Vonage docs don't say it clearly: that Vonage
 [#38]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/38
 [#39]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/39
 [#40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40
+[#84]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/84
 [#85]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/85
