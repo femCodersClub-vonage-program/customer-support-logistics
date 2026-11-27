@@ -1,4 +1,4 @@
-import { Camera, ImagePlus } from 'lucide-react';
+import { Camera, ImagePlus, Video } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'use-intl';
 
@@ -8,6 +8,8 @@ import {
   EVIDENCE_MAX_FILES,
   EVIDENCE_MAX_IMAGE_BYTES,
   EVIDENCE_MAX_VIDEO_BYTES,
+  EVIDENCE_PHOTO_CAPTURE_ACCEPT,
+  EVIDENCE_VIDEO_CAPTURE_ACCEPT,
   mimeTypeOf,
 } from './evidence-files.ts';
 import './evidence.css';
@@ -138,21 +140,35 @@ export function EvidencePicker({
       <legend className="report-form__legend">{t('title')}</legend>
 
       <div className="evidence__actions">
-        <label className="evidence-button">
+        <label className="evidence-button" title={t('takePhoto')}>
           <input
             className="evidence-button__input"
             type="file"
-            accept={EVIDENCE_ACCEPT}
+            accept={EVIDENCE_PHOTO_CAPTURE_ACCEPT}
             capture={CAMERA}
             aria-describedby={hintId}
             onChange={handleChange}
           />
           <span className="pwa-button">
-            <Camera size={18} strokeWidth={2} aria-hidden="true" />
-            {t('camera')}
+            <Camera size={22} strokeWidth={2} aria-hidden="true" />
+            <span className="evidence-button__label">{t('takePhoto')}</span>
           </span>
         </label>
-        <label className="evidence-button">
+        <label className="evidence-button" title={t('recordVideo')}>
+          <input
+            className="evidence-button__input"
+            type="file"
+            accept={EVIDENCE_VIDEO_CAPTURE_ACCEPT}
+            capture={CAMERA}
+            aria-describedby={hintId}
+            onChange={handleChange}
+          />
+          <span className="pwa-button pwa-button--secondary">
+            <Video size={22} strokeWidth={2} aria-hidden="true" />
+            <span className="evidence-button__label">{t('recordVideo')}</span>
+          </span>
+        </label>
+        <label className="evidence-button" title={t('gallery')}>
           <input
             className="evidence-button__input"
             type="file"
@@ -162,8 +178,8 @@ export function EvidencePicker({
             onChange={handleChange}
           />
           <span className="pwa-button pwa-button--secondary">
-            <ImagePlus size={18} strokeWidth={2} aria-hidden="true" />
-            {t('gallery')}
+            <ImagePlus size={22} strokeWidth={2} aria-hidden="true" />
+            <span className="evidence-button__label">{t('gallery')}</span>
           </span>
         </label>
       </div>
