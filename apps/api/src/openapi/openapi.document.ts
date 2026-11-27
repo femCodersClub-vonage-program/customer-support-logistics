@@ -21,6 +21,7 @@ import {
   listIncidentsQuerySchema,
   listIncidentsResponseSchema,
   listOrdersResponseSchema,
+  mediationParticipantParamsSchema,
   requestEvidenceUploadBodySchema,
   startMediationResponseSchema,
 } from '@csl/contracts';
@@ -67,6 +68,11 @@ const driverCallErrors: ZodOpenApiResponsesObject = {
   '403': forbiddenFor('customers'),
   '404': error('The incident does not exist'),
   '502': error('Vonage could not create the call; the agent can try again'),
+};
+
+const hangupErrors: ZodOpenApiResponsesObject = {
+  ...driverCallErrors,
+  '502': error('Vonage could not hang up every call; the agent can try again'),
 };
 
 export function createOpenApiDocument(): ReturnType<typeof createDocument> {
@@ -379,6 +385,34 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             '409': error(
               'The incident is not in mediation, has no driver, or a call to the driver is already in progress',
             ),
+          },
+        },
+      },
+      '/incidents/{id}/mediation/end': {
+        post: {
+          tags: ['incidents'],
+          summary: 'End the mediation call for everyone',
+          description:
+            'Hangs up every voice leg of the conversation `inc-<id>` that is ringing or connected: the driver’s call and the browser legs of the customer and the agent. The incident status does not change, and the legs are marked as completed when the voice event webhook arrives. If Vonage fails for any leg, the rest are still hung up and the agent can try again.',
+          requestParams: { path: incidentIdParamsSchema },
+          responses: {
+            '204': { description: 'Every leg was hung up' },
+            ...hangupErrors,
+            '409': error('There is no call to end'),
+          },
+        },
+      },
+      '/incidents/{id}/mediation/participants/{participant}/remove': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Remove the customer or the driver from the mediation call',
+          description:
+            'Hangs up the voice legs of that participant and leaves the others on the call. The customer is found by the Vonage user of the browser leg (`cust-<id>`), the driver by their phone number. The incident status does not change.',
+          requestParams: { path: mediationParticipantParamsSchema },
+          responses: {
+            '204': { description: 'Every leg of the participant was hung up' },
+            ...hangupErrors,
+            '409': error('The participant is not on the call'),
           },
         },
       },
