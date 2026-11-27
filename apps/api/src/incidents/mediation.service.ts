@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { and, eq, gt, inArray, isNull, notLike, or, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, isNull, notLike, or, sql } from 'drizzle-orm';
 
 import { OutboundSmsService } from '../communications/outbound-sms.service.js';
 import { DATABASE } from '../database/database.constants.js';
@@ -22,6 +22,7 @@ import { callFallbackSms, callSoonSms, mediationInviteSms } from '../i18n/sms-te
 import { JOB_QUEUE } from '../jobs/job-queue.js';
 import { buildDriverPromptNcco } from '../vonage/ncco.js';
 import { buildCallUrl, buildVoiceInputUrl } from '../vonage/voice-urls.js';
+import { vonageUserName } from '../vonage/vonage-users.js';
 import { VonageError } from '../vonage/vonage.errors.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 import { advancesStatus } from '../webhooks/communication-status.js';
@@ -36,7 +37,7 @@ import type { Database, DatabaseTransaction } from '../database/database.constan
 import type { JobPayloads, JobQueue } from '../jobs/job-queue.js';
 import type { NccoAction } from '../vonage/ncco.js';
 import type { VonageService } from '../vonage/vonage.service.js';
-import type { StartMediationResponse } from '@csl/contracts';
+import type { MediationParticipant, StartMediationResponse } from '@csl/contracts';
 import type { Communication } from '@csl/shared-types';
 import type { OnModuleInit } from '@nestjs/common';
 
@@ -60,6 +61,20 @@ interface ReservedCall extends PreparedCall {
 }
 
 type CallAttempt = { ok: true; call: CommunicationRow } | { ok: false; error: VonageError };
+
+// The customer's leg comes from the browser and is named after their Vonage user. The driver's is
+// the call we placed to their phone, or the one they placed to the virtual number.
+function isLegOf(
+  leg: CommunicationRow,
+  participant: MediationParticipant,
+  { customer, driver }: LockedIncident,
+): boolean {
+  if (participant === 'customer') {
+    return leg.fromNumber === vonageUserName({ role: 'customer', id: customer.id });
+  }
+
+  return driver !== null && (leg.toNumber === driver.phone || leg.fromNumber === driver.phone);
+}
 
 function unwrap(attempt: CallAttempt): CommunicationRow {
   if (!attempt.ok) {
@@ -134,6 +149,29 @@ export class MediationService implements OnModuleInit {
     });
 
     return toCommunication(unwrap(attempt));
+  }
+
+  // Hangs up every active leg of the conversation: the driver's call and the browser legs.
+  // It stores nothing: the voice event webhook marks each leg as completed when Vonage reports it,
+  // so a failed hang-up leaves the data as it was and the agent can try again.
+  async end(id: string): Promise<void> {
+    const callIds = await this.activeCallIds(id);
+
+    if (callIds.length === 0) {
+      throw new ConflictException('There is no call to end');
+    }
+
+    await this.hangUp(id, callIds);
+  }
+
+  async removeParticipant(id: string, participant: MediationParticipant): Promise<void> {
+    const callIds = await this.activeCallIds(id, participant);
+
+    if (callIds.length === 0) {
+      throw new ConflictException(`The ${participant} is not on the call`);
+    }
+
+    await this.hangUp(id, callIds);
   }
 
   async attemptFailed(tx: DatabaseTransaction, call: CommunicationRow): Promise<void> {
@@ -380,6 +418,55 @@ export class MediationService implements OnModuleInit {
       actor: 'system',
       reason: DRIVER_UNREACHABLE_REASON,
     });
+  }
+
+  // The voice legs of the incident that Vonage still reports as ringing or connected. Everyone in
+  // the conversation is one of them, since the answer URL and the call to the driver store their legs.
+  private async activeCallIds(id: string, participant?: MediationParticipant): Promise<string[]> {
+    return this.db.transaction(async (tx) => {
+      const locked = await this.lockIncident(tx, id);
+
+      const legs = await tx
+        .select()
+        .from(communications)
+        .where(
+          and(
+            eq(communications.incidentId, id),
+            eq(communications.channel, 'voice'),
+            inArray(communications.status, ['queued', 'in_progress']),
+            isNotNull(communications.vonageUuid),
+          ),
+        );
+
+      return legs.flatMap((leg) =>
+        leg.vonageUuid === null || (participant !== undefined && !isLegOf(leg, participant, locked))
+          ? []
+          : [leg.vonageUuid],
+      );
+    });
+  }
+
+  // Tries every leg even if one fails, so a single bad leg doesn't leave the others on the call.
+  private async hangUp(incidentId: string, callIds: string[]): Promise<void> {
+    const outcomes = await Promise.all(
+      callIds.map(async (callId) => {
+        try {
+          await this.vonage.hangupCall(callId);
+          return null;
+        } catch (error) {
+          this.logger.warn(
+            `Hang-up of call ${callId} for incident ${incidentId} failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          return { error };
+        }
+      }),
+    );
+
+    const [failure] = outcomes.flatMap((outcome) => (outcome === null ? [] : [outcome.error]));
+
+    if (failure !== undefined) {
+      throw failure instanceof Error ? failure : new Error(String(failure));
+    }
   }
 
   private async driverJoined(tx: DatabaseTransaction, incidentId: string): Promise<boolean> {
