@@ -67,6 +67,17 @@
     "hintRequired": "Required · {count} / {max}",
     "submit": "Send report",
     "sending": "Sending… this may take a moment.",
+    "uploading": "Uploading files ({current} of {total})…",
+    "slowConnection": "The connection is slow. Keep this page open while your files finish uploading.",
+    "uploadListLabel": "Evidence upload progress",
+    "uploadStatus": {
+      "queued": "Queued",
+      "uploading": "Uploading…",
+      "uploadingPercent": "Uploading ({percent}%)",
+      "confirming": "Confirming…",
+      "done": "Uploaded",
+      "failed": "Could not upload"
+    },
     "errors": {
       "type": "Choose what happened.",
       "descriptionRequired": "Describe the problem.",
@@ -146,7 +157,8 @@
       "photo": "Photo {number}",
       "video": "Video {number}",
       "processing": "{count, plural, one {We're still processing # file.} other {We're still processing # files.}}",
-      "error": "We couldn't load your photos and videos."
+      "error": "We couldn't load your photos and videos.",
+      "uploadPartialFailure": "{count, plural, one {Your incident was created, but # file could not be uploaded.} other {Your incident was created, but # files could not be uploaded.}}"
     },
     "events": {
       "status": {
