@@ -15,10 +15,11 @@ import { rememberCustomerIncident } from '../incident/known-incidents.ts';
 
 import { clearDraft, loadDraft, saveDraft } from './draft.ts';
 import { EvidencePicker } from './EvidencePicker.tsx';
+import { prepareEvidenceFile } from './prepare-evidence.ts';
 import './report.css';
 import { uploadEvidenceFiles } from './upload-evidence.ts';
 
-import type { FileUploadState, PutFileFn } from './upload-evidence.ts';
+import type { FileUploadState, PrepareFileFn, PutFileFn } from './upload-evidence.ts';
 import type { IncidentType } from '@csl/shared-types';
 import type { FormEvent } from 'react';
 
@@ -54,12 +55,14 @@ function serverFieldErrors(error: unknown): FieldErrors {
 
 export interface ReportFormProps {
   orderId: string;
+  prepareFile?: PrepareFileFn;
   putFile?: PutFileFn;
   slowUploadNoticeMs?: number;
 }
 
 export function ReportForm({
   orderId,
+  prepareFile,
   putFile,
   slowUploadNoticeMs = SLOW_UPLOAD_NOTICE_MS,
 }: Readonly<ReportFormProps>) {
@@ -76,6 +79,7 @@ export function ReportForm({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [createdIncidentId, setCreatedIncidentId] = useState<string | null>(null);
   const [uploadStates, setUploadStates] = useState<readonly FileUploadState[]>([]);
   const [slowConnection, setSlowConnection] = useState(false);
 
@@ -156,10 +160,133 @@ export function ReportForm({
     });
   }
 
+  const formLocked = submitting || createdIncidentId !== null;
+  const failedIndices = uploadStates.reduce<number[]>((indices, entry, index) => {
+    if (entry.phase === 'failed') {
+      indices.push(index);
+    }
+
+    return indices;
+  }, []);
+  const hasRetryableFailures =
+    createdIncidentId !== null && !submitting && failedIndices.length > 0;
+
+  function goToIncident(incidentId: string, failedCount: number) {
+    void navigate(`/incidents/${incidentId}`, {
+      state: failedCount > 0 ? { failedEvidenceCount: failedCount } : undefined,
+    });
+  }
+
+  function retryUploads(targetIndices: readonly number[]) {
+    if (!createdIncidentId || sendingRef.current) {
+      return;
+    }
+
+    const targets = targetIndices
+      .map((index) => ({ index, entry: uploadStates[index] }))
+      .filter(
+        (item): item is { index: number; entry: FileUploadState } =>
+          item.entry !== undefined && item.entry.phase === 'failed',
+      );
+
+    if (targets.length === 0) {
+      return;
+    }
+
+    const request = new AbortController();
+    const baseStates = uploadStates.map((entry) => ({ ...entry }));
+    const preparedByOriginal = new Map<File, File>();
+
+    for (const { entry } of targets) {
+      if (entry.preparedFile) {
+        preparedByOriginal.set(entry.file, entry.preparedFile);
+      }
+    }
+
+    sendingRef.current = request;
+    setSubmitting(true);
+    setSlowConnection(false);
+
+    const mergeStates = (subStates: readonly FileUploadState[]) => {
+      const merged = baseStates.map((entry) => ({ ...entry }));
+
+      targets.forEach(({ index }, subIndex) => {
+        const nextEntry = subStates[subIndex];
+
+        if (nextEntry) {
+          merged[index] = nextEntry;
+        }
+      });
+
+      return merged;
+    };
+
+    const prepareForRetry: PrepareFileFn | undefined =
+      preparedByOriginal.size > 0
+        ? (file, signal) => {
+            const cached = preparedByOriginal.get(file);
+
+            if (cached) {
+              return Promise.resolve(cached);
+            }
+
+            return prepareFile ? prepareFile(file, signal) : prepareEvidenceFile(file, { signal });
+          }
+        : prepareFile;
+
+    void (async () => {
+      try {
+        let latestMerged = baseStates;
+
+        await uploadEvidenceFiles(
+          createdIncidentId,
+          targets.map(({ entry }) => entry.file),
+          {
+            signal: request.signal,
+            prepareFile: prepareForRetry,
+            putFile,
+            onProgress: (subStates) => {
+              if (!request.signal.aborted) {
+                latestMerged = mergeStates(subStates);
+                setUploadStates(latestMerged);
+              }
+            },
+          },
+        );
+
+        if (request.signal.aborted) {
+          return;
+        }
+
+        sendingRef.current = null;
+        setSubmitting(false);
+        setSlowConnection(false);
+
+        const remainingFailed = latestMerged.filter((entry) => entry.phase === 'failed').length;
+
+        if (remainingFailed === 0) {
+          await navigate(`/incidents/${createdIncidentId}`);
+        }
+      } catch (error: unknown) {
+        if (request.signal.aborted) {
+          return;
+        }
+
+        sendingRef.current = null;
+        setSubmitting(false);
+        setSlowConnection(false);
+
+        if (error instanceof ApiError && error.status === 401) {
+          await logOut().catch(() => undefined);
+        }
+      }
+    })();
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (sendingRef.current) {
+    if (sendingRef.current || createdIncidentId !== null) {
       return;
     }
 
@@ -206,6 +333,8 @@ export function ReportForm({
           return;
         }
 
+        setCreatedIncidentId(incident.id);
+
         if (sessionState.status === 'ready' && sessionState.user) {
           rememberCustomerIncident(sessionState.user.id, incident.id);
         }
@@ -217,6 +346,7 @@ export function ReportForm({
         if (selectedFiles.length > 0) {
           const result = await uploadEvidenceFiles(incident.id, selectedFiles, {
             signal: request.signal,
+            prepareFile,
             putFile,
             onProgress: (states) => {
               if (!request.signal.aborted) {
@@ -232,9 +362,15 @@ export function ReportForm({
           return;
         }
 
-        await navigate(`/incidents/${incident.id}`, {
-          state: failedCount > 0 ? { failedEvidenceCount: failedCount } : undefined,
-        });
+        if (failedCount > 0) {
+          sendingRef.current = null;
+          setSubmitting(false);
+          setSlowConnection(false);
+
+          return;
+        }
+
+        await navigate(`/incidents/${incident.id}`);
       } catch (error: unknown) {
         if (request.signal.aborted) {
           return;
@@ -242,7 +378,6 @@ export function ReportForm({
 
         sendingRef.current = null;
         setSubmitting(false);
-        setUploadStates([]);
         setSlowConnection(false);
 
         if (error instanceof ApiError && error.status === 401) {
@@ -251,6 +386,7 @@ export function ReportForm({
           return;
         }
 
+        setUploadStates([]);
         showErrors(
           serverFieldErrors(error),
           error instanceof ApiError && error.status === 404
@@ -265,7 +401,7 @@ export function ReportForm({
     <form className="report-form" onSubmit={handleSubmit} aria-busy={submitting} noValidate>
       <fieldset
         className="report-form__group"
-        disabled={submitting}
+        disabled={formLocked}
         aria-describedby={errors.type ? typeErrorId : undefined}
       >
         <legend className="report-form__legend">{t('type')}</legend>
@@ -303,7 +439,7 @@ export function ReportForm({
         files={files}
         onChange={setFiles}
         suggestPhoto={type !== null && PHOTO_SUGGESTED_TYPES.has(type)}
-        disabled={submitting}
+        disabled={formLocked}
       />
 
       <div className="report-form__group">
@@ -315,7 +451,7 @@ export function ReportForm({
           className="report-form__textarea"
           rows={5}
           value={description}
-          readOnly={submitting}
+          readOnly={formLocked}
           aria-required={type === 'other'}
           aria-invalid={errors.description !== undefined}
           aria-describedby={errors.description ? `${hintId} ${descriptionErrorId}` : hintId}
@@ -352,7 +488,22 @@ export function ReportForm({
             >
               <div className="report-uploads__row">
                 <span className="report-uploads__name">{entry.file.name}</span>
-                <span className="report-uploads__state">{uploadPhaseLabel(entry)}</span>
+                <span className="report-uploads__meta">
+                  <span className="report-uploads__state">{uploadPhaseLabel(entry)}</span>
+                  {entry.phase === 'failed' && createdIncidentId !== null && (
+                    <button
+                      type="button"
+                      className="pwa-button pwa-button--secondary report-uploads__retry"
+                      disabled={submitting}
+                      aria-label={t('retryFileLabel', { name: entry.file.name })}
+                      onClick={() => {
+                        retryUploads([index]);
+                      }}
+                    >
+                      {t('retryFile')}
+                    </button>
+                  )}
+                </span>
               </div>
               <progress
                 className="report-uploads__progress"
@@ -369,13 +520,43 @@ export function ReportForm({
         <p className="report-form__slow-notice">{t('slowConnection')}</p>
       )}
 
+      {hasRetryableFailures && (
+        <div className="report-form__retry-panel" role="alert">
+          <p className="report-form__retry-message">
+            {t('retryBanner', { count: failedIndices.length })}
+          </p>
+          <div className="report-form__retry-actions">
+            <button
+              type="button"
+              className="pwa-button"
+              onClick={() => {
+                retryUploads(failedIndices);
+              }}
+            >
+              {t('retryFailed')}
+            </button>
+            <button
+              type="button"
+              className="pwa-button pwa-button--secondary"
+              onClick={() => {
+                goToIncident(createdIncidentId, failedIndices.length);
+              }}
+            >
+              {t('continueToIncident')}
+            </button>
+          </div>
+        </div>
+      )}
+
       <p role="status" className="report-form__hint">
         {statusMessage()}
       </p>
 
-      <button type="submit" className="pwa-button report-form__submit" disabled={submitting}>
-        {t('submit')}
-      </button>
+      {!hasRetryableFailures && (
+        <button type="submit" className="pwa-button report-form__submit" disabled={formLocked}>
+          {t('submit')}
+        </button>
+      )}
     </form>
   );
 }

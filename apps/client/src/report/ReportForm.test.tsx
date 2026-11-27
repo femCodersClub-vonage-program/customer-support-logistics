@@ -11,7 +11,7 @@ import { renderWithIntl } from '../test/render.tsx';
 import { loadDraft, saveDraft } from './draft.ts';
 import { ReportForm } from './ReportForm.tsx';
 
-import type { PutFileFn } from './upload-evidence.ts';
+import type { PrepareFileFn, PutFileFn } from './upload-evidence.ts';
 import type { Incident, Locale } from '@csl/shared-types';
 
 const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
@@ -66,7 +66,7 @@ function Destination() {
 
 function renderForm(
   locale: Locale = 'en',
-  props: { putFile?: PutFileFn; slowUploadNoticeMs?: number } = {},
+  props: { prepareFile?: PrepareFileFn; putFile?: PutFileFn; slowUploadNoticeMs?: number } = {},
 ) {
   return renderWithIntl(
     <MemoryRouter initialEntries={[REPORT_PATH]}>
@@ -489,7 +489,7 @@ describe('ReportForm', () => {
       expect(putFile).toHaveBeenCalledOnce();
     });
 
-    it('still navigates to the incident page when a file upload fails', async () => {
+    it('lets the customer continue to the created incident when a file upload fails', async () => {
       answerWith(incidentCreated);
       server.use(
         http.post(`*/incidents/${INCIDENT_ID}/evidence/upload-url`, () =>
@@ -512,8 +512,139 @@ describe('ReportForm', () => {
       attach([new File(['photo'], 'box.jpg', { type: 'image/jpeg' })]);
       send();
 
+      expect(
+        await screen.findByText(
+          'Your incident was created, but 1 file could not be uploaded. You can retry or continue to your incident.',
+        ),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Continue to incident' }));
+
       expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
       expect(screen.getByText('failed:1')).toBeInTheDocument();
+      expect(bodies).toHaveLength(1);
+    });
+
+    it('retries failed uploads from the uploader without creating the incident again', async () => {
+      answerWith(incidentCreated);
+      const completed: string[] = [];
+      let urlCount = 0;
+
+      server.use(
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/upload-url`, () => {
+          urlCount += 1;
+
+          return HttpResponse.json(
+            {
+              evidenceId: `11111111-1111-4111-8111-11111111111${String(urlCount)}`,
+              uploadUrl: `https://storage.example/upload-${String(urlCount)}`,
+              expiresAt: '2026-11-27T14:00:00.000Z',
+            },
+            { status: 201 },
+          );
+        }),
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/:evidenceId/complete`, ({ params }) => {
+          completed.push(String(params.evidenceId));
+
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+
+      const prepareFile: PrepareFileFn = vi.fn(
+        async (file) => new File(['compressed'], file.name, { type: file.type }),
+      );
+      const putFile: PutFileFn = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('Temporary network error'))
+        .mockResolvedValueOnce(undefined);
+
+      renderForm('en', { prepareFile, putFile });
+
+      choose('Damaged');
+      attach([
+        new File(['ok-photo'], 'ok.jpg', { type: 'image/jpeg' }),
+        new File(['flaky-photo'], 'flaky.jpg', { type: 'image/jpeg' }),
+      ]);
+      send();
+
+      expect(
+        await screen.findByText(
+          'Your incident was created, but 1 file could not be uploaded. You can retry or continue to your incident.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Uploaded')).toBeInTheDocument();
+      expect(screen.getByText('Could not upload')).toBeInTheDocument();
+      expect(bodies).toHaveLength(1);
+      expect(completed).toHaveLength(1);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry failed uploads' }));
+
+      expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
+      expect(screen.queryByText(/failed:/)).not.toBeInTheDocument();
+      expect(bodies).toHaveLength(1);
+      expect(putFile).toHaveBeenCalledTimes(3);
+      expect(prepareFile).toHaveBeenCalledTimes(2);
+      expect(completed).toHaveLength(2);
+    });
+
+    it('supports retrying a single failed file individually without recreating the incident', async () => {
+      answerWith(incidentCreated);
+      let urlCount = 0;
+
+      server.use(
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/upload-url`, () => {
+          urlCount += 1;
+
+          return HttpResponse.json(
+            {
+              evidenceId: `22222222-2222-4222-8222-22222222222${String(urlCount)}`,
+              uploadUrl: `https://storage.example/upload-${String(urlCount)}`,
+              expiresAt: '2026-11-27T14:00:00.000Z',
+            },
+            { status: 201 },
+          );
+        }),
+        http.post(
+          `*/incidents/${INCIDENT_ID}/evidence/:evidenceId/complete`,
+          () => new HttpResponse(null, { status: 204 }),
+        ),
+      );
+
+      const putFile: PutFileFn = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('Drop 1'))
+        .mockRejectedValueOnce(new Error('Drop 2'))
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      renderForm('en', { putFile });
+
+      choose('Damaged');
+      attach([
+        new File(['a'], 'first.jpg', { type: 'image/jpeg' }),
+        new File(['b'], 'second.jpg', { type: 'image/jpeg' }),
+      ]);
+      send();
+
+      expect(
+        await screen.findByText(
+          'Your incident was created, but 2 files could not be uploaded. You can retry or continue to your incident.',
+        ),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry first.jpg' }));
+
+      expect(
+        await screen.findByText(
+          'Your incident was created, but 1 file could not be uploaded. You can retry or continue to your incident.',
+        ),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry second.jpg' }));
+
+      expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
+      expect(bodies).toHaveLength(1);
     });
 
     it('cancels in-flight uploads if the customer leaves the page', async () => {

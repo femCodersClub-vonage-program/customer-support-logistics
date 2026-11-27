@@ -261,8 +261,33 @@ function decodeWithImageElement(file: File): Promise<DecodedImage> {
   });
 }
 
+class CanvasUnavailableError extends Error {
+  constructor() {
+    super('Canvas 2D encoding is not available in this environment');
+    this.name = 'CanvasUnavailableError';
+  }
+}
+
+function supportsCanvas2d(): boolean {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+
+  const canvas = document.createElement('canvas');
+
+  try {
+    return canvas.getContext('2d') !== null;
+  } catch {
+    return false;
+  }
+}
+
 const browserTranscoder: ImageTranscoder = {
   async decode(file: File): Promise<DecodedImage> {
+    if (!supportsCanvas2d()) {
+      throw new CanvasUnavailableError();
+    }
+
     if (typeof createImageBitmap === 'function') {
       try {
         const bitmap = await createImageBitmap(file);
@@ -418,7 +443,11 @@ export async function prepareEvidenceFile(
       return fallbackStripJpeg(file, signal);
     }
 
-    if (sourceMimeType === 'image/heic' || sourceMimeType === 'image/heif') {
+    if (
+      sourceMimeType === 'image/heic' ||
+      sourceMimeType === 'image/heif' ||
+      error instanceof CanvasUnavailableError
+    ) {
       return file;
     }
 

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { uploadEvidenceFiles } from './upload-evidence.ts';
 
-import type { FileUploadState, PutFileFn } from './upload-evidence.ts';
+import type { FileUploadState, PrepareFileFn, PutFileFn } from './upload-evidence.ts';
 
 const INCIDENT_ID = '6f1e2d3c-4b5a-4987-8a6b-5c4d3e2f1a0b';
 const EVIDENCE_1 = '11111111-1111-4111-8111-111111111111';
@@ -11,6 +11,16 @@ const EVIDENCE_2 = '22222222-2222-4222-8222-222222222222';
 
 function makeFile(name: string, type: string): File {
   return new File(['file-bytes'], name, { type });
+}
+
+function buildJpegWithExif(): Uint8Array<ArrayBuffer> {
+  const jfif = [0xff, 0xe0, 0x00, 0x09, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01];
+  const exifPayload = Array.from(new TextEncoder().encode('Exif\0\0GPS:40.4168,-3.7038'));
+  const exifLen = exifPayload.length + 2;
+  const exif = [0xff, 0xe1, (exifLen >> 8) & 0xff, exifLen & 0xff, ...exifPayload];
+  const sos = [0xff, 0xda, 0x00, 0x04, 0x11, 0x22, 0x33, 0x44, 0xff, 0xd9];
+
+  return new Uint8Array([0xff, 0xd8, ...jfif, ...exif, ...sos]);
 }
 
 describe('uploadEvidenceFiles', () => {
@@ -161,5 +171,106 @@ describe('uploadEvidenceFiles', () => {
 
     expect(requestEvidenceUpload).toHaveBeenCalledOnce();
     expect(completeEvidenceUpload).not.toHaveBeenCalled();
+  });
+
+  it('prepares images before requesting the upload URL and uploads the prepared file', async () => {
+    const phases: string[] = [];
+    const prepared = new File(['small-jpg'], 'receipt.jpg', { type: 'image/jpeg' });
+    const prepareFile: PrepareFileFn = vi.fn().mockResolvedValue(prepared);
+    const requestEvidenceUpload = vi.fn().mockResolvedValue({
+      evidenceId: EVIDENCE_1,
+      uploadUrl: 'https://storage.example/put-1',
+      expiresAt: '2026-11-27T14:00:00.000Z',
+    });
+    const completeEvidenceUpload = vi.fn().mockResolvedValue(undefined);
+    const putFile: PutFileFn = vi.fn().mockResolvedValue(undefined);
+
+    const original = new File(['very-large-png-payload'], 'receipt.png', { type: 'image/png' });
+
+    const result = await uploadEvidenceFiles(INCIDENT_ID, [original], {
+      apiClient: { requestEvidenceUpload, completeEvidenceUpload },
+      prepareFile,
+      putFile,
+      onProgress: (states) => {
+        const phase = states[0]?.phase;
+
+        if (phase && phases[phases.length - 1] !== phase) {
+          phases.push(phase);
+        }
+      },
+    });
+
+    expect(result).toEqual({ uploaded: 1, failed: [] });
+    expect(prepareFile).toHaveBeenCalledWith(original, undefined);
+    expect(requestEvidenceUpload).toHaveBeenCalledWith(
+      INCIDENT_ID,
+      { fileName: 'receipt.jpg', mimeType: 'image/jpeg', sizeBytes: prepared.size },
+      { signal: undefined },
+    );
+    expect(putFile).toHaveBeenCalledWith(
+      'https://storage.example/put-1',
+      prepared,
+      'image/jpeg',
+      expect.any(Function),
+      undefined,
+    );
+    expect(phases).toEqual(['queued', 'preparing', 'uploading', 'confirming', 'done']);
+  });
+
+  it('strips JPEG EXIF/GPS metadata by default before uploading', async () => {
+    let uploadedFile: File | undefined;
+    const requestEvidenceUpload = vi.fn().mockResolvedValue({
+      evidenceId: EVIDENCE_1,
+      uploadUrl: 'https://storage.example/put-1',
+      expiresAt: '2026-11-27T14:00:00.000Z',
+    });
+    const completeEvidenceUpload = vi.fn().mockResolvedValue(undefined);
+    const putFile: PutFileFn = vi.fn(async (_url, file) => {
+      uploadedFile = file;
+    });
+
+    const photoWithGps = new File([buildJpegWithExif()], 'street.jpg', { type: 'image/jpeg' });
+
+    const result = await uploadEvidenceFiles(INCIDENT_ID, [photoWithGps], {
+      apiClient: { requestEvidenceUpload, completeEvidenceUpload },
+      putFile,
+    });
+
+    expect(result).toEqual({ uploaded: 1, failed: [] });
+    expect(uploadedFile).toBeDefined();
+
+    const uploadedText = new TextDecoder().decode(
+      new Uint8Array(await (uploadedFile as File).arrayBuffer()),
+    );
+
+    expect(uploadedText).not.toContain('Exif');
+    expect(uploadedText).not.toContain('40.4168');
+    expect(uploadedText).toContain('JFIF');
+  });
+
+  it('marks a file as failed and continues remaining files if preparation throws', async () => {
+    const prepareFile: PrepareFileFn = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Corrupt image'))
+      .mockImplementationOnce(async (file) => file);
+    const requestEvidenceUpload = vi.fn().mockResolvedValue({
+      evidenceId: EVIDENCE_2,
+      uploadUrl: 'https://storage.example/put-2',
+      expiresAt: '2026-11-27T14:00:00.000Z',
+    });
+    const completeEvidenceUpload = vi.fn().mockResolvedValue(undefined);
+    const putFile: PutFileFn = vi.fn().mockResolvedValue(undefined);
+
+    const corrupt = makeFile('corrupt.png', 'image/png');
+    const ok = makeFile('ok.jpg', 'image/jpeg');
+
+    const result = await uploadEvidenceFiles(INCIDENT_ID, [corrupt, ok], {
+      apiClient: { requestEvidenceUpload, completeEvidenceUpload },
+      prepareFile,
+      putFile,
+    });
+
+    expect(result).toEqual({ uploaded: 1, failed: [corrupt] });
+    expect(requestEvidenceUpload).toHaveBeenCalledOnce();
   });
 });
