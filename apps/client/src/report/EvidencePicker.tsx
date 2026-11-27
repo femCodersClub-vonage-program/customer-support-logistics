@@ -1,3 +1,4 @@
+import { Camera, ImagePlus } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'use-intl';
 
@@ -146,7 +147,10 @@ export function EvidencePicker({
             aria-describedby={hintId}
             onChange={handleChange}
           />
-          <span className="pwa-button">{t('camera')}</span>
+          <span className="pwa-button">
+            <Camera size={18} strokeWidth={2} aria-hidden="true" />
+            {t('camera')}
+          </span>
         </label>
         <label className="evidence-button">
           <input
@@ -157,7 +161,10 @@ export function EvidencePicker({
             aria-describedby={hintId}
             onChange={handleChange}
           />
-          <span className="pwa-button pwa-button--secondary">{t('gallery')}</span>
+          <span className="pwa-button pwa-button--secondary">
+            <ImagePlus size={18} strokeWidth={2} aria-hidden="true" />
+            {t('gallery')}
+          </span>
         </label>
       </div>
 

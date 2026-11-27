@@ -67,6 +67,17 @@
     "hintRequired": "Obligatorio · {count} / {max}",
     "submit": "Enviar reporte",
     "sending": "Enviando… puede tardar un momento.",
+    "uploading": "Subiendo archivos ({current} de {total})…",
+    "slowConnection": "La conexión va lenta. Mantén esta página abierta mientras terminan de subirse tus archivos.",
+    "uploadListLabel": "Progreso de subida de evidencias",
+    "uploadStatus": {
+      "queued": "En cola",
+      "uploading": "Subiendo…",
+      "uploadingPercent": "Subiendo ({percent}%)",
+      "confirming": "Confirmando…",
+      "done": "Subido",
+      "failed": "No se pudo subir"
+    },
     "errors": {
       "type": "Elige qué ha pasado.",
       "descriptionRequired": "Describe el problema.",
@@ -146,7 +157,8 @@
       "photo": "Foto {number}",
       "video": "Vídeo {number}",
       "processing": "{count, plural, one {Todavía estamos procesando # archivo.} other {Todavía estamos procesando # archivos.}}",
-      "error": "No hemos podido cargar tus fotos y vídeos."
+      "error": "No hemos podido cargar tus fotos y vídeos.",
+      "uploadPartialFailure": "{count, plural, one {Tu incidencia se ha creado, pero # archivo no se ha podido subir.} other {Tu incidencia se ha creado, pero # archivos no se han podido subir.}}"
     },
     "events": {
       "status": {
