@@ -94,7 +94,8 @@
     "evidence": {
       "title": "Photos and videos",
       "hint": "Up to {maxFiles} files. Photos up to {imageMb} MB, videos up to {videoMb} MB.",
-      "camera": "Take a photo or video",
+      "takePhoto": "Take a photo",
+      "recordVideo": "Record a video",
       "gallery": "Choose from gallery",
       "suggestPhoto": "A photo of the problem helps us solve it faster.",
       "selected": "Selected files",

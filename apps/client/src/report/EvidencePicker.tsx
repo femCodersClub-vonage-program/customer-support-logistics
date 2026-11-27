@@ -1,4 +1,4 @@
-import { Camera, ImagePlus } from 'lucide-react';
+import { Camera, ImagePlus, Video } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useTranslations } from 'use-intl';
 
@@ -8,6 +8,8 @@ import {
   EVIDENCE_MAX_FILES,
   EVIDENCE_MAX_IMAGE_BYTES,
   EVIDENCE_MAX_VIDEO_BYTES,
+  EVIDENCE_PHOTO_CAPTURE_ACCEPT,
+  EVIDENCE_VIDEO_CAPTURE_ACCEPT,
   mimeTypeOf,
 } from './evidence-files.ts';
 import './evidence.css';
@@ -142,14 +144,28 @@ export function EvidencePicker({
           <input
             className="evidence-button__input"
             type="file"
-            accept={EVIDENCE_ACCEPT}
+            accept={EVIDENCE_PHOTO_CAPTURE_ACCEPT}
             capture={CAMERA}
             aria-describedby={hintId}
             onChange={handleChange}
           />
           <span className="pwa-button">
             <Camera size={18} strokeWidth={2} aria-hidden="true" />
-            {t('camera')}
+            {t('takePhoto')}
+          </span>
+        </label>
+        <label className="evidence-button">
+          <input
+            className="evidence-button__input"
+            type="file"
+            accept={EVIDENCE_VIDEO_CAPTURE_ACCEPT}
+            capture={CAMERA}
+            aria-describedby={hintId}
+            onChange={handleChange}
+          />
+          <span className="pwa-button pwa-button--secondary">
+            <Video size={18} strokeWidth={2} aria-hidden="true" />
+            {t('recordVideo')}
           </span>
         </label>
         <label className="evidence-button">
