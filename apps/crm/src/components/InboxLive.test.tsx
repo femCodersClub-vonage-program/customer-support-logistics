@@ -7,7 +7,7 @@ import { renderWithIntl } from '../test/render';
 
 import { InboxLive } from './InboxLive';
 
-import type { StreamMessage } from '../lib/events/types';
+import type { StreamMessage } from '../lib/events/EventsProvider';
 
 const { refresh, router } = vi.hoisted(() => {
   const refresh = vi.fn();

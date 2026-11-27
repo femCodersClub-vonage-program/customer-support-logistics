@@ -1,12 +1,12 @@
 'use client';
 
+import { INCIDENT_STREAM_EVENT_TYPES } from '@csl/shared-types';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import { useEvents } from '../lib/events/EventsProvider';
 import { highlight } from '../lib/events/highlights';
-import { INCIDENT_EVENT_TYPES } from '../lib/events/types';
 
 import styles from './InboxLive.module.css';
 
@@ -14,8 +14,8 @@ const ANNOUNCE_DELAY_MS = 1500;
 const REFRESH_DELAY_MS = 300;
 
 const REFRESH_EVENTS = new Set<string>([
-  INCIDENT_EVENT_TYPES.statusChanged,
-  INCIDENT_EVENT_TYPES.assigned,
+  INCIDENT_STREAM_EVENT_TYPES[1],
+  INCIDENT_STREAM_EVENT_TYPES[2],
 ]);
 
 export function InboxLive() {
@@ -49,7 +49,7 @@ export function InboxLive() {
         return;
       }
 
-      if (message.event.type !== INCIDENT_EVENT_TYPES.created) {
+      if (message.event.type !== INCIDENT_STREAM_EVENT_TYPES[0]) {
         return;
       }
 
