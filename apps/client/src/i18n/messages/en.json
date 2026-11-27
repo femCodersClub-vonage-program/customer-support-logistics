@@ -2,7 +2,15 @@
   "localeSwitcher": {
     "label": "Language"
   },
+  "nav": {
+    "label": "Main navigation",
+    "orders": "Orders",
+    "incidents": "Incidents",
+    "profile": "Profile"
+  },
   "orders": {
+    "greeting": "Hi, {name}",
+    "verified": "Verified number",
     "title": "My orders",
     "reportProblem": "Report a problem",
     "viewIncident": "View my incident",
@@ -59,6 +67,17 @@
     "hintRequired": "Required · {count} / {max}",
     "submit": "Send report",
     "sending": "Sending… this may take a moment.",
+    "uploading": "Uploading files ({current} of {total})…",
+    "slowConnection": "The connection is slow. Keep this page open while your files finish uploading.",
+    "uploadListLabel": "Evidence upload progress",
+    "uploadStatus": {
+      "queued": "Queued",
+      "uploading": "Uploading…",
+      "uploadingPercent": "Uploading ({percent}%)",
+      "confirming": "Confirming…",
+      "done": "Uploaded",
+      "failed": "Could not upload"
+    },
     "errors": {
       "type": "Choose what happened.",
       "descriptionRequired": "Describe the problem.",
@@ -138,7 +157,8 @@
       "photo": "Photo {number}",
       "video": "Video {number}",
       "processing": "{count, plural, one {We're still processing # file.} other {We're still processing # files.}}",
-      "error": "We couldn't load your photos and videos."
+      "error": "We couldn't load your photos and videos.",
+      "uploadPartialFailure": "{count, plural, one {Your incident was created, but # file could not be uploaded.} other {Your incident was created, but # files could not be uploaded.}}"
     },
     "events": {
       "status": {
@@ -152,6 +172,23 @@
       "assigned": "A support agent is reviewing your incident",
       "driver_joined": "The driver joined the call"
     }
+  },
+  "incidentsList": {
+    "title": "My incidents",
+    "subtitle": "Check the status of your recent incidents.",
+    "loading": "Loading your incidents…",
+    "empty": "You don't have any recorded incidents yet. You can report a problem from your orders.",
+    "goToOrders": "Go to my orders",
+    "order": "Order {id}",
+    "viewDetails": "View tracking"
+  },
+  "profile": {
+    "title": "My profile",
+    "verifiedPhone": "Verified number",
+    "shortcuts": "Quick links",
+    "settings": "Preferences",
+    "language": "App language",
+    "logOut": "Log out"
   },
   "call": {
     "title": "Mediation call",
@@ -175,6 +212,17 @@
       "failed": "The call couldn't connect"
     },
     "duration": "Duration",
+    "privacy": "Protected call · hidden numbers",
+    "evidenceNote": "The agent can see your photos and video during the call.",
+    "inCallParticipants": {
+      "support": "Support",
+      "supportRole": "Support agent",
+      "driver": "Driver",
+      "driverRole": "Connected by phone",
+      "you": "You",
+      "micActive": "Microphone active",
+      "micMuted": "Microphone muted"
+    },
     "mute": "Mute microphone",
     "hangUp": "Hang up",
     "ended": {

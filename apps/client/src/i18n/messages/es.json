@@ -2,7 +2,15 @@
   "localeSwitcher": {
     "label": "Idioma"
   },
+  "nav": {
+    "label": "Navegación principal",
+    "orders": "Pedidos",
+    "incidents": "Incidencias",
+    "profile": "Perfil"
+  },
   "orders": {
+    "greeting": "Hola, {name}",
+    "verified": "Número verificado",
     "title": "Mis pedidos",
     "reportProblem": "Comunicar un problema",
     "viewIncident": "Ver mi incidencia",
@@ -59,6 +67,17 @@
     "hintRequired": "Obligatorio · {count} / {max}",
     "submit": "Enviar reporte",
     "sending": "Enviando… puede tardar un momento.",
+    "uploading": "Subiendo archivos ({current} de {total})…",
+    "slowConnection": "La conexión va lenta. Mantén esta página abierta mientras terminan de subirse tus archivos.",
+    "uploadListLabel": "Progreso de subida de evidencias",
+    "uploadStatus": {
+      "queued": "En cola",
+      "uploading": "Subiendo…",
+      "uploadingPercent": "Subiendo ({percent}%)",
+      "confirming": "Confirmando…",
+      "done": "Subido",
+      "failed": "No se pudo subir"
+    },
     "errors": {
       "type": "Elige qué ha pasado.",
       "descriptionRequired": "Describe el problema.",
@@ -138,7 +157,8 @@
       "photo": "Foto {number}",
       "video": "Vídeo {number}",
       "processing": "{count, plural, one {Todavía estamos procesando # archivo.} other {Todavía estamos procesando # archivos.}}",
-      "error": "No hemos podido cargar tus fotos y vídeos."
+      "error": "No hemos podido cargar tus fotos y vídeos.",
+      "uploadPartialFailure": "{count, plural, one {Tu incidencia se ha creado, pero # archivo no se ha podido subir.} other {Tu incidencia se ha creado, pero # archivos no se han podido subir.}}"
     },
     "events": {
       "status": {
@@ -152,6 +172,23 @@
       "assigned": "Un agente de soporte está revisando tu incidencia",
       "driver_joined": "El repartidor se ha unido a la llamada"
     }
+  },
+  "incidentsList": {
+    "title": "Mis incidencias",
+    "subtitle": "Consulta el estado de tus incidencias recientes.",
+    "loading": "Cargando tus incidencias…",
+    "empty": "Todavía no tienes incidencias registradas. Puedes reportar un problema desde tus pedidos.",
+    "goToOrders": "Ir a mis pedidos",
+    "order": "Pedido {id}",
+    "viewDetails": "Ver seguimiento"
+  },
+  "profile": {
+    "title": "Mi perfil",
+    "verifiedPhone": "Número verificado",
+    "shortcuts": "Accesos rápidos",
+    "settings": "Preferencias",
+    "language": "Idioma de la aplicación",
+    "logOut": "Cerrar sesión"
   },
   "call": {
     "title": "Llamada de mediación",
@@ -175,6 +212,17 @@
       "failed": "No se ha podido conectar la llamada"
     },
     "duration": "Duración",
+    "privacy": "Llamada protegida · números ocultos",
+    "evidenceNote": "El agente puede ver tus fotos y vídeo durante la llamada.",
+    "inCallParticipants": {
+      "support": "Soporte",
+      "supportRole": "Agente de soporte",
+      "driver": "Repartidor",
+      "driverRole": "Conectado por teléfono",
+      "you": "Tú",
+      "micActive": "Micrófono activo",
+      "micMuted": "Micrófono silenciado"
+    },
     "mute": "Silenciar micrófono",
     "hangUp": "Colgar",
     "ended": {

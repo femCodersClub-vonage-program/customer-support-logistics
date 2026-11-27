@@ -2,21 +2,34 @@ import { ApiError } from '@csl/api-client';
 import { uuidSchema } from '@csl/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { PhoneCall } from 'lucide-react';
-import { Link, useParams } from 'react-router';
+import { useEffect } from 'react';
+import { Link, useLocation, useParams } from 'react-router';
 import { useFormatter, useTranslations } from 'use-intl';
 
 import { api } from '../api.ts';
+import { useSession } from '../auth/session-context.ts';
 import { DATE_TIME_FORMAT } from '../incident/date-format.ts';
 import '../incident/incident.css';
 import { IncidentEvidence } from '../incident/IncidentEvidence.tsx';
 import { IncidentProgress } from '../incident/IncidentProgress.tsx';
 import { IncidentTimeline } from '../incident/IncidentTimeline.tsx';
+import { rememberCustomerIncident } from '../incident/known-incidents.ts';
 import { canJoinCall } from '../incident/progress.ts';
 
 import type { IncidentDetail } from '@csl/contracts';
 import type { ReactNode } from 'react';
 
 const isNotFound = (error: unknown) => error instanceof ApiError && error.status === 404;
+
+function readFailedEvidenceCount(state: unknown): number {
+  if (typeof state !== 'object' || state === null || !('failedEvidenceCount' in state)) {
+    return 0;
+  }
+
+  const count = (state as { failedEvidenceCount: unknown }).failedEvidenceCount;
+
+  return typeof count === 'number' && Number.isInteger(count) && count > 0 ? count : 0;
+}
 
 function IncidentLayout({ children }: { children: ReactNode }) {
   return (
@@ -41,9 +54,11 @@ function IncidentNotFound() {
 
   return (
     <IncidentLayout>
-      <h1 className="incident-page__title">{t('title')}</h1>
-      <p>{t('description')}</p>
-      <BackToOrders />
+      <section className="incident-section">
+        <h1 className="incident-page__title">{t('title')}</h1>
+        <p className="incident-section__text">{t('description')}</p>
+        <BackToOrders />
+      </section>
     </IncidentLayout>
   );
 }
@@ -94,6 +109,10 @@ function IncidentSummary({ incident }: { incident: IncidentDetail }) {
 
 function IncidentDetails({ id }: { id: string }) {
   const t = useTranslations('incident');
+  const location = useLocation();
+  const failedEvidenceCount = readFailedEvidenceCount(location.state);
+  const { state: sessionState } = useSession();
+  const customerId = sessionState.status === 'ready' ? (sessionState.user?.id ?? null) : null;
 
   const {
     data: incident,
@@ -105,6 +124,12 @@ function IncidentDetails({ id }: { id: string }) {
     queryFn: ({ signal }) => api.getIncident(id, { signal }),
   });
 
+  useEffect(() => {
+    if (customerId && incident) {
+      rememberCustomerIncident(customerId, incident.id);
+    }
+  }, [customerId, incident]);
+
   if (isNotFound(error)) {
     return <IncidentNotFound />;
   }
@@ -114,10 +139,16 @@ function IncidentDetails({ id }: { id: string }) {
       <IncidentLayout>
         <h1 className="incident-page__title">{t('title')}</h1>
         {isPending ? (
-          <p role="status">{t('loading')}</p>
+          <div className="incident-section">
+            <p role="status" className="incident-section__text">
+              {t('loading')}
+            </p>
+          </div>
         ) : (
-          <div>
-            <p role="alert">{t('error')}</p>
+          <div className="incident-section incident-section--error">
+            <p role="alert" className="incident-section__error">
+              {t('error')}
+            </p>
             <button type="button" className="incident-page__button" onClick={() => void refetch()}>
               {t('retry')}
             </button>
@@ -130,6 +161,13 @@ function IncidentDetails({ id }: { id: string }) {
   return (
     <IncidentLayout>
       <h1 className="incident-page__title">{t('title')}</h1>
+      {failedEvidenceCount > 0 && (
+        <div className="incident-section incident-section--warning" role="status">
+          <p className="incident-section__warning">
+            {t('evidence.uploadPartialFailure', { count: failedEvidenceCount })}
+          </p>
+        </div>
+      )}
       <IncidentProgress incident={incident} />
       {canJoinCall(incident) && (
         <Link to={`/call/${incident.id}`} className="incident-page__button">

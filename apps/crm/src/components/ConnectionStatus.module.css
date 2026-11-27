@@ -1,20 +1,55 @@
 .status {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 0 0 0 16px;
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid var(--color-dark-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-dark-surface);
+  color: var(--color-surface);
   font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background-color: var(--color-dark-accent);
+  box-shadow: 0 0 0 3px rgb(203 161 250 / 22%);
+  flex-shrink: 0;
+}
+
+.status[data-state='connecting'],
+.status[data-state='reconnecting'] {
+  color: var(--color-dark-text-muted);
 }
 
 .status[data-state='connecting'] .dot,
 .status[data-state='reconnecting'] .dot {
   background-color: transparent;
-  border: 1px solid currentColor;
+  border: 1.5px solid currentcolor;
+  box-shadow: none;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status[data-state='connecting'] .dot,
+  .status[data-state='reconnecting'] .dot {
+    animation: none;
+  }
 }

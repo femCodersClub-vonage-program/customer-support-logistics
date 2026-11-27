@@ -1,4 +1,5 @@
 import { ApiError } from '@csl/api-client';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
@@ -62,6 +63,15 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
 
   return (
     <div className={styles.page}>
+      <div className={styles.topLinks}>
+        <Link href="/inbox" className={styles.backLink}>
+          ← {t('backToInbox')}
+        </Link>
+        <Link href={`/incidents/${incident.id}/mediation`} className={styles.mediationLink}>
+          {t('openMediation')}
+        </Link>
+      </div>
+
       <header className={styles.hero}>
         <div className={styles.heroTop}>
           <div className={styles.heroTitleGroup}>
@@ -102,6 +112,9 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
           />
 
           <div className={styles.card}>
+            {incident.description && (
+              <p className={styles.descriptionQuote}>«{incident.description}»</p>
+            )}
             <EvidenceGallery evidence={evidence} />
           </div>
 

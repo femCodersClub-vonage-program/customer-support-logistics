@@ -11,10 +11,14 @@ import { useTranslations } from 'use-intl';
 
 import { api } from '../api.ts';
 import { useSession } from '../auth/session-context.ts';
+import { rememberCustomerIncident } from '../incident/known-incidents.ts';
 
 import { clearDraft, loadDraft, saveDraft } from './draft.ts';
+import { EvidencePicker } from './EvidencePicker.tsx';
 import './report.css';
+import { uploadEvidenceFiles } from './upload-evidence.ts';
 
+import type { FileUploadState, PutFileFn } from './upload-evidence.ts';
 import type { IncidentType } from '@csl/shared-types';
 import type { FormEvent } from 'react';
 
@@ -25,6 +29,9 @@ const TYPE_ICONS: Record<IncidentType, string> = {
   wrong_item: '🔄',
   other: '❔',
 };
+
+const PHOTO_SUGGESTED_TYPES = new Set<IncidentType>(['damaged', 'wrong_item']);
+const SLOW_UPLOAD_NOTICE_MS = 3000;
 
 type Field = 'type' | 'description';
 type FieldErrors = Partial<Record<Field, string>>;
@@ -45,19 +52,32 @@ function serverFieldErrors(error: unknown): FieldErrors {
   return errors;
 }
 
-export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
+export interface ReportFormProps {
+  orderId: string;
+  putFile?: PutFileFn;
+  slowUploadNoticeMs?: number;
+}
+
+export function ReportForm({
+  orderId,
+  putFile,
+  slowUploadNoticeMs = SLOW_UPLOAD_NOTICE_MS,
+}: Readonly<ReportFormProps>) {
   const t = useTranslations('report');
   const tType = useTranslations('incident.type');
   const navigate = useNavigate();
-  const { logOut } = useSession();
+  const { state: sessionState, logOut } = useSession();
   const id = useId();
   const sendingRef = useRef<AbortController | null>(null);
   const [initial] = useState(() => loadDraft(orderId));
   const [type, setType] = useState<IncidentType | null>(initial.type);
   const [description, setDescription] = useState(initial.description);
+  const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadStates, setUploadStates] = useState<readonly FileUploadState[]>([]);
+  const [slowConnection, setSlowConnection] = useState(false);
 
   useEffect(() => {
     saveDraft(orderId, { type, description });
@@ -69,6 +89,22 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
     },
     [],
   );
+
+  const isUploading = submitting && uploadStates.length > 0;
+
+  useEffect(() => {
+    if (!isUploading) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setSlowConnection(true);
+    }, slowUploadNoticeMs);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isUploading, slowUploadNoticeMs]);
 
   const trimmed = description.trim();
   const typeErrorId = `${id}-type-error`;
@@ -91,6 +127,33 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
 
   function clearDescriptionError() {
     setErrors(({ type: typeError }) => (typeError === undefined ? {} : { type: typeError }));
+  }
+
+  function uploadPhaseLabel(entry: FileUploadState): string {
+    if (entry.phase === 'uploading' && entry.progress > 0) {
+      return t('uploadStatus.uploadingPercent', { percent: entry.progress });
+    }
+
+    return t(`uploadStatus.${entry.phase}`);
+  }
+
+  function statusMessage(): string | false {
+    if (!submitting) {
+      return false;
+    }
+
+    if (uploadStates.length === 0) {
+      return t('sending');
+    }
+
+    const finished = uploadStates.filter(
+      (entry) => entry.phase === 'done' || entry.phase === 'failed',
+    ).length;
+
+    return t('uploading', {
+      current: Math.min(finished + 1, uploadStates.length),
+      total: uploadStates.length,
+    });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -126,29 +189,66 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
     }
 
     const request = new AbortController();
+    const selectedFiles = [...files];
 
     sendingRef.current = request;
     setErrors({});
     setFailure(null);
     setSubmitting(true);
+    setUploadStates([]);
+    setSlowConnection(false);
 
-    api
-      .createIncident(parsed.data, { signal: request.signal })
-      .then((incident) => {
+    void (async () => {
+      try {
+        const incident = await api.createIncident(parsed.data, { signal: request.signal });
+
+        if (request.signal.aborted) {
+          return;
+        }
+
+        if (sessionState.status === 'ready' && sessionState.user) {
+          rememberCustomerIncident(sessionState.user.id, incident.id);
+        }
+
         clearDraft(orderId);
 
-        return navigate(`/incidents/${incident.id}`);
-      })
-      .catch((error: unknown) => {
+        let failedCount = 0;
+
+        if (selectedFiles.length > 0) {
+          const result = await uploadEvidenceFiles(incident.id, selectedFiles, {
+            signal: request.signal,
+            putFile,
+            onProgress: (states) => {
+              if (!request.signal.aborted) {
+                setUploadStates(states);
+              }
+            },
+          });
+
+          failedCount = result.failed.length;
+        }
+
+        if (request.signal.aborted) {
+          return;
+        }
+
+        await navigate(`/incidents/${incident.id}`, {
+          state: failedCount > 0 ? { failedEvidenceCount: failedCount } : undefined,
+        });
+      } catch (error: unknown) {
         if (request.signal.aborted) {
           return;
         }
 
         sendingRef.current = null;
         setSubmitting(false);
+        setUploadStates([]);
+        setSlowConnection(false);
 
         if (error instanceof ApiError && error.status === 401) {
-          return logOut().catch(() => undefined);
+          await logOut().catch(() => undefined);
+
+          return;
         }
 
         showErrors(
@@ -157,7 +257,8 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
             ? 'errors.orderNotFound'
             : 'errors.generic',
         );
-      });
+      }
+    })();
   }
 
   return (
@@ -198,6 +299,13 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
         )}
       </fieldset>
 
+      <EvidencePicker
+        files={files}
+        onChange={setFiles}
+        suggestPhoto={type !== null && PHOTO_SUGGESTED_TYPES.has(type)}
+        disabled={submitting}
+      />
+
       <div className="report-form__group">
         <label className="report-form__label" htmlFor={descriptionId}>
           {t('description')}
@@ -235,8 +343,34 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
         </p>
       )}
 
+      {uploadStates.length > 0 && (
+        <ul className="report-uploads" aria-label={t('uploadListLabel')}>
+          {uploadStates.map((entry, index) => (
+            <li
+              key={`${entry.file.name}-${String(index)}`}
+              className={`report-uploads__item report-uploads__item--${entry.phase}`}
+            >
+              <div className="report-uploads__row">
+                <span className="report-uploads__name">{entry.file.name}</span>
+                <span className="report-uploads__state">{uploadPhaseLabel(entry)}</span>
+              </div>
+              <progress
+                className="report-uploads__progress"
+                value={entry.progress}
+                max={100}
+                aria-label={entry.file.name}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {slowConnection && isUploading && (
+        <p className="report-form__slow-notice">{t('slowConnection')}</p>
+      )}
+
       <p role="status" className="report-form__hint">
-        {submitting && t('sending')}
+        {statusMessage()}
       </p>
 
       <button type="submit" className="pwa-button report-form__submit" disabled={submitting}>

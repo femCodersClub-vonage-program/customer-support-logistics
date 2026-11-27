@@ -76,8 +76,10 @@ export function LoginCallbackPage() {
 
   return (
     <main className="login">
-      <h1>{t('title')}</h1>
-      <p role="status">{t('verifying')}</p>
+      <div className="login-card">
+        <h1>{t('title')}</h1>
+        <p role="status">{t('verifying')}</p>
+      </div>
     </main>
   );
 }

@@ -43,8 +43,8 @@
 
 .fieldset {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.625rem;
+  flex-direction: column;
+  gap: 0.5rem;
   margin: 0;
   padding: 0;
   border: 0;
@@ -58,10 +58,12 @@
 }
 
 .option {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.625rem 0.875rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background-color: var(--color-surface);
@@ -120,12 +122,17 @@
   color: var(--color-text-muted);
 }
 
+.form .button {
+  width: 100%;
+  min-height: 2.875rem;
+}
+
 .button {
   align-self: flex-start;
   min-height: 2.5rem;
   padding: 0.5rem 1.25rem;
   border: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-primary);
   color: var(--color-surface);
   font: inherit;
