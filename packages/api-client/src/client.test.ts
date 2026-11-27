@@ -220,6 +220,44 @@ describe('mediation', () => {
     expect(url).toBe(expectedUrl);
     expect(init?.method).toBe('POST');
   });
+
+  it('ends the call for everyone with a POST and no body', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await expect(client.endMediationCall(incidentId)).resolves.toBeUndefined();
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe(`/api/incidents/${incidentId}/mediation/end`);
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBeUndefined();
+  });
+
+  it.each(['customer', 'driver'] as const)('removes the %s from the call', async (participant) => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await expect(
+      client.removeMediationParticipant(incidentId, participant),
+    ).resolves.toBeUndefined();
+
+    const [url, init] = fetchMock.mock.calls[0] ?? [];
+
+    expect(url).toBe(`/api/incidents/${incidentId}/mediation/participants/${participant}/remove`);
+    expect(init?.method).toBe('POST');
+  });
+
+  it('throws an ApiError when Vonage fails', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        jsonResponse({ error: { code: 'BAD_GATEWAY', message: 'Vonage could not complete' } }, 502),
+      );
+    const client = createApiClient({ baseUrl: '/api', fetch: fetchMock });
+
+    await expect(client.endMediationCall(incidentId)).rejects.toMatchObject({ status: 502 });
+  });
 });
 
 describe('vonage', () => {
