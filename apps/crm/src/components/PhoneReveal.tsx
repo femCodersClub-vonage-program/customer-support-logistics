@@ -3,6 +3,8 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
+import styles from './PhoneReveal.module.css';
+
 interface PhoneRevealProps {
   phone: string;
 }
@@ -14,10 +16,11 @@ export function PhoneReveal({ phone }: PhoneRevealProps) {
   const maskedPhone = `****${phone.slice(-4)}`;
 
   return (
-    <p>
-      <span>{visible ? phone : maskedPhone}</span>{' '}
+    <p className={styles.row}>
+      <span className={styles.phone}>{visible ? phone : maskedPhone}</span>
       <button
         type="button"
+        className={styles.toggle}
         onClick={() => setVisible((current) => !current)}
         aria-pressed={visible}
       >

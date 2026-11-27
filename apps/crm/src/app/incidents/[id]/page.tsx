@@ -1,4 +1,5 @@
 import { ApiError } from '@csl/api-client';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
@@ -9,6 +10,8 @@ import { PhoneReveal } from '../../../components/PhoneReveal';
 import { StatusBadge } from '../../../components/StatusBadge';
 import { currentAgentId, serverApi } from '../../../lib/api.server';
 import { isDriverReplyReason } from '../../../lib/mediation';
+
+import styles from './page.module.css';
 
 import type { Incident } from '@csl/shared-types';
 
@@ -59,80 +62,127 @@ export default async function IncidentPage({ params }: IncidentPageProps) {
   ].sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
 
   return (
-    <main>
-      <h1>{t('title')}</h1>
-      <p>{t('reference', { id })}</p>
-      <StatusBadge status={incident.status} />
-      <p>{t(`type.${incident.type}`)}</p>
+    <div className={styles.page}>
+      <div className={styles.topLinks}>
+        <Link href="/inbox" className={styles.backLink}>
+          ← {t('backToInbox')}
+        </Link>
+        <Link href={`/incidents/${incident.id}/mediation`} className={styles.mediationLink}>
+          {t('openMediation')}
+        </Link>
+      </div>
 
-      <p>
-        {t('createdAt')}:{' '}
-        <time dateTime={incident.createdAt}>
-          {new Date(incident.createdAt).toLocaleString(locale)}
-        </time>
-      </p>
-      <p>
-        {t('updatedAt')}:{' '}
-        <time dateTime={incident.updatedAt}>
-          {new Date(incident.updatedAt).toLocaleString(locale)}
-        </time>
-      </p>
-      <p>
-        {t('assignedAgent')}: {incident.agentId ?? t('unassigned')}
-      </p>
+      <header className={styles.hero}>
+        <div className={styles.heroTop}>
+          <div className={styles.heroTitleGroup}>
+            <h1 className={styles.title}>{t('title')}</h1>
+            <StatusBadge status={incident.status} />
+            <p className={styles.typePill}>{t(`type.${incident.type}`)}</p>
+          </div>
+          <p className={styles.reference}>{t('reference', { id })}</p>
+        </div>
 
-      <IncidentActions
-        incidentId={incident.id}
-        status={incident.status}
-        agentId={incident.agentId}
-        currentAgentId={agentId}
-        hasDriver={Boolean(incident.driver)}
-      />
-      <section aria-labelledby="order-heading">
-        <h2 id="order-heading">{t('sections.order')}</h2>
-        <p>{incident.order.id}</p>
-        <p>{incident.order.address}</p>
-        <p>{incident.order.status}</p>
-        <p>{incident.order.routeId ?? t('notAvailable')}</p>
-      </section>
+        <div className={styles.metaRow}>
+          <p>
+            {t('createdAt')}:{' '}
+            <time dateTime={incident.createdAt}>
+              {new Date(incident.createdAt).toLocaleString(locale)}
+            </time>
+          </p>
+          <p>
+            {t('updatedAt')}:{' '}
+            <time dateTime={incident.updatedAt}>
+              {new Date(incident.updatedAt).toLocaleString(locale)}
+            </time>
+          </p>
+          <p>
+            {t('assignedAgent')}: {incident.agentId ?? t('unassigned')}
+          </p>
+        </div>
+      </header>
 
-      <section aria-labelledby="customer-heading">
-        <h2 id="customer-heading">{t('sections.customer')}</h2>
-        <p>{incident.customer.name}</p>
-        <PhoneReveal phone={incident.customer.phone} />
-        <ContactLanguage role="customer" locale={incident.customer.locale} />
-      </section>
+      <div className={styles.grid}>
+        <div className={styles.mainColumn}>
+          <IncidentActions
+            incidentId={incident.id}
+            status={incident.status}
+            agentId={incident.agentId}
+            currentAgentId={agentId}
+            hasDriver={Boolean(incident.driver)}
+          />
 
-      <section aria-labelledby="driver-heading">
-        <h2 id="driver-heading">{t('sections.driver')}</h2>
-        {incident.driver ? <p>{incident.driver.name}</p> : <p>{t('notAvailable')}</p>}
-      </section>
+          <div className={styles.card}>
+            {incident.description && (
+              <p className={styles.descriptionQuote}>«{incident.description}»</p>
+            )}
+            <EvidenceGallery evidence={evidence} />
+          </div>
 
-      <EvidenceGallery evidence={evidence} />
-
-      <section aria-labelledby="timeline-heading">
-        <h2 id="timeline-heading">{t('sections.timeline')}</h2>
-        {timeline.length === 0 ? (
-          <p>{t('emptyTimeline')}</p>
-        ) : (
-          <ol>
-            {timeline.map((item) => (
-              <li key={`${item.kind}-${item.id}`}>
-                <time dateTime={item.date}>{new Date(item.date).toLocaleString(locale)}</time>
-                {' — '}
-                {item.kind === 'event' && (
-                  <span>
-                    {t(`actor.${item.actor}`)}
-                    {item.actorId ? ` (${item.actorId})` : ''}
+          <section className={styles.card} aria-labelledby="timeline-heading">
+            <h2 id="timeline-heading" className={styles.cardTitle}>
+              {t('sections.timeline')}
+            </h2>
+            {timeline.length === 0 ? (
+              <p className={styles.muted}>{t('emptyTimeline')}</p>
+            ) : (
+              <ol className={styles.timeline}>
+                {timeline.map((item) => (
+                  <li
+                    key={`${item.kind}-${item.id}`}
+                    className={styles.timelineItem}
+                    data-kind={item.kind}
+                  >
+                    <time className={styles.timelineTime} dateTime={item.date}>
+                      {new Date(item.date).toLocaleString(locale)}
+                    </time>
                     {' — '}
-                  </span>
-                )}
-                {item.description}
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-    </main>
+                    {item.kind === 'event' && (
+                      <span className={styles.timelineActor}>
+                        {t(`actor.${item.actor}`)}
+                        {item.actorId ? ` (${item.actorId})` : ''}
+                        {' — '}
+                      </span>
+                    )}
+                    {item.description}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        </div>
+
+        <div className={styles.sideColumn}>
+          <section className={styles.card} aria-labelledby="order-heading">
+            <h2 id="order-heading" className={styles.cardTitle}>
+              {t('sections.order')}
+            </h2>
+            <p className={styles.mono}>{incident.order.id}</p>
+            <p>{incident.order.address}</p>
+            <p className={styles.muted}>{incident.order.status}</p>
+            <p className={styles.muted}>{incident.order.routeId ?? t('notAvailable')}</p>
+          </section>
+
+          <section className={styles.card} aria-labelledby="customer-heading">
+            <h2 id="customer-heading" className={styles.cardTitle}>
+              {t('sections.customer')}
+            </h2>
+            <p>{incident.customer.name}</p>
+            <PhoneReveal phone={incident.customer.phone} />
+            <ContactLanguage role="customer" locale={incident.customer.locale} />
+          </section>
+
+          <section className={styles.card} aria-labelledby="driver-heading">
+            <h2 id="driver-heading" className={styles.cardTitle}>
+              {t('sections.driver')}
+            </h2>
+            {incident.driver ? (
+              <p>{incident.driver.name}</p>
+            ) : (
+              <p className={styles.muted}>{t('notAvailable')}</p>
+            )}
+          </section>
+        </div>
+      </div>
+    </div>
   );
 }

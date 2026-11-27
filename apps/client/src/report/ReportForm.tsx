@@ -11,6 +11,7 @@ import { useTranslations } from 'use-intl';
 
 import { api } from '../api.ts';
 import { useSession } from '../auth/session-context.ts';
+import { rememberCustomerIncident } from '../incident/known-incidents.ts';
 
 import { clearDraft, loadDraft, saveDraft } from './draft.ts';
 import './report.css';
@@ -49,7 +50,7 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
   const t = useTranslations('report');
   const tType = useTranslations('incident.type');
   const navigate = useNavigate();
-  const { logOut } = useSession();
+  const { state: sessionState, logOut } = useSession();
   const id = useId();
   const sendingRef = useRef<AbortController | null>(null);
   const [initial] = useState(() => loadDraft(orderId));
@@ -135,6 +136,10 @@ export function ReportForm({ orderId }: Readonly<{ orderId: string }>) {
     api
       .createIncident(parsed.data, { signal: request.signal })
       .then((incident) => {
+        if (sessionState.status === 'ready' && sessionState.user) {
+          rememberCustomerIncident(sessionState.user.id, incident.id);
+        }
+
         clearDraft(orderId);
 
         return navigate(`/incidents/${incident.id}`);

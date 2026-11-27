@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { startTransition } from 'react';
 
+import styles from './page.module.css';
+
 export default function InboxError({
   reset,
 }: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
@@ -18,11 +20,11 @@ export default function InboxError({
   }
 
   return (
-    <>
+    <div className={`${styles.stateCard} ${styles.errorCard}`}>
       <p role="alert">{t('message')}</p>
-      <button type="button" onClick={retry}>
+      <button type="button" className={styles.retryButton} onClick={retry}>
         {t('retry')}
       </button>
-    </>
+    </div>
   );
 }

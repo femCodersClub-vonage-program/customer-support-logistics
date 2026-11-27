@@ -20,10 +20,11 @@ function CallScreen({ incidentId }: { incidentId: string }) {
   const navigate = useNavigate();
   const { state, join, hangup, toggleMute } = useVonageCall(incidentId);
   const [microphoneBlocked, setMicrophoneBlocked] = useState(false);
+  const active = isCallActive(state.status);
   const leftByCustomer = state.status === 'ended' && state.endedBy === 'local';
 
   useBlockInterruptions();
-  useWakeLock(isCallActive(state.status));
+  useWakeLock(active);
 
   useEffect(() => {
     if (leftByCustomer) {
@@ -57,7 +58,7 @@ function CallScreen({ incidentId }: { incidentId: string }) {
     screen = <MicrophoneHelp incidentId={incidentId} onTryAgain={() => void join()} />;
   } else if (state.status === 'idle') {
     screen = <PreCall onJoin={() => void join()} />;
-  } else if (isCallActive(state.status)) {
+  } else if (active) {
     screen = (
       <InCall state={state} onToggleMute={() => void toggleMute()} onHangUp={() => void hangup()} />
     );
@@ -66,13 +67,15 @@ function CallScreen({ incidentId }: { incidentId: string }) {
   }
 
   return (
-    <main className="call">
-      {screen}
-      <p className="call-status" role="status">
-        {statusText(state.status)}
-      </p>
-      <p className="call-incident">{t('incident', { id: incidentId })}</p>
-    </main>
+    <div className="call-wrapper" data-active={active ? 'true' : 'false'}>
+      <main className="call">
+        {screen}
+        <p className="call-status" role="status">
+          {statusText(state.status)}
+        </p>
+        <p className="call-incident">{t('incident', { id: incidentId })}</p>
+      </main>
+    </div>
   );
 }
 

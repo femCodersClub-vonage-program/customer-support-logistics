@@ -1,36 +1,109 @@
 .bar {
   grid-area: top;
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  height: 56px;
-  padding: 0 24px;
+  gap: 8px 14px;
+  min-height: 60px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--color-dark-border);
   background-color: var(--color-dark-bg);
   color: var(--color-surface);
+  box-shadow: var(--shadow-xs);
 }
 
 .brand {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.brandLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.brandLink:hover {
+  color: inherit;
 }
 
 .accent {
   color: var(--color-dark-accent);
 }
 
-.logOutError:not(:empty) {
-  margin-left: 16px;
-  font-size: 0.875rem;
+.searchForm {
+  flex: 1 1 14rem;
+  max-width: 24rem;
+  margin-left: 8px;
 }
 
-.logOut {
-  margin-left: 16px;
-  padding: 4px 8px;
-  border: 1px solid var(--color-dark-accent);
-  border-radius: 4px;
+.searchInput {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-dark-border);
+  border-radius: var(--radius-md);
   background-color: var(--color-dark-surface);
   color: var(--color-surface);
   font: inherit;
   font-size: 0.875rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.searchInput::placeholder {
+  color: var(--color-dark-text-muted);
+}
+
+.searchInput:focus-visible {
+  border-color: var(--color-dark-accent);
+  background-color: var(--color-dark-surface-hover);
+  outline: 3px solid var(--color-dark-accent);
+  outline-offset: 2px;
+}
+
+.logOutError:not(:empty) {
+  margin-left: 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-alert);
+  color: var(--color-surface);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.logOut {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-dark-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-dark-surface);
+  color: var(--color-surface);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.logOut:hover:not(:disabled) {
+  border-color: var(--color-dark-accent);
+  background-color: var(--color-dark-surface-hover);
+}
+
+.logOut:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.logOut:focus-visible {
+  outline: 3px solid var(--color-dark-accent);
+  outline-offset: 2px;
 }

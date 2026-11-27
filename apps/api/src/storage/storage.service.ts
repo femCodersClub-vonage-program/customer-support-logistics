@@ -4,6 +4,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -17,6 +18,7 @@ export interface StorageObject {
 }
 
 export interface StorageService {
+  listKeys(prefix: string): AsyncIterable<string>;
   createUploadUrl(
     key: string,
     contentType: string,
@@ -34,6 +36,7 @@ export class S3StorageService implements StorageService {
   constructor(
     private readonly client: S3Client,
     private readonly bucket: string,
+    private readonly signingClient: S3Client = client,
   ) {}
 
   createUploadUrl(
@@ -43,7 +46,7 @@ export class S3StorageService implements StorageService {
     expiresInSeconds: number,
   ): Promise<string> {
     return getSignedUrl(
-      this.client,
+      this.signingClient,
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: key,
@@ -55,9 +58,31 @@ export class S3StorageService implements StorageService {
   }
 
   createDownloadUrl(key: string, expiresInSeconds: number): Promise<string> {
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
-      expiresIn: expiresInSeconds,
-    });
+    return getSignedUrl(
+      this.signingClient,
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      {
+        expiresIn: expiresInSeconds,
+      },
+    );
+  }
+
+  async *listKeys(prefix: string): AsyncIterable<string> {
+    let token: string | undefined;
+    do {
+      const page = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ContinuationToken: token,
+        }),
+      );
+      for (const object of page.Contents ?? []) {
+        if (object.Key) yield object.Key;
+      }
+      token = page.IsTruncated ? page.NextContinuationToken : undefined;
+      if (page.IsTruncated && !token) throw new Error('Missing storage continuation token');
+    } while (token);
   }
 
   async deleteObject(key: string): Promise<void> {

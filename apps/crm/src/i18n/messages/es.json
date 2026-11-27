@@ -5,8 +5,15 @@
   },
   "topBar": {
     "brand": "CSL <accent>Support</accent>",
+    "searchLabel": "Buscar pedido, cliente o incidencia",
+    "searchPlaceholder": "Buscar pedido, cliente o incidencia",
     "logOut": "Cerrar sesión",
-    "logOutFailed": "No se ha podido cerrar la sesión. Comprueba la conexión y vuelve a probar."
+    "logOutFailed": "No se ha podido cerrar la sesión. Comprueba la conexión y vuelve a probar.",
+    "connection": {
+      "connecting": "Conectando…",
+      "connected": "En vivo",
+      "reconnecting": "Reconectando…"
+    }
   },
   "login": {
     "title": "Iniciar sesión",
@@ -23,7 +30,10 @@
   },
   "nav": {
     "label": "Principal",
-    "inbox": "Bandeja de entrada"
+    "inbox": "Bandeja de entrada",
+    "myTickets": "Mis tickets",
+    "escalated": "Escalados",
+    "resolved": "Resueltos"
   },
   "localeSwitcher": {
     "label": "Idioma"
@@ -74,6 +84,8 @@
     "updatedAt": "Última actualización",
     "assignedAgent": "Agente asignado",
     "unassigned": "Sin asignar",
+    "backToInbox": "Volver a la bandeja",
+    "openMediation": "Ir a mediación",
     "sections": {
       "order": "Pedido",
       "customer": "Cliente",
@@ -156,6 +168,25 @@
   "mediation": {
     "title": "Mediación",
     "incident": "Incidencia {id}",
+    "backToInbox": "Bandeja",
+    "viewIncident": "Ver ficha completa",
+    "participants": {
+      "title": "Participantes",
+      "customerRole": "Cliente · navegador",
+      "driverRole": "Teléfono · número oculto",
+      "agentName": "Agente de soporte",
+      "agentRole": "Soporte · CRM"
+    },
+    "connectionSteps": {
+      "title": "Conexión del repartidor",
+      "sms": "SMS de aviso",
+      "outboundCall": "Llamada saliente",
+      "driverReply": "Respuesta del repartidor",
+      "inMediation": "En mediación",
+      "completed": "Completado",
+      "active": "En curso",
+      "pending": "Pendiente"
+    },
     "summary": {
       "title": "Resumen de la incidencia",
       "type": "Tipo",

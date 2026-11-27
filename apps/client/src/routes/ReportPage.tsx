@@ -15,10 +15,14 @@ export function ReportPage() {
   }
 
   return (
-    <main>
-      <h1>{t('title')}</h1>
-      <p>{t('order', { orderId })}</p>
-      <ReportForm key={orderId} orderId={orderId} />
+    <main className="report-page">
+      <div className="report-page__card">
+        <header className="report-page__header">
+          <h1 className="report-page__title">{t('title')}</h1>
+          <p className="report-page__order">{t('order', { orderId })}</p>
+        </header>
+        <ReportForm key={orderId} orderId={orderId} />
+      </div>
     </main>
   );
 }

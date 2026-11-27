@@ -10,11 +10,13 @@ interface EvidenceGalleryProps {
 
 export function EvidenceGallery({ evidence }: EvidenceGalleryProps) {
   const t = useTranslations('incident.evidence');
-  if (evidence.length === 0) return <p>{t('empty')}</p>;
+  if (evidence.length === 0) return <p className={styles.empty}>{t('empty')}</p>;
 
   return (
     <section aria-labelledby="evidence-heading">
-      <h2 id="evidence-heading">{t('title')}</h2>
+      <h2 id="evidence-heading" className={styles.title}>
+        {t('title')}
+      </h2>
       <div className={styles.gallery}>
         {evidence.map((item) => (
           <a

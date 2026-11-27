@@ -8,6 +8,10 @@ const baseEnvSchema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   REDIS_URL: z.url({ protocol: /^rediss?$/ }).optional(),
   STORAGE_ENDPOINT: z.url({ protocol: /^https?$/ }),
+  STORAGE_PUBLIC_ENDPOINT: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.url({ protocol: /^https$/ }).optional(),
+  ),
   STORAGE_REGION: z.string().min(1),
   STORAGE_BUCKET: z
     .string()
@@ -17,6 +21,10 @@ const baseEnvSchema = z.object({
   STORAGE_ACCESS_KEY: z.string().min(1),
   STORAGE_SECRET_KEY: z.string().min(1),
   STORAGE_FORCE_PATH_STYLE: z.stringbool(),
+  STORAGE_PUBLIC_FORCE_PATH_STYLE: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.stringbool().optional(),
+  ),
   EVIDENCE_IMAGE_MAX_BYTES: z.coerce
     .number()
     .int()
@@ -103,6 +111,18 @@ export function isVonageEnabled(env: Pick<Env, 'NODE_ENV' | 'VONAGE_ENABLED'>): 
 }
 
 export const envSchema = baseEnvSchema.superRefine((env, ctx) => {
+  if (
+    env.STORAGE_PUBLIC_ENDPOINT &&
+    !(env.STORAGE_PUBLIC_FORCE_PATH_STYLE ?? env.STORAGE_FORCE_PATH_STYLE) &&
+    env.STORAGE_BUCKET.includes('.')
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['STORAGE_PUBLIC_FORCE_PATH_STYLE'],
+      message: 'HTTPS signing for bucket names containing dots requires path-style addressing',
+    });
+  }
+
   if (env.EVIDENCE_PENDING_TTL_SECONDS < env.EVIDENCE_UPLOAD_URL_TTL_SECONDS + 60) {
     ctx.addIssue({
       code: 'custom',

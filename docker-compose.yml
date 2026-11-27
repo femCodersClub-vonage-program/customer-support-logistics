@@ -51,7 +51,7 @@ services:
 
   seaweedfs-admin:
     image: chrislusf/seaweedfs:4.54
-    entrypoint: ["/usr/bin/weed"]
+    entrypoint: ['/usr/bin/weed']
     network_mode: service:seaweedfs
     user: '0:0'
     command: admin -master=localhost:9333 -dataDir=/admin-data
@@ -64,7 +64,7 @@ services:
 
   seaweedfs-worker:
     image: chrislusf/seaweedfs:4.54
-    entrypoint: ["/usr/bin/weed"]
+    entrypoint: ['/usr/bin/weed']
     network_mode: service:seaweedfs
     user: '0:0'
     command: worker -admin=localhost:12535 -jobType=s3_lifecycle -workingDir=/worker-data

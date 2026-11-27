@@ -5,7 +5,15 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { loadVonageClient } from '../call/call-client.ts';
 import { queryMicrophonePermission, requestMicrophone } from '../call/microphone.ts';
-import { CUSTOMER, apiError, apiUrl, renderApp, sessionOf } from '../test/app.tsx';
+import {
+  CUSTOMER,
+  apiError,
+  apiUrl,
+  incidentDetailOf,
+  incidentOf,
+  renderApp,
+  sessionOf,
+} from '../test/app.tsx';
 import { createFakeCallClient } from '../test/fake-call-client.ts';
 
 vi.mock('../call/call-client.ts', () => ({ loadVonageClient: vi.fn() }));
@@ -109,10 +117,11 @@ describe('/call/:id', () => {
   it('hangs up and goes back to the incident', async () => {
     await joinCall();
 
+    server.use(incidentOf(incidentDetailOf(INCIDENT_ID)));
     fireEvent.click(screen.getByRole('button', { name: 'Hang up' }));
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Incident' })).toBeInTheDocument();
-    expect(screen.getByText(`Incident ${INCIDENT_ID}`)).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Current status' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Incident' })).toBeInTheDocument();
     expect(fake.client.hangup).toHaveBeenCalledWith('call-1');
   });
 

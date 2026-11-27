@@ -2,7 +2,15 @@
   "localeSwitcher": {
     "label": "Language"
   },
+  "nav": {
+    "label": "Main navigation",
+    "orders": "Orders",
+    "incidents": "Incidents",
+    "profile": "Profile"
+  },
   "orders": {
+    "greeting": "Hi, {name}",
+    "verified": "Verified number",
     "title": "My orders",
     "reportProblem": "Report a problem",
     "viewIncident": "View my incident",
@@ -65,6 +73,21 @@
       "descriptionTooLong": "The description is too long. Use at most {max} characters.",
       "orderNotFound": "We could not find this order.",
       "generic": "We could not send the report. Try again in a moment."
+    },
+    "evidence": {
+      "title": "Photos and videos",
+      "hint": "Up to {maxFiles} files. Photos up to {imageMb} MB, videos up to {videoMb} MB.",
+      "camera": "Take a photo or video",
+      "gallery": "Choose from gallery",
+      "suggestPhoto": "A photo of the problem helps us solve it faster.",
+      "selected": "Selected files",
+      "remove": "Remove",
+      "removeFile": "Remove {name}",
+      "rejected": {
+        "type": "{name} was not added. Only photos (JPEG, PNG, WebP, HEIC, HEIF) and videos (MP4, MOV) can be attached.",
+        "size": "{name} was not added because it is too big. Photos can be up to {imageMb} MB and videos up to {videoMb} MB.",
+        "tooMany": "{name} was not added. You can attach up to {maxFiles} files."
+      }
     }
   },
   "incident": {
@@ -84,7 +107,76 @@
       "damaged": "Damaged",
       "wrong_item": "Wrong item",
       "other": "Other"
+    },
+    "summary": "Summary",
+    "loading": "Loading your incident…",
+    "error": "We couldn't load your incident. Please try again.",
+    "retry": "Try again",
+    "backToOrders": "Go to my orders",
+    "joinCall": "Join the call",
+    "notFound": {
+      "title": "We can't find this incident",
+      "description": "It may not exist or it may belong to another account."
+    },
+    "progress": {
+      "step": "Step {current} of {total}: {label}",
+      "states": {
+        "done": "Completed",
+        "current": "Current step",
+        "upcoming": "Pending"
+      },
+      "steps": {
+        "reported": "Reported",
+        "notified": "Driver notified",
+        "in_mediation": "In mediation",
+        "resolved": "Resolved",
+        "escalated": "Escalated"
+      },
+      "next": {
+        "open": "We've received your report. Next, we'll let the driver know so they can check what happened.",
+        "notified": "The driver knows about your incident. Next, we'll set up a call with you, the driver and our support team.",
+        "in_mediation": "We're setting up a call with you, the driver and our support team. We'll send you an SMS when it's ready.",
+        "in_mediation_call": "Your call is ready. Join it to sort out the incident with the driver and our support team.",
+        "resolved": "Your incident is resolved. There's nothing else you need to do.",
+        "escalated": "We've passed your incident to a specialist team. They'll contact you to sort it out."
+      }
+    },
+    "evidence": {
+      "title": "Photos and videos",
+      "photo": "Photo {number}",
+      "video": "Video {number}",
+      "processing": "{count, plural, one {We're still processing # file.} other {We're still processing # files.}}",
+      "error": "We couldn't load your photos and videos."
+    },
+    "events": {
+      "status": {
+        "open": "You reported the incident",
+        "notified": "We notified the driver",
+        "in_mediation": "We started setting up a call to sort it out",
+        "resolved": "The incident was resolved",
+        "escalated": "We passed the incident to a specialist team"
+      },
+      "evidence_uploaded": "You added a photo or video",
+      "assigned": "A support agent is reviewing your incident",
+      "driver_joined": "The driver joined the call"
     }
+  },
+  "incidentsList": {
+    "title": "My incidents",
+    "subtitle": "Check the status of your recent incidents.",
+    "loading": "Loading your incidents…",
+    "empty": "You don't have any recorded incidents yet. You can report a problem from your orders.",
+    "goToOrders": "Go to my orders",
+    "order": "Order {id}",
+    "viewDetails": "View tracking"
+  },
+  "profile": {
+    "title": "My profile",
+    "verifiedPhone": "Verified number",
+    "shortcuts": "Quick links",
+    "settings": "Preferences",
+    "language": "App language",
+    "logOut": "Log out"
   },
   "call": {
     "title": "Mediation call",
@@ -108,6 +200,17 @@
       "failed": "The call couldn't connect"
     },
     "duration": "Duration",
+    "privacy": "Protected call · hidden numbers",
+    "evidenceNote": "The agent can see your photos and video during the call.",
+    "inCallParticipants": {
+      "support": "Support",
+      "supportRole": "Support agent",
+      "driver": "Driver",
+      "driverRole": "Connected by phone",
+      "you": "You",
+      "micActive": "Microphone active",
+      "micMuted": "Microphone muted"
+    },
     "mute": "Mute microphone",
     "hangUp": "Hang up",
     "ended": {
