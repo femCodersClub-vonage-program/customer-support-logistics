@@ -63,7 +63,9 @@ describe('InboxLive', () => {
       emit(created('b'));
     });
 
-    expect(screen.getByRole('button', { name: 'Refresh inbox (2 new incidents)' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Refresh inbox (2 new incidents)' }),
+    ).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
   });
 
@@ -75,7 +77,9 @@ describe('InboxLive', () => {
       emit(created('a'));
     });
 
-    expect(screen.getByRole('button', { name: 'Refresh inbox (1 new incident)' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Refresh inbox (1 new incident)' }),
+    ).toBeInTheDocument();
   });
 
   it('ignores other events', () => {
