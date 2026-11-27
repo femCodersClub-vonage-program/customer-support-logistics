@@ -71,11 +71,14 @@ describe('EvidencePicker', () => {
 
     expect(photoCamera()).toHaveAttribute('capture', 'environment');
     expect(photoCamera()).toHaveAttribute('accept', EVIDENCE_PHOTO_CAPTURE_ACCEPT);
+    expect(photoCamera().closest('label')).toHaveAttribute('title', 'Take a photo');
     expect(videoCamera()).toHaveAttribute('capture', 'environment');
     expect(videoCamera()).toHaveAttribute('accept', EVIDENCE_VIDEO_CAPTURE_ACCEPT);
+    expect(videoCamera().closest('label')).toHaveAttribute('title', 'Record a video');
     expect(gallery()).not.toHaveAttribute('capture');
     expect(gallery()).toHaveAttribute('accept', EVIDENCE_ACCEPT);
     expect(gallery()).toHaveAttribute('multiple');
+    expect(gallery().closest('label')).toHaveAttribute('title', 'Choose from gallery');
   });
 
   it('tells the limits and links them to all three buttons', () => {

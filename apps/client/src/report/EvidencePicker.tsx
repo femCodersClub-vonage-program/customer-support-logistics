@@ -140,7 +140,7 @@ export function EvidencePicker({
       <legend className="report-form__legend">{t('title')}</legend>
 
       <div className="evidence__actions">
-        <label className="evidence-button">
+        <label className="evidence-button" title={t('takePhoto')}>
           <input
             className="evidence-button__input"
             type="file"
@@ -150,11 +150,11 @@ export function EvidencePicker({
             onChange={handleChange}
           />
           <span className="pwa-button">
-            <Camera size={18} strokeWidth={2} aria-hidden="true" />
-            {t('takePhoto')}
+            <Camera size={22} strokeWidth={2} aria-hidden="true" />
+            <span className="evidence-button__label">{t('takePhoto')}</span>
           </span>
         </label>
-        <label className="evidence-button">
+        <label className="evidence-button" title={t('recordVideo')}>
           <input
             className="evidence-button__input"
             type="file"
@@ -164,11 +164,11 @@ export function EvidencePicker({
             onChange={handleChange}
           />
           <span className="pwa-button pwa-button--secondary">
-            <Video size={18} strokeWidth={2} aria-hidden="true" />
-            {t('recordVideo')}
+            <Video size={22} strokeWidth={2} aria-hidden="true" />
+            <span className="evidence-button__label">{t('recordVideo')}</span>
           </span>
         </label>
-        <label className="evidence-button">
+        <label className="evidence-button" title={t('gallery')}>
           <input
             className="evidence-button__input"
             type="file"
@@ -178,8 +178,8 @@ export function EvidencePicker({
             onChange={handleChange}
           />
           <span className="pwa-button pwa-button--secondary">
-            <ImagePlus size={18} strokeWidth={2} aria-hidden="true" />
-            {t('gallery')}
+            <ImagePlus size={22} strokeWidth={2} aria-hidden="true" />
+            <span className="evidence-button__label">{t('gallery')}</span>
           </span>
         </label>
       </div>
