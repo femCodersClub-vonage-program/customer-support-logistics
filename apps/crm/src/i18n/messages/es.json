@@ -48,8 +48,8 @@
       "retry": "Reintentar"
     },
     "live": {
-      "banner": "{count, plural, one {Mostrar # incidente nuevo} other {Mostrar # incidentes nuevos}}",
-      "announce": "{count, plural, one {# incidente nuevo} other {# incidentes nuevos}}"
+      "banner": "{count, plural, one {Actualizar bandeja (# incidencia nueva)} other {Actualizar bandeja (# incidencias nuevas)}}",
+      "announce": "{count, plural, one {Ha llegado # incidencia nueva} other {Han llegado # incidencias nuevas}}"
     },
     "columns": {
       "reference": "Referencia",

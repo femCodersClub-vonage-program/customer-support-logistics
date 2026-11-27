@@ -63,7 +63,7 @@ describe('InboxLive', () => {
       emit(created('b'));
     });
 
-    expect(screen.getByRole('button', { name: 'Show 2 new incidents' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Refresh inbox (2 new incidents)' })).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
   });
 
@@ -75,7 +75,7 @@ describe('InboxLive', () => {
       emit(created('a'));
     });
 
-    expect(screen.getByRole('button', { name: 'Show 1 new incident' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Refresh inbox (1 new incident)' })).toBeInTheDocument();
   });
 
   it('ignores other events', () => {
@@ -103,6 +103,7 @@ describe('InboxLive', () => {
 
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(isHighlighted('a')).toBe(true);
   });
 
   it('announces a burst of incidents once', () => {
@@ -120,7 +121,31 @@ describe('InboxLive', () => {
 
     const live = document.querySelector('[aria-live="polite"]');
 
-    expect(live).toHaveTextContent('3 new incidents');
+    expect(live).toHaveTextContent('3 new incidents received');
+  });
+
+  it('announces a new burst even when its message is identical to the previous one', () => {
+    vi.useFakeTimers();
+    renderWithIntl(<InboxLive />);
+
+    act(() => emit(created('a')));
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    const live = document.querySelector('[aria-live="polite"]');
+
+    expect(live).toHaveTextContent('1 new incident received');
+
+    act(() => emit(created('b')));
+
+    expect(live).toBeEmptyDOMElement();
+
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(live).toHaveTextContent('1 new incident received');
   });
 
   it('refreshes once after a burst of status changes', () => {
@@ -148,6 +173,49 @@ describe('InboxLive', () => {
       vi.advanceTimersByTime(300);
     });
     expect(refresh).toHaveBeenCalledTimes(1);
+    expect(isHighlighted('a')).toBe(true);
+    expect(isHighlighted('b')).toBe(true);
+    expect(isHighlighted('c')).toBe(true);
+  });
+
+  it('clears pending incidents when a status change refreshes the inbox', () => {
+    vi.useFakeTimers();
+    renderWithIntl(<InboxLive />);
+
+    act(() => {
+      emit(created('a'));
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Refresh inbox (1 new incident)' }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      emit({
+        kind: 'event',
+        event: {
+          type: 'incident.status_changed',
+          incidentId: 'b',
+          status: 'notified',
+          updatedAt: '2026-11-21T10:00:00Z',
+        },
+      });
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+
+    act(() => {
+      emit(created('a'));
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Refresh inbox (1 new incident)' }),
+    ).toBeInTheDocument();
   });
 
   it('refreshes when an incident is assigned', () => {
@@ -165,6 +233,7 @@ describe('InboxLive', () => {
     });
 
     expect(refresh).toHaveBeenCalledTimes(1);
+    expect(isHighlighted('a')).toBe(true);
   });
 
   it('refreshes after reconnecting', () => {
@@ -179,7 +248,8 @@ describe('InboxLive', () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
-  it('highlights the incident whose status changed', () => {
+  it('highlights the incident whose status changed after refreshing', () => {
+    vi.useFakeTimers();
     renderWithIntl(<InboxLive />);
 
     act(() => {
@@ -194,6 +264,13 @@ describe('InboxLive', () => {
       });
     });
 
+    expect(isHighlighted('a')).toBe(false);
+
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(refresh).toHaveBeenCalledTimes(1);
     expect(isHighlighted('a')).toBe(true);
   });
 
@@ -205,6 +282,7 @@ describe('InboxLive', () => {
 
     fireEvent.click(screen.getByRole('button'));
 
+    expect(refresh).toHaveBeenCalledTimes(1);
     expect(isHighlighted('a')).toBe(true);
   });
 });

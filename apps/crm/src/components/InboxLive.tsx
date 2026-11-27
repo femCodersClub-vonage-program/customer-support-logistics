@@ -3,7 +3,7 @@
 import { INCIDENT_STREAM_EVENT_TYPES } from '@csl/shared-types';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 
 import { useEvents } from '../lib/events/EventsProvider';
 import { highlight } from '../lib/events/highlights';
@@ -24,16 +24,37 @@ export function InboxLive() {
   const { subscribe } = useEvents();
   const [pending, setPending] = useState(0);
   const [announcement, setAnnouncement] = useState('');
+  const [isRefreshing, startRefresh] = useTransition();
   const knownIdsRef = useRef(new Set<string>());
+  const highlightIdsRef = useRef(new Set<string>());
   const burstRef = useRef(0);
   const announceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const clearPending = useCallback(() => {
+    clearTimeout(announceTimerRef.current);
+    announceTimerRef.current = undefined;
+    burstRef.current = 0;
+    knownIdsRef.current.clear();
+    setPending(0);
+    setAnnouncement('');
+  }, []);
+
+  useEffect(() => {
+    if (isRefreshing || highlightIdsRef.current.size === 0) {
+      return;
+    }
+
+    highlight([...highlightIdsRef.current]);
+    highlightIdsRef.current.clear();
+  }, [isRefreshing]);
 
   useEffect(() => {
     const refreshSoon = () => {
       clearTimeout(refreshTimerRef.current);
       refreshTimerRef.current = setTimeout(() => {
-        router.refresh();
+        clearPending();
+        startRefresh(() => router.refresh());
       }, REFRESH_DELAY_MS);
     };
 
@@ -44,7 +65,7 @@ export function InboxLive() {
       }
 
       if (REFRESH_EVENTS.has(message.event.type)) {
-        highlight([message.event.incidentId]);
+        highlightIdsRef.current.add(message.event.incidentId);
         refreshSoon();
         return;
       }
@@ -60,6 +81,7 @@ export function InboxLive() {
       knownIdsRef.current.add(message.event.incidentId);
       burstRef.current += 1;
       setPending(knownIdsRef.current.size);
+      setAnnouncement('');
 
       clearTimeout(announceTimerRef.current);
       announceTimerRef.current = setTimeout(() => {
@@ -73,13 +95,12 @@ export function InboxLive() {
       clearTimeout(announceTimerRef.current);
       clearTimeout(refreshTimerRef.current);
     };
-  }, [subscribe, t, router]);
+  }, [subscribe, t, router, clearPending, startRefresh]);
 
   const showNew = () => {
-    highlight([...knownIdsRef.current]);
-    knownIdsRef.current.clear();
-    setPending(0);
-    router.refresh();
+    knownIdsRef.current.forEach((id) => highlightIdsRef.current.add(id));
+    clearPending();
+    startRefresh(() => router.refresh());
   };
 
   return (
