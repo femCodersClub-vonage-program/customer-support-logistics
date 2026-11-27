@@ -3,14 +3,17 @@ import { ApiError } from '@csl/api-client';
 import { api } from '../api.ts';
 
 import { EVIDENCE_MIME_TYPES, mimeTypeOf } from './evidence-files.ts';
+import { prepareEvidenceFile } from './prepare-evidence.ts';
 
 import type { ApiClient } from '@csl/api-client';
 import type { EvidenceMimeType } from '@csl/contracts';
 
-export type FileUploadPhase = 'queued' | 'uploading' | 'confirming' | 'done' | 'failed';
+export type FileUploadPhase =
+  'queued' | 'preparing' | 'uploading' | 'confirming' | 'done' | 'failed';
 
 export interface FileUploadState {
   file: File;
+  preparedFile?: File;
   phase: FileUploadPhase;
   progress: number;
 }
@@ -19,6 +22,8 @@ export interface UploadEvidenceResult {
   uploaded: number;
   failed: File[];
 }
+
+export type PrepareFileFn = (file: File, signal: AbortSignal | undefined) => Promise<File>;
 
 export type PutFileFn = (
   url: string,
@@ -30,6 +35,7 @@ export type PutFileFn = (
 
 export interface UploadEvidenceOptions {
   apiClient?: Pick<ApiClient, 'requestEvidenceUpload' | 'completeEvidenceUpload'>;
+  prepareFile?: PrepareFileFn;
   putFile?: PutFileFn;
   signal?: AbortSignal;
   onProgress?: (states: readonly FileUploadState[]) => void;
@@ -106,12 +112,20 @@ export function putFileWithProgress(
   });
 }
 
+const defaultPrepareFile: PrepareFileFn = (file, signal) => prepareEvidenceFile(file, { signal });
+
 export async function uploadEvidenceFiles(
   incidentId: string,
   files: readonly File[],
   options: UploadEvidenceOptions = {},
 ): Promise<UploadEvidenceResult> {
-  const { apiClient = api, putFile = putFileWithProgress, signal, onProgress } = options;
+  const {
+    apiClient = api,
+    prepareFile = defaultPrepareFile,
+    putFile = putFileWithProgress,
+    signal,
+    onProgress,
+  } = options;
 
   const states: FileUploadState[] = files.map((file) => ({
     file,
@@ -144,9 +158,9 @@ export async function uploadEvidenceFiles(
       continue;
     }
 
-    const mimeType = mimeTypeOf(file);
+    const sourceMimeType = mimeTypeOf(file);
 
-    if (!isEvidenceMimeType(mimeType)) {
+    if (!isEvidenceMimeType(sourceMimeType)) {
       entry.phase = 'failed';
       entry.progress = 0;
       failed.push(file);
@@ -154,25 +168,46 @@ export async function uploadEvidenceFiles(
       continue;
     }
 
-    entry.phase = 'uploading';
-    entry.progress = 0;
-    emit();
-
     try {
+      entry.phase = 'preparing';
+      entry.progress = 0;
+      emit();
+
+      const prepared = await prepareFile(file, signal);
+
+      if (signal?.aborted) {
+        throw createAbortError();
+      }
+
+      const uploadMimeType = mimeTypeOf(prepared);
+
+      if (!isEvidenceMimeType(uploadMimeType)) {
+        entry.phase = 'failed';
+        entry.progress = 0;
+        failed.push(file);
+        emit();
+        continue;
+      }
+
+      entry.preparedFile = prepared;
+      entry.phase = 'uploading';
+      entry.progress = 0;
+      emit();
+
       const { evidenceId, uploadUrl } = await apiClient.requestEvidenceUpload(
         incidentId,
         {
-          fileName: file.name,
-          mimeType,
-          sizeBytes: file.size,
+          fileName: prepared.name,
+          mimeType: uploadMimeType,
+          sizeBytes: prepared.size,
         },
         { signal },
       );
 
       await putFile(
         uploadUrl,
-        file,
-        mimeType,
+        prepared,
+        uploadMimeType,
         (percent) => {
           entry.progress = percent;
           emit();

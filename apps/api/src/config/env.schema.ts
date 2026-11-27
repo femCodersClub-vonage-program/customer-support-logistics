@@ -1,3 +1,8 @@
+import {
+  EVIDENCE_MAX_FILES,
+  EVIDENCE_MAX_IMAGE_BYTES,
+  EVIDENCE_MAX_VIDEO_BYTES,
+} from '@csl/contracts';
 import { z } from 'zod';
 
 const PRIVATE_KEY_PATTERN = /-----BEGIN [A-Z ]*PRIVATE KEY-----/;
@@ -25,17 +30,9 @@ const baseEnvSchema = z.object({
     (value) => (value === '' ? undefined : value),
     z.stringbool().optional(),
   ),
-  EVIDENCE_IMAGE_MAX_BYTES: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(10 * 1024 * 1024),
-  EVIDENCE_VIDEO_MAX_BYTES: z.coerce
-    .number()
-    .int()
-    .positive()
-    .default(50 * 1024 * 1024),
-  EVIDENCE_MAX_FILES_PER_INCIDENT: z.coerce.number().int().positive().default(5),
+  EVIDENCE_IMAGE_MAX_BYTES: z.coerce.number().int().positive().default(EVIDENCE_MAX_IMAGE_BYTES),
+  EVIDENCE_VIDEO_MAX_BYTES: z.coerce.number().int().positive().default(EVIDENCE_MAX_VIDEO_BYTES),
+  EVIDENCE_MAX_FILES_PER_INCIDENT: z.coerce.number().int().positive().default(EVIDENCE_MAX_FILES),
   EVIDENCE_UPLOAD_URL_TTL_SECONDS: z.coerce
     .number()
     .int()
