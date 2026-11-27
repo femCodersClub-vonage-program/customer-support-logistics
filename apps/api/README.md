@@ -229,21 +229,23 @@ expect(vonage.callsTo('sendSms')).toEqual([
 
 The request and response schemas live in [`@csl/contracts`](../../packages/contracts) ([ADR 0007](../../docs/adr/0007-zod-schemas-as-runtime-contract.md)), so the API and its clients share one contract.
 
-| Method  | Path                                   | Who                    | What                                                                                   |
-| ------- | -------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
-| `POST`  | `/auth/agent/login`                    | anyone                 | Log an agent in and set the session cookie                                             |
-| `POST`  | `/auth/customer/start`                 | anyone                 | Start a customer login, by silent authentication or SMS                                |
-| `POST`  | `/auth/customer/sms`                   | anyone                 | Send the SMS now, when silent authentication failed                                    |
-| `POST`  | `/auth/customer/check`                 | anyone                 | Log a customer in with that code and set the session cookie                            |
-| `POST`  | `/auth/logout`                         | anyone                 | End the session and clear the cookie                                                   |
-| `GET`   | `/auth/me`                             | customer / agent       | The person behind the current session                                                  |
-| `POST`  | `/incidents`                           | customer               | Create an incident for one of their orders                                             |
-| `GET`   | `/incidents`                           | agent                  | CRM inbox, filtered and paginated                                                      |
-| `GET`   | `/incidents/:id`                       | customer (own) / agent | Detail with order, customer, driver, events and communications                         |
-| `PATCH` | `/incidents/:id/status`                | agent                  | Change the status through the state machine                                            |
-| `POST`  | `/incidents/:id/mediation`             | agent                  | Start the mediation and call the driver ([details](../../docs/architecture/vonage.md)) |
-| `POST`  | `/incidents/:id/mediation/driver-call` | agent                  | Call the driver again during the mediation                                             |
-| `GET`   | `/orders`                              | customer               | The customer's orders                                                                  |
+| Method  | Path                                                        | Who                    | What                                                                                   |
+| ------- | ----------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------- |
+| `POST`  | `/auth/agent/login`                                         | anyone                 | Log an agent in and set the session cookie                                             |
+| `POST`  | `/auth/customer/start`                                      | anyone                 | Start a customer login, by silent authentication or SMS                                |
+| `POST`  | `/auth/customer/sms`                                        | anyone                 | Send the SMS now, when silent authentication failed                                    |
+| `POST`  | `/auth/customer/check`                                      | anyone                 | Log a customer in with that code and set the session cookie                            |
+| `POST`  | `/auth/logout`                                              | anyone                 | End the session and clear the cookie                                                   |
+| `GET`   | `/auth/me`                                                  | customer / agent       | The person behind the current session                                                  |
+| `POST`  | `/incidents`                                                | customer               | Create an incident for one of their orders                                             |
+| `GET`   | `/incidents`                                                | agent                  | CRM inbox, filtered and paginated                                                      |
+| `GET`   | `/incidents/:id`                                            | customer (own) / agent | Detail with order, customer, driver, events and communications                         |
+| `PATCH` | `/incidents/:id/status`                                     | agent                  | Change the status through the state machine                                            |
+| `POST`  | `/incidents/:id/mediation`                                  | agent                  | Start the mediation and call the driver ([details](../../docs/architecture/vonage.md)) |
+| `POST`  | `/incidents/:id/mediation/driver-call`                      | agent                  | Call the driver again during the mediation                                             |
+| `POST`  | `/incidents/:id/mediation/end`                              | agent                  | Hang up every leg of the call ([details](../../docs/architecture/vonage.md))           |
+| `POST`  | `/incidents/:id/mediation/participants/:participant/remove` | agent                  | Hang up the customer's or the driver's legs and keep the others on the call            |
+| `GET`   | `/orders`                                                   | customer               | The customer's orders                                                                  |
 
 ### Listing incidents
 
