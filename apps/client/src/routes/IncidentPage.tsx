@@ -3,7 +3,7 @@ import { uuidSchema } from '@csl/contracts';
 import { useQuery } from '@tanstack/react-query';
 import { PhoneCall } from 'lucide-react';
 import { useEffect } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useParams } from 'react-router';
 import { useFormatter, useTranslations } from 'use-intl';
 
 import { api } from '../api.ts';
@@ -20,6 +20,16 @@ import type { IncidentDetail } from '@csl/contracts';
 import type { ReactNode } from 'react';
 
 const isNotFound = (error: unknown) => error instanceof ApiError && error.status === 404;
+
+function readFailedEvidenceCount(state: unknown): number {
+  if (typeof state !== 'object' || state === null || !('failedEvidenceCount' in state)) {
+    return 0;
+  }
+
+  const count = (state as { failedEvidenceCount: unknown }).failedEvidenceCount;
+
+  return typeof count === 'number' && Number.isInteger(count) && count > 0 ? count : 0;
+}
 
 function IncidentLayout({ children }: { children: ReactNode }) {
   return (
@@ -99,6 +109,8 @@ function IncidentSummary({ incident }: { incident: IncidentDetail }) {
 
 function IncidentDetails({ id }: { id: string }) {
   const t = useTranslations('incident');
+  const location = useLocation();
+  const failedEvidenceCount = readFailedEvidenceCount(location.state);
   const { state: sessionState } = useSession();
   const customerId = sessionState.status === 'ready' ? (sessionState.user?.id ?? null) : null;
 
@@ -149,6 +161,13 @@ function IncidentDetails({ id }: { id: string }) {
   return (
     <IncidentLayout>
       <h1 className="incident-page__title">{t('title')}</h1>
+      {failedEvidenceCount > 0 && (
+        <div className="incident-section incident-section--warning" role="status">
+          <p className="incident-section__warning">
+            {t('evidence.uploadPartialFailure', { count: failedEvidenceCount })}
+          </p>
+        </div>
+      )}
       <IncidentProgress incident={incident} />
       {canJoinCall(incident) && (
         <Link to={`/call/${incident.id}`} className="incident-page__button">
