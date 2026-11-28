@@ -37,17 +37,19 @@ export class MediationController {
   @Post('end')
   @HttpCode(HttpStatus.NO_CONTENT)
   end(
+    @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(incidentIdParamsSchema)) params: IncidentIdParams,
   ): Promise<void> {
-    return this.mediation.end(params.id);
+    return this.mediation.end(actor.id, params.id);
   }
 
   @Post('participants/:participant/remove')
   @HttpCode(HttpStatus.NO_CONTENT)
   removeParticipant(
+    @CurrentActor() actor: AuthActor,
     @Param(new ZodValidationPipe(mediationParticipantParamsSchema))
     params: MediationParticipantParams,
   ): Promise<void> {
-    return this.mediation.removeParticipant(params.id, params.participant);
+    return this.mediation.removeParticipant(actor.id, params.id, params.participant);
   }
 }
