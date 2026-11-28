@@ -12,6 +12,8 @@ export const INCIDENT_EVENT_KINDS = [
   'driver_replied',
   'driver_joined',
   'driver_unreachable',
+  'participant_removed',
+  'mediation_call_ended',
 ] as const;
 
 export type IncidentEventKind = (typeof INCIDENT_EVENT_KINDS)[number];
