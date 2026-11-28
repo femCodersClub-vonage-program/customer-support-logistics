@@ -1,8 +1,8 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SessionProvider } from '../auth/session.tsx';
 import { CUSTOMER, apiUrl, renderApp, sessionOf } from '../test/app.tsx';
@@ -11,6 +11,7 @@ import { renderWithIntl } from '../test/render.tsx';
 import { loadDraft, saveDraft } from './draft.ts';
 import { ReportForm } from './ReportForm.tsx';
 
+import type { PrepareFileFn, PutFileFn } from './upload-evidence.ts';
 import type { Incident, Locale } from '@csl/shared-types';
 
 const ORDER_ID = '3c4d5e6f-0000-4000-8000-000000000001';
@@ -49,17 +50,29 @@ function failWith(status: number, error: object) {
 }
 
 function Destination() {
-  const { pathname } = useLocation();
+  const { pathname, state } = useLocation();
+  const failed =
+    typeof state === 'object' && state !== null && 'failedEvidenceCount' in state
+      ? Number((state as { failedEvidenceCount: unknown }).failedEvidenceCount)
+      : 0;
 
-  return <p>{pathname}</p>;
+  return (
+    <div>
+      <p>{pathname}</p>
+      {failed > 0 && <p>{`failed:${String(failed)}`}</p>}
+    </div>
+  );
 }
 
-function renderForm(locale: Locale = 'en') {
+function renderForm(
+  locale: Locale = 'en',
+  props: { prepareFile?: PrepareFileFn; putFile?: PutFileFn; slowUploadNoticeMs?: number } = {},
+) {
   return renderWithIntl(
     <MemoryRouter initialEntries={[REPORT_PATH]}>
       <SessionProvider>
         <Routes>
-          <Route path="report/:orderId" element={<ReportForm orderId={ORDER_ID} />} />
+          <Route path="report/:orderId" element={<ReportForm orderId={ORDER_ID} {...props} />} />
           <Route path="incidents/:id" element={<Destination />} />
         </Routes>
       </SessionProvider>
@@ -392,5 +405,304 @@ describe('ReportForm', () => {
     expect(screen.getByRole('group', { name: '¿Qué ha pasado?' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Dañado' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Enviar reporte' })).toBeInTheDocument();
+  });
+
+  describe('evidence upload', () => {
+    const EVIDENCE_ID = '11111111-1111-4111-8111-111111111111';
+
+    function attach(files: File[]) {
+      const input = screen.getByLabelText('Choose from gallery');
+
+      fireEvent.change(input, { target: { files } });
+    }
+
+    it('renders the evidence picker and suggests a photo for damaged items', () => {
+      renderForm();
+
+      expect(screen.getByRole('group', { name: 'Photos and videos' })).toBeInTheDocument();
+
+      choose('Damaged');
+
+      expect(
+        screen.getByText('A photo of the problem helps us solve it faster.'),
+      ).toBeInTheDocument();
+    });
+
+    it('creates the incident, uploads selected files with progress, shows slow notice, and navigates', async () => {
+      answerWith(incidentCreated);
+      const completed: string[] = [];
+
+      server.use(
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/upload-url`, () =>
+          HttpResponse.json(
+            {
+              evidenceId: EVIDENCE_ID,
+              uploadUrl: 'https://storage.example/upload-1',
+              expiresAt: '2026-11-27T14:00:00.000Z',
+            },
+            { status: 201 },
+          ),
+        ),
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/${EVIDENCE_ID}/complete`, () => {
+          completed.push(EVIDENCE_ID);
+
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+
+      let finishPut!: () => void;
+      const putFile: PutFileFn = vi.fn(
+        (_url, _file, _mimeType, onProgress) =>
+          new Promise<void>((resolve) => {
+            onProgress(45);
+            finishPut = () => {
+              onProgress(99);
+              resolve();
+            };
+          }),
+      );
+
+      renderForm('en', { putFile, slowUploadNoticeMs: 10 });
+
+      choose('Damaged');
+      attach([new File(['photo'], 'box.jpg', { type: 'image/jpeg' })]);
+      send();
+
+      expect(await screen.findByText('Uploading (45%)')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Send report' })).toBeDisabled();
+      expect(
+        await screen.findByText(
+          'The connection is slow. Keep this page open while your files finish uploading.',
+        ),
+      ).toBeInTheDocument();
+
+      // Double submit is blocked while uploading
+      fireEvent.submit(
+        screen.getByRole('button', { name: 'Send report' }).closest('form') as HTMLFormElement,
+      );
+      expect(bodies).toHaveLength(1);
+
+      finishPut();
+
+      expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
+      expect(completed).toEqual([EVIDENCE_ID]);
+      expect(putFile).toHaveBeenCalledOnce();
+    });
+
+    it('lets the customer continue to the created incident when a file upload fails', async () => {
+      answerWith(incidentCreated);
+      server.use(
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/upload-url`, () =>
+          HttpResponse.json(
+            {
+              evidenceId: EVIDENCE_ID,
+              uploadUrl: 'https://storage.example/upload-1',
+              expiresAt: '2026-11-27T14:00:00.000Z',
+            },
+            { status: 201 },
+          ),
+        ),
+      );
+
+      const putFile: PutFileFn = vi.fn().mockRejectedValue(new Error('Storage 500'));
+
+      renderForm('en', { putFile });
+
+      choose('Damaged');
+      attach([new File(['photo'], 'box.jpg', { type: 'image/jpeg' })]);
+      send();
+
+      expect(
+        await screen.findByText(
+          'Your incident was created, but 1 file could not be uploaded. You can retry or continue to your incident.',
+        ),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Continue to incident' }));
+
+      expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
+      expect(screen.getByText('failed:1')).toBeInTheDocument();
+      expect(bodies).toHaveLength(1);
+    });
+
+    it('retries failed uploads from the uploader without creating the incident again', async () => {
+      answerWith(incidentCreated);
+      const completed: string[] = [];
+      let urlCount = 0;
+
+      server.use(
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/upload-url`, () => {
+          urlCount += 1;
+
+          return HttpResponse.json(
+            {
+              evidenceId: `11111111-1111-4111-8111-11111111111${String(urlCount)}`,
+              uploadUrl: `https://storage.example/upload-${String(urlCount)}`,
+              expiresAt: '2026-11-27T14:00:00.000Z',
+            },
+            { status: 201 },
+          );
+        }),
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/:evidenceId/complete`, ({ params }) => {
+          completed.push(String(params.evidenceId));
+
+          return new HttpResponse(null, { status: 204 });
+        }),
+      );
+
+      const prepareFile: PrepareFileFn = vi.fn(
+        async (file) => new File(['compressed'], file.name, { type: file.type }),
+      );
+      const putFile: PutFileFn = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('Temporary network error'))
+        .mockResolvedValueOnce(undefined);
+
+      renderForm('en', { prepareFile, putFile });
+
+      choose('Damaged');
+      attach([
+        new File(['ok-photo'], 'ok.jpg', { type: 'image/jpeg' }),
+        new File(['flaky-photo'], 'flaky.jpg', { type: 'image/jpeg' }),
+      ]);
+      send();
+
+      expect(
+        await screen.findByText(
+          'Your incident was created, but 1 file could not be uploaded. You can retry or continue to your incident.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Uploaded')).toBeInTheDocument();
+      expect(screen.getByText('Could not upload')).toBeInTheDocument();
+      expect(bodies).toHaveLength(1);
+      expect(completed).toHaveLength(1);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry failed uploads' }));
+
+      expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
+      expect(screen.queryByText(/failed:/)).not.toBeInTheDocument();
+      expect(bodies).toHaveLength(1);
+      expect(putFile).toHaveBeenCalledTimes(3);
+      expect(prepareFile).toHaveBeenCalledTimes(2);
+      expect(completed).toHaveLength(2);
+    });
+
+    it('supports retrying a single failed file individually without recreating the incident', async () => {
+      answerWith(incidentCreated);
+      let urlCount = 0;
+
+      server.use(
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/upload-url`, () => {
+          urlCount += 1;
+
+          return HttpResponse.json(
+            {
+              evidenceId: `22222222-2222-4222-8222-22222222222${String(urlCount)}`,
+              uploadUrl: `https://storage.example/upload-${String(urlCount)}`,
+              expiresAt: '2026-11-27T14:00:00.000Z',
+            },
+            { status: 201 },
+          );
+        }),
+        http.post(
+          `*/incidents/${INCIDENT_ID}/evidence/:evidenceId/complete`,
+          () => new HttpResponse(null, { status: 204 }),
+        ),
+      );
+
+      const putFile: PutFileFn = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('Drop 1'))
+        .mockRejectedValueOnce(new Error('Drop 2'))
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      renderForm('en', { putFile });
+
+      choose('Damaged');
+      attach([
+        new File(['a'], 'first.jpg', { type: 'image/jpeg' }),
+        new File(['b'], 'second.jpg', { type: 'image/jpeg' }),
+      ]);
+      send();
+
+      expect(
+        await screen.findByText(
+          'Your incident was created, but 2 files could not be uploaded. You can retry or continue to your incident.',
+        ),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry first.jpg' }));
+
+      expect(
+        await screen.findByText(
+          'Your incident was created, but 1 file could not be uploaded. You can retry or continue to your incident.',
+        ),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry second.jpg' }));
+
+      expect(await screen.findByText(`/incidents/${INCIDENT_ID}`)).toBeInTheDocument();
+      expect(bodies).toHaveLength(1);
+    });
+
+    it('cancels in-flight uploads if the customer leaves the page', async () => {
+      answerWith(incidentCreated);
+      server.use(
+        http.post(`*/incidents/${INCIDENT_ID}/evidence/upload-url`, () =>
+          HttpResponse.json(
+            {
+              evidenceId: EVIDENCE_ID,
+              uploadUrl: 'https://storage.example/upload-1',
+              expiresAt: '2026-11-27T14:00:00.000Z',
+            },
+            { status: 201 },
+          ),
+        ),
+      );
+
+      let aborted = false;
+      const putFile: PutFileFn = vi.fn(
+        (_url, _file, _mimeType, _onProgress, signal) =>
+          new Promise<void>((_resolve, reject) => {
+            signal?.addEventListener('abort', () => {
+              aborted = true;
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          }),
+      );
+
+      const { unmount } = renderForm('en', { putFile });
+
+      choose('Damaged');
+      attach([new File(['photo'], 'box.jpg', { type: 'image/jpeg' })]);
+      send();
+
+      await waitFor(() => expect(putFile).toHaveBeenCalledOnce());
+      unmount();
+
+      expect(aborted).toBe(true);
+    });
+
+    it('sends the customer to login when the session expires (401) during evidence upload', async () => {
+      answerWith(incidentCreated);
+      server.use(
+        http.post(
+          apiUrl(`/incidents/${INCIDENT_ID}/evidence/upload-url`),
+          failWith(401, { code: 'UNAUTHORIZED', message: 'Expired' }),
+        ),
+        http.post(apiUrl('/auth/logout'), () => new HttpResponse(null, { status: 204 })),
+      );
+
+      renderApp(REPORT_PATH);
+
+      await screen.findByRole('heading', { name: 'Report an incident' });
+      choose('Damaged');
+      attach([new File(['photo'], 'box.jpg', { type: 'image/jpeg' })]);
+      send();
+
+      expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+    });
   });
 });

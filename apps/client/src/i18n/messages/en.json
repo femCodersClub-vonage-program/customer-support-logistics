@@ -67,6 +67,23 @@
     "hintRequired": "Required · {count} / {max}",
     "submit": "Send report",
     "sending": "Sending… this may take a moment.",
+    "uploading": "Uploading files ({current} of {total})…",
+    "slowConnection": "The connection is slow. Keep this page open while your files finish uploading.",
+    "uploadListLabel": "Evidence upload progress",
+    "retryBanner": "{count, plural, one {Your incident was created, but # file could not be uploaded. You can retry or continue to your incident.} other {Your incident was created, but # files could not be uploaded. You can retry or continue to your incident.}}",
+    "retryFailed": "Retry failed uploads",
+    "retryFile": "Retry",
+    "retryFileLabel": "Retry {name}",
+    "continueToIncident": "Continue to incident",
+    "uploadStatus": {
+      "queued": "Queued",
+      "preparing": "Preparing…",
+      "uploading": "Uploading…",
+      "uploadingPercent": "Uploading ({percent}%)",
+      "confirming": "Confirming…",
+      "done": "Uploaded",
+      "failed": "Could not upload"
+    },
     "errors": {
       "type": "Choose what happened.",
       "descriptionRequired": "Describe the problem.",
@@ -77,7 +94,8 @@
     "evidence": {
       "title": "Photos and videos",
       "hint": "Up to {maxFiles} files. Photos up to {imageMb} MB, videos up to {videoMb} MB.",
-      "camera": "Take a photo or video",
+      "takePhoto": "Take a photo",
+      "recordVideo": "Record a video",
       "gallery": "Choose from gallery",
       "suggestPhoto": "A photo of the problem helps us solve it faster.",
       "selected": "Selected files",
@@ -146,7 +164,8 @@
       "photo": "Photo {number}",
       "video": "Video {number}",
       "processing": "{count, plural, one {We're still processing # file.} other {We're still processing # files.}}",
-      "error": "We couldn't load your photos and videos."
+      "error": "We couldn't load your photos and videos.",
+      "uploadPartialFailure": "{count, plural, one {Your incident was created, but # file could not be uploaded.} other {Your incident was created, but # files could not be uploaded.}}"
     },
     "events": {
       "status": {

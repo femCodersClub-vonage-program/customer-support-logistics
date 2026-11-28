@@ -180,6 +180,152 @@
   min-height: 48px;
 }
 
+.report-uploads {
+  display: grid;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-uploads__item {
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--color-border-card);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-subtle);
+}
+
+.report-uploads__item--failed {
+  border-color: var(--color-error);
+  background-color: var(--color-error-bg);
+}
+
+.report-uploads__item--done {
+  border-color: var(--status-resolved);
+  background-color: var(--status-resolved-bg);
+}
+
+.report-uploads__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.report-uploads__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.report-uploads__meta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.report-uploads__state {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-uploads__retry {
+  min-height: 2rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.report-uploads__item--failed .report-uploads__state {
+  color: var(--color-error);
+}
+
+.report-uploads__item--done .report-uploads__state {
+  color: var(--status-resolved);
+}
+
+.report-uploads__progress {
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  appearance: none;
+  background-color: var(--color-border-card);
+}
+
+.report-uploads__progress::-webkit-progress-bar {
+  background-color: var(--color-border-card);
+  border-radius: var(--radius-pill);
+}
+
+.report-uploads__progress::-webkit-progress-value {
+  background-color: var(--color-primary);
+  border-radius: var(--radius-pill);
+}
+
+.report-uploads__progress::-moz-progress-bar {
+  background-color: var(--color-primary);
+  border-radius: var(--radius-pill);
+}
+
+.report-uploads__item--done .report-uploads__progress::-webkit-progress-value {
+  background-color: var(--status-resolved);
+}
+
+.report-uploads__item--done .report-uploads__progress::-moz-progress-bar {
+  background-color: var(--status-resolved);
+}
+
+.report-uploads__item--failed .report-uploads__progress::-webkit-progress-value {
+  background-color: var(--color-error);
+}
+
+.report-uploads__item--failed .report-uploads__progress::-moz-progress-bar {
+  background-color: var(--color-error);
+}
+
+.report-form__slow-notice {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-warning);
+  border-inline-start: 4px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background-color: var(--color-warning-bg);
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.report-form__retry-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--color-warning);
+  border-inline-start: 4px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background-color: var(--color-warning-bg);
+}
+
+.report-form__retry-message {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.report-form__retry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
 .report-form__submit:disabled {
   cursor: progress;
   opacity: 0.65;

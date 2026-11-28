@@ -13,8 +13,14 @@ export {
 };
 
 export const EVIDENCE_ACCEPT = [...EVIDENCE_MIME_TYPES, '.heic', '.heif', '.mov'].join(',');
+export const EVIDENCE_PHOTO_CAPTURE_ACCEPT = 'image/*';
+export const EVIDENCE_VIDEO_CAPTURE_ACCEPT = 'video/*';
 
 const TYPE_BY_EXTENSION = new Map([
+  ['jpg', 'image/jpeg'],
+  ['jpeg', 'image/jpeg'],
+  ['png', 'image/png'],
+  ['webp', 'image/webp'],
   ['heic', 'image/heic'],
   ['heif', 'image/heif'],
   ['mov', 'video/quicktime'],
