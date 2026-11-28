@@ -107,11 +107,6 @@
   box-shadow: var(--shadow-xs);
 }
 
-.participantCardActive {
-  border: 1.5px solid var(--color-primary);
-  box-shadow: 0 0 0 3px rgb(135 30 255 / 10%);
-}
-
 .participantHeader {
   display: flex;
   align-items: center;
