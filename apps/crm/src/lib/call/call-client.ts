@@ -35,6 +35,8 @@ export interface CallClient {
   deleteSession(): Promise<unknown>;
   serverCall(context: { incidentId: string }): Promise<string>;
   hangup(callId: string): Promise<unknown>;
+  mute(callId: string): Promise<unknown>;
+  unmute(callId: string): Promise<unknown>;
   getConversationId(incidentId: string): Promise<string>;
   getMembers(conversationId: string): Promise<MemberSnapshot[]>;
   on<E extends CallClientEvent>(event: E, callback: CallClientEvents[E]): symbol;
@@ -66,6 +68,8 @@ export const loadVonageClient: CallClientLoader = async () => {
     deleteSession: () => client.deleteSession(),
     serverCall: (context) => client.serverCall(context),
     hangup: (callId) => client.hangup(callId),
+    mute: (callId) => client.mute(callId),
+    unmute: (callId) => client.unmute(callId),
     getConversationId: async (incidentId) =>
       (await client.getConversation(conversationName(incidentId))).id,
     getMembers: async (conversationId) => {

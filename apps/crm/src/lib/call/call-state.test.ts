@@ -15,20 +15,45 @@ describe('callReducer', () => {
 
   it('keeps connecting while the call is placed and rings', () => {
     expect(
-      run({ type: 'join' }, { type: 'placed', callId: 'c1' }, { type: 'leg', status: 'RINGING' }),
+      run(
+        { type: 'join' },
+        { type: 'placed', callId: 'c1' },
+        { type: 'leg', status: 'RINGING', at: 1_000 },
+      ),
     ).toEqual({
       status: 'connecting',
       callId: 'c1',
+      muted: false,
+      connectedAt: null,
       failure: null,
     });
   });
 
   it('is connected when the leg is answered', () => {
-    expect(run({ type: 'join' }, { type: 'leg', status: 'ANSWERED' }).status).toBe('connected');
+    expect(run({ type: 'join' }, { type: 'leg', status: 'ANSWERED', at: 1_000 }).status).toBe(
+      'connected',
+    );
+  });
+
+  it('remembers when the call was first answered', () => {
+    const state = run(
+      { type: 'join' },
+      { type: 'leg', status: 'ANSWERED', at: 1_000 },
+      { type: 'leg', status: 'ANSWERED', at: 9_000 },
+    );
+
+    expect(state.connectedAt).toBe(1_000);
+  });
+
+  it('keeps track of the microphone, and unmutes when joining again', () => {
+    const muted = run({ type: 'join' }, { type: 'muted', muted: true });
+
+    expect(muted.muted).toBe(true);
+    expect(callReducer(callReducer(muted, { type: 'ended' }), { type: 'join' }).muted).toBe(false);
   });
 
   it('goes to reconnecting and back only from connected', () => {
-    const connected = run({ type: 'join' }, { type: 'leg', status: 'ANSWERED' });
+    const connected = run({ type: 'join' }, { type: 'leg', status: 'ANSWERED', at: 1_000 });
 
     expect(callReducer(connected, { type: 'reconnecting' }).status).toBe('reconnecting');
     expect(
@@ -40,7 +65,7 @@ describe('callReducer', () => {
   it.each(['COMPLETED', 'FAILED', 'BUSY', 'TIMEOUT', 'CANCELLED', 'REJECTED'] as const)(
     'ends when the leg is %s',
     (status) => {
-      expect(run({ type: 'join' }, { type: 'leg', status }).status).toBe('ended');
+      expect(run({ type: 'join' }, { type: 'leg', status, at: 1_000 }).status).toBe('ended');
     },
   );
 
@@ -63,7 +88,7 @@ describe('callReducer', () => {
   });
 
   it('does not restart a call in progress', () => {
-    const connected = run({ type: 'join' }, { type: 'leg', status: 'ANSWERED' });
+    const connected = run({ type: 'join' }, { type: 'leg', status: 'ANSWERED', at: 1_000 });
 
     expect(callReducer(connected, { type: 'join' })).toBe(connected);
   });

@@ -29,6 +29,8 @@ export interface MediationCall {
   call: CallState;
   participants: ParticipantsState;
   join: () => Promise<void>;
+  leave: () => Promise<void>;
+  toggleMute: () => Promise<void>;
 }
 
 interface Connection {
@@ -82,8 +84,10 @@ export function useMediationCall(
   const connectionRef = useRef<Connection | null>(null);
   const callIdRef = useRef<string | null>(null);
   const statusRef = useRef(call.status);
+  const mutedRef = useRef(call.muted);
 
   statusRef.current = call.status;
+  mutedRef.current = call.muted;
 
   const scheduleRefresh = useCallback(
     (connection: Connection, expiresAt: string) => {
@@ -173,7 +177,7 @@ export function useMediationCall(
               return;
             }
 
-            dispatchCall({ type: 'leg', status });
+            dispatchCall({ type: 'leg', status, at: Date.now() });
 
             if (status === 'ANSWERED') {
               void syncConversation(connection);
@@ -302,6 +306,35 @@ export function useMediationCall(
     }
   }, [incidentId, listen, loadClient, requestMic, scheduleRefresh]);
 
+  const leave = useCallback(async () => {
+    const connection = connectionRef.current;
+    const callId = callIdRef.current;
+
+    if (connection !== null && callId !== null) {
+      await connection.client.hangup(callId).catch(() => undefined);
+    }
+
+    dispatchCall({ type: 'ended' });
+  }, []);
+
+  const toggleMute = useCallback(async () => {
+    const connection = connectionRef.current;
+    const callId = callIdRef.current;
+
+    if (connection === null || callId === null) {
+      return;
+    }
+
+    const muted = !mutedRef.current;
+
+    try {
+      await (muted ? connection.client.mute(callId) : connection.client.unmute(callId));
+      dispatchCall({ type: 'muted', muted });
+    } catch {
+      return;
+    }
+  }, []);
+
   useEffect(() => {
     if (!isCallActive(call.status) && connectionRef.current !== null) {
       close(connectionRef.current);
@@ -337,5 +370,5 @@ export function useMediationCall(
     [call.status, participantsState],
   );
 
-  return { call, participants, join };
+  return { call, participants, join, leave, toggleMute };
 }

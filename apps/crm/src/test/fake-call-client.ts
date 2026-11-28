@@ -21,6 +21,8 @@ export function createFakeCallClient(members: MemberSnapshot[] = []) {
     deleteSession: vi.fn<CallClient['deleteSession']>().mockResolvedValue(undefined),
     serverCall: vi.fn<CallClient['serverCall']>().mockResolvedValue('call-1'),
     hangup: vi.fn<CallClient['hangup']>().mockResolvedValue(undefined),
+    mute: vi.fn<CallClient['mute']>().mockResolvedValue(undefined),
+    unmute: vi.fn<CallClient['unmute']>().mockResolvedValue(undefined),
     getConversationId: vi.fn<CallClient['getConversationId']>().mockResolvedValue(CONVERSATION_ID),
     getMembers: vi.fn<CallClient['getMembers']>().mockResolvedValue(members),
     on: vi.fn((event: CallClientEvent, callback: unknown) => {
