@@ -6,6 +6,7 @@ import { getTranslations } from 'next-intl/server';
 import { DriverCallPanel } from '../../../../components/DriverCallPanel';
 import { EvidenceGallery } from '../../../../components/EvidenceGallery';
 import { IncidentSummary } from '../../../../components/IncidentSummary';
+import { MediationCall } from '../../../../components/MediationCall';
 import { MediationOutcomeForm } from '../../../../components/MediationOutcomeForm';
 import { StatusBadge } from '../../../../components/StatusBadge';
 import { serverApi } from '../../../../lib/api.server';
@@ -114,62 +115,64 @@ export default async function MediationPage({ params }: MediationPageProps) {
 
       <div className={styles.layout}>
         <div className={styles.main}>
-          <section className={styles.participants} aria-label={t('participants.title')}>
-            <article
-              className={
-                incident.status === 'in_mediation'
-                  ? `${styles.participantCard} ${styles.participantCardActive}`
-                  : styles.participantCard
-              }
-            >
-              <div className={styles.participantHeader}>
-                <span className={styles.avatar} aria-hidden="true">
-                  {initialsOf(incident.customer.name)}
-                </span>
-                <div className={styles.participantInfo}>
-                  <p className={styles.participantName}>{incident.customer.name}</p>
-                  <p className={styles.participantRole}>{t('participants.customerRole')}</p>
+          {incident.status === 'in_mediation' ? (
+            <MediationCall
+              incidentId={incident.id}
+              customerName={incident.customer.name}
+              driverName={incident.driver?.name ?? null}
+            />
+          ) : (
+            <section className={styles.participants} aria-label={t('participants.title')}>
+              <article className={styles.participantCard}>
+                <div className={styles.participantHeader}>
+                  <span className={styles.avatar} aria-hidden="true">
+                    {initialsOf(incident.customer.name)}
+                  </span>
+                  <div className={styles.participantInfo}>
+                    <p className={styles.participantName}>{incident.customer.name}</p>
+                    <p className={styles.participantRole}>{t('participants.customerRole')}</p>
+                  </div>
                 </div>
-              </div>
-              <p className={styles.participantMeta}>
-                <a href={`tel:${incident.customer.phone}`}>{incident.customer.phone}</a>
-              </p>
-            </article>
+                <p className={styles.participantMeta}>
+                  <a href={`tel:${incident.customer.phone}`}>{incident.customer.phone}</a>
+                </p>
+              </article>
 
-            <article className={styles.participantCard}>
-              <div className={styles.participantHeader}>
-                <span className={`${styles.avatar} ${styles.avatarDriver}`} aria-hidden="true">
-                  {incident.driver ? initialsOf(incident.driver.name) : '—'}
-                </span>
-                <div className={styles.participantInfo}>
-                  <p className={styles.participantName}>
-                    {incident.driver?.name ?? t('summary.noDriver')}
-                  </p>
-                  <p className={styles.participantRole}>{t('participants.driverRole')}</p>
+              <article className={styles.participantCard}>
+                <div className={styles.participantHeader}>
+                  <span className={`${styles.avatar} ${styles.avatarDriver}`} aria-hidden="true">
+                    {incident.driver ? initialsOf(incident.driver.name) : '—'}
+                  </span>
+                  <div className={styles.participantInfo}>
+                    <p className={styles.participantName}>
+                      {incident.driver?.name ?? t('summary.noDriver')}
+                    </p>
+                    <p className={styles.participantRole}>{t('participants.driverRole')}</p>
+                  </div>
                 </div>
-              </div>
-              <p className={styles.participantMeta}>
-                {driverCall === undefined
-                  ? t('driverCall.noCall')
-                  : t(`driverCall.callStatus.${driverCall.status}`)}
-              </p>
-            </article>
+                <p className={styles.participantMeta}>
+                  {driverCall === undefined
+                    ? t('driverCall.noCall')
+                    : t(`driverCall.callStatus.${driverCall.status}`)}
+                </p>
+              </article>
 
-            <article className={styles.participantCard}>
-              <div className={styles.participantHeader}>
-                <span className={`${styles.avatar} ${styles.avatarAgent}`} aria-hidden="true">
-                  A
-                </span>
-                <div className={styles.participantInfo}>
-                  <p className={styles.participantName}>{t('participants.agentName')}</p>
-                  <p className={styles.participantRole}>{t('participants.agentRole')}</p>
+              <article className={styles.participantCard}>
+                <div className={styles.participantHeader}>
+                  <span className={`${styles.avatar} ${styles.avatarAgent}`} aria-hidden="true">
+                    A
+                  </span>
+                  <div className={styles.participantInfo}>
+                    <p className={styles.participantName}>{t('participants.agentName')}</p>
+                    <p className={styles.participantRole}>{t('participants.agentRole')}</p>
+                  </div>
                 </div>
-              </div>
-              <p className={styles.participantMeta}>
-                <StatusBadge status={incident.status} />
-              </p>
-            </article>
-          </section>
+                <p className={styles.participantMeta}>
+                  <StatusBadge status={incident.status} />
+                </p>
+              </article>
+            </section>
+          )}
 
           <section className={styles.card} aria-labelledby="driver-connection-steps-title">
             <h2 id="driver-connection-steps-title" className={styles.cardTitle}>

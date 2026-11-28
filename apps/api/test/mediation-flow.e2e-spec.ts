@@ -471,6 +471,47 @@ describe('Mediation flow (e2e)', () => {
     });
   });
 
+  describe('ending the call', () => {
+    const endCall = () =>
+      http().post(`/incidents/${INCIDENT}/mediation/end`).set('Cookie', cookie.agentA);
+
+    it('does not place the scheduled call to the driver', async () => {
+      await startMediation().expect(201);
+      await runDueJobs(testApp);
+
+      await endCall().expect(204);
+      await advanceJobClock(testApp, 120);
+
+      expect(callsToDriver()).toEqual([]);
+      expect(await communicationWith(mediationKeys.call(INCIDENT, 1))).toBeUndefined();
+    });
+
+    it('does not place the retries to the driver', async () => {
+      const first = await startAndPlaceFirstCall();
+
+      await voiceEvent(first, 'unanswered');
+      await endCall().expect(204);
+      await advanceJobClock(testApp, 60);
+      await runDueJobs(testApp);
+
+      expect(callsToDriver()).toHaveLength(1);
+      expect(await communicationWith(mediationKeys.call(INCIDENT, 2))).toBeUndefined();
+    });
+
+    it('does not place the call of a driver who was removed', async () => {
+      await startMediation().expect(201);
+      await runDueJobs(testApp);
+
+      await http()
+        .post(`/incidents/${INCIDENT}/mediation/participants/driver/remove`)
+        .set('Cookie', cookie.agentA)
+        .expect(204);
+      await advanceJobClock(testApp, 120);
+
+      expect(callsToDriver()).toEqual([]);
+    });
+  });
+
   describe('restarts', () => {
     it('resumes the retries after a restart without placing a duplicate call', async () => {
       const first = await startAndPlaceFirstCall();

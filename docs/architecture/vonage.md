@@ -195,7 +195,7 @@ The customer (PWA, `/call/:id`) and the agent (CRM) join `inc-<id>` with the Von
 | `POST /vonage/client-token` | Customers and agents | With `{ incidentId }`: creates the Vonage user if it doesn't exist yet, and signs a JWT for it with the application private key, valid for 15 minutes | `201` with `{ token, userName, expiresAt }` |
 
 - **Users.** Each customer and agent has one Vonage user, named `cust-<id>` or `agent-<id>` (`apps/api/src/vonage/vonage-users.ts`). The API creates it on the first token and treats Vonage's `409` (the name already exists) as success, so nothing is stored in our database.
-- **JWT.** `sub` is the user name. The ACLs are only those needed to start, control and hang up a call, plus conversation events, which `mute` needs (`CLIENT_TOKEN_ACL` in `apps/api/src/vonage/client-token.ts`).
+- **JWT.** `sub` is the user name. The ACLs are only those needed to start, control and hang up a call, plus conversation events, which `mute` needs, and reading the members of a conversation, which the CRM uses to show who is on the call (`CLIENT_TOKEN_ACL` in `apps/api/src/vonage/client-token.ts`).
 - **Who gets one.** A customer only gets a token for an incident on one of their orders (`404` otherwise), an agent for any incident, and the incident must be `in_mediation` (`409` otherwise). `502` means Vonage didn't create the user.
 - **The call.** The browser starts the call with `serverCall({ incidentId })`. Vonage asks the answer URL with `endpoint_type: app`, the caller's user name in `from_user` and the context in `custom_data`. The answer URL joins the call to `inc-<id>` only if the incident is `in_mediation` and `from_user` is the customer who owns it or an existing agent. Any other call gets `[]` and hangs up, so a valid token for one incident can't join another incident's conversation.
 - **Recording.** Before joining it, the answer URL stores the call as an inbound voice `Communication` of the incident, with the leg's `uuid` as `vonageUuid`. If an event webhook stored it first without an incident, it links it. This way the API knows every leg of `inc-<id>` when it closes the call.
@@ -218,7 +218,16 @@ The CRM page `/incidents/:id/mediation` (`apps/crm/src/app/incidents/[id]/mediat
 - The status of the driver's last outbound voice `Communication` is shown as it was when the page loaded. It updates after each action, and without reloading once the live updates of [#40] are in place.
 - A `409` or `502` is shown to the agent as a short message, and they can retry.
 
-The Client SDK JWT is available ([#36], see [Joining from the browser](#joining-from-the-browser)). The agent's audio, the participants panel and the call controls in the CRM are still _planned_.
+While the incident is `in_mediation`, the page also lets the agent join the call ([#91]). The code is in `apps/crm/src/lib/call` and `apps/crm/src/components/MediationCall.tsx`:
+
+- **SDK.** `@vonage/client-sdk` is loaded with a dynamic `import()` in `lib/call/call-client.ts`, which only this page uses. It is a separate chunk (about 293 kB gzipped) that is not in the first load of any route, and not in the other CRM pages at all. The rest of the code works with the small `CallClient` interface, which the tests replace.
+- **Session.** **Join call** asks for the microphone, gets the agent's JWT with `POST /vonage/client-token` (`{ incidentId }`), opens the session and calls `serverCall({ incidentId })`. The answer URL joins the agent to `inc-<id>`. The session is refreshed with `refreshSession` one minute before the token expires, and closed (with a hang up) when the agent leaves the page.
+- **Microphone.** The page explains it before the browser asks. If it is denied, a help message shows how to allow it in Chrome or Edge, Firefox and Safari, and the rest of the page keeps working.
+- **Connection state.** `connecting`, `connected`, `reconnecting` and `ended` (plus `failed`, with its message) are in a `role="status"` region. `connected` comes from `legStatusUpdate` with `ANSWERED`; `reconnecting` from the SDK's `reconnecting` and `callMediaReconnecting`, which the SDK resolves by itself when the network is back. If the media is lost for good, **Join again** is offered.
+- **Participants.** The panel shows the agent, the customer and the driver, each with a state (`invited`, `ringing`, `connected`, `left`) and a channel (browser or phone). The states come from the `member:invited`, `member:joined` and `member:left` events of the conversation (`conversationEvent`), so they change without reloading. Whoever joined before the agent is read once with `getConversationMembers`, and a live event always wins over that reading. Events of other conversations are ignored. A phone member that is invited is shown as `ringing`. Someone else joining or leaving is announced in an `aria-live="polite"` region.
+- **Roles and numbers.** The role of a member comes from its Vonage user name: `agent-<id>` (the agent themselves), `cust-<id>` (the customer), anything else (the driver, who comes in by phone and has no user of ours). The channel follows from the role. Only the user name and the state are read from a member, so a phone number never reaches the screen.
+
+The call controls (mute, duration, leave, **End call for everyone** and **Remove participant**) are still _planned_.
 
 ### Closing the call
 
@@ -331,3 +340,4 @@ Confirm as well, since the SDK and Vonage docs don't say it clearly: that Vonage
 [#39]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/39
 [#40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40
 [#85]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/85
+[#91]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/91
