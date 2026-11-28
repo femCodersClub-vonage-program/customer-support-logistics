@@ -11,6 +11,11 @@ import { MediationCall } from './MediationCall';
 import type { MemberSnapshot } from '../lib/call/call-client';
 import type { MicrophoneAccess } from '../lib/call/microphone';
 
+vi.mock('../app/incidents/[id]/mediation/actions', () => ({
+  endMediationCall: vi.fn(),
+  removeMediationParticipant: vi.fn(),
+}));
+
 vi.mock('../lib/api', () => ({
   api: { createClientToken: vi.fn() },
 }));
