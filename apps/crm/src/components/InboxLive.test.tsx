@@ -222,6 +222,57 @@ describe('InboxLive', () => {
     ).toBeInTheDocument();
   });
 
+  it('highlights pending incidents when a status change refreshes the inbox', () => {
+    vi.useFakeTimers();
+    renderWithIntl(<InboxLive />);
+
+    act(() => {
+      emit(created('a'));
+      emit({
+        kind: 'event',
+        event: {
+          type: 'incident.status_changed',
+          incidentId: 'b',
+          status: 'notified',
+          updatedAt: '2026-11-21T10:00:00Z',
+        },
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(isHighlighted('a')).toBe(true);
+    expect(isHighlighted('b')).toBe(true);
+  });
+
+  it('still announces new incidents when a status change refreshes the inbox', () => {
+    vi.useFakeTimers();
+    renderWithIntl(<InboxLive />);
+
+    act(() => {
+      emit(created('a'));
+      emit({
+        kind: 'event',
+        event: {
+          type: 'incident.status_changed',
+          incidentId: 'b',
+          status: 'notified',
+          updatedAt: '2026-11-21T10:00:00Z',
+        },
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent(
+      '1 new incident received',
+    );
+  });
+
   it('refreshes when an incident is assigned', () => {
     vi.useFakeTimers();
     renderWithIntl(<InboxLive />);

@@ -27,35 +27,35 @@ export function InboxLive() {
   const [isRefreshing, startRefresh] = useTransition();
   const knownIdsRef = useRef(new Set<string>());
   const highlightIdsRef = useRef(new Set<string>());
+  const refreshingIdsRef = useRef(new Set<string>());
   const burstRef = useRef(0);
   const announceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const clearPending = useCallback(() => {
-    clearTimeout(announceTimerRef.current);
-    announceTimerRef.current = undefined;
-    burstRef.current = 0;
+  const refreshInbox = useCallback(() => {
+    clearTimeout(refreshTimerRef.current);
+    refreshTimerRef.current = undefined;
+    knownIdsRef.current.forEach((id) => refreshingIdsRef.current.add(id));
+    highlightIdsRef.current.forEach((id) => refreshingIdsRef.current.add(id));
     knownIdsRef.current.clear();
+    highlightIdsRef.current.clear();
     setPending(0);
-    setAnnouncement('');
-  }, []);
+    startRefresh(() => router.refresh());
+  }, [router, startRefresh]);
 
   useEffect(() => {
-    if (isRefreshing || highlightIdsRef.current.size === 0) {
+    if (isRefreshing || refreshingIdsRef.current.size === 0) {
       return;
     }
 
-    highlight([...highlightIdsRef.current]);
-    highlightIdsRef.current.clear();
+    highlight([...refreshingIdsRef.current]);
+    refreshingIdsRef.current.clear();
   }, [isRefreshing]);
 
   useEffect(() => {
     const refreshSoon = () => {
       clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = setTimeout(() => {
-        clearPending();
-        startRefresh(() => router.refresh());
-      }, REFRESH_DELAY_MS);
+      refreshTimerRef.current = setTimeout(refreshInbox, REFRESH_DELAY_MS);
     };
 
     const unsubscribe = subscribe((message) => {
@@ -95,12 +95,14 @@ export function InboxLive() {
       clearTimeout(announceTimerRef.current);
       clearTimeout(refreshTimerRef.current);
     };
-  }, [subscribe, t, router, clearPending, startRefresh]);
+  }, [subscribe, t, refreshInbox]);
 
   const showNew = () => {
-    knownIdsRef.current.forEach((id) => highlightIdsRef.current.add(id));
-    clearPending();
-    startRefresh(() => router.refresh());
+    clearTimeout(announceTimerRef.current);
+    announceTimerRef.current = undefined;
+    burstRef.current = 0;
+    setAnnouncement('');
+    refreshInbox();
   };
 
   return (
