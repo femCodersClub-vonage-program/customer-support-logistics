@@ -23,7 +23,7 @@ import { JOB_QUEUE } from '../jobs/job-queue.js';
 import { buildDriverPromptNcco } from '../vonage/ncco.js';
 import { buildCallUrl, buildVoiceInputUrl } from '../vonage/voice-urls.js';
 import { vonageUserName } from '../vonage/vonage-users.js';
-import { VonageError } from '../vonage/vonage.errors.js';
+import { VonageError, VonageRequestError } from '../vonage/vonage.errors.js';
 import { VONAGE_SERVICE } from '../vonage/vonage.service.js';
 import { advancesStatus } from '../webhooks/communication-status.js';
 
@@ -59,6 +59,14 @@ interface PreparedCall {
 interface ReservedCall extends PreparedCall {
   communicationId: string;
 }
+
+export interface BlockedParticipants {
+  ended: boolean;
+  customer: boolean;
+  driver: boolean;
+}
+
+type StopTarget = 'end' | MediationParticipant;
 
 type CallAttempt = { ok: true; call: CommunicationRow } | { ok: false; error: VonageError };
 
@@ -145,33 +153,52 @@ export class MediationService implements OnModuleInit {
         throw new ConflictException('Incident is not in mediation');
       }
 
+      if ((await this.blocked(tx, id)).driver) {
+        throw new ConflictException('The driver was removed from the call');
+      }
+
       return this.placeCall(tx, locked.incident.id, await this.prepareCall(tx, locked));
     });
 
     return toCommunication(unwrap(attempt));
   }
 
-  // Hangs up every active leg of the conversation: the driver's call and the browser legs.
-  // It stores nothing: the voice event webhook marks each leg as completed when Vonage reports it,
-  // so a failed hang-up leaves the data as it was and the agent can try again.
-  async end(id: string): Promise<void> {
-    const callIds = await this.activeCallIds(id);
-
-    if (callIds.length === 0) {
-      throw new ConflictException('There is no call to end');
-    }
-
-    await this.hangUp(id, callIds);
+  // Ends the mediation call for everyone. The end is stored as an incident event so that nobody can
+  // join again through the webhooks and no driver call is placed afterwards, and the driver calls
+  // that are still being placed are cancelled. The legs themselves are marked as completed by the
+  // voice event webhook when Vonage reports it. If the hang-up fails the marker stays, so the agent
+  // can try again.
+  async end(agentId: string, id: string): Promise<void> {
+    await this.stop(agentId, id, 'end');
   }
 
-  async removeParticipant(id: string, participant: MediationParticipant): Promise<void> {
-    const callIds = await this.activeCallIds(id, participant);
+  // Removes the customer or the driver from the call. It is permanent for the incident: the removed
+  // participant cannot join again through the webhooks, and the driver is not called again.
+  async removeParticipant(
+    agentId: string,
+    id: string,
+    participant: MediationParticipant,
+  ): Promise<void> {
+    await this.stop(agentId, id, participant);
+  }
 
-    if (callIds.length === 0) {
-      throw new ConflictException(`The ${participant} is not on the call`);
-    }
+  // Which participants can no longer join the conversation, because of a removal or the end.
+  async blocked(tx: DatabaseTransaction, incidentId: string): Promise<BlockedParticipants> {
+    const stops = await tx
+      .select({ kind: incidentEvents.kind, reason: incidentEvents.reason })
+      .from(incidentEvents)
+      .where(
+        and(
+          eq(incidentEvents.incidentId, incidentId),
+          inArray(incidentEvents.kind, ['participant_removed', 'mediation_call_ended']),
+        ),
+      );
 
-    await this.hangUp(id, callIds);
+    const ended = stops.some(({ kind }) => kind === 'mediation_call_ended');
+    const removed = (who: MediationParticipant) =>
+      stops.some(({ kind, reason }) => kind === 'participant_removed' && reason === who);
+
+    return { ended, customer: ended || removed('customer'), driver: ended || removed('driver') };
   }
 
   async attemptFailed(tx: DatabaseTransaction, call: CommunicationRow): Promise<void> {
@@ -216,7 +243,10 @@ export class MediationService implements OnModuleInit {
     driver: DriverRow,
     customer: CustomerRow,
   ): Promise<void> {
-    if (!(await this.driverJoined(tx, incident.id))) {
+    if (
+      !(await this.driverJoined(tx, incident.id)) &&
+      !(await this.blocked(tx, incident.id)).driver
+    ) {
       await this.scheduleDriverCall(tx, incident, driver);
     }
 
@@ -306,7 +336,18 @@ export class MediationService implements OnModuleInit {
       return;
     }
 
-    await this.db.transaction((tx) => this.attachCallUuid(tx, reserved.communicationId, callId));
+    const cancelled = await this.db.transaction((tx) =>
+      this.attachCallUuid(tx, reserved.communicationId, callId),
+    );
+
+    if (cancelled) {
+      // The call ended while this one was being created, so the driver must not be left ringing.
+      await this.hangUp(incidentId, [callId]).catch((error: unknown) => {
+        this.logger.error(
+          `Call ${callId} to the driver of incident ${incidentId} was cancelled but could not be hung up: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+    }
   }
 
   private async reserveCall(
@@ -323,6 +364,13 @@ export class MediationService implements OnModuleInit {
 
     if (await this.driverJoined(tx, incidentId)) {
       this.logger.log(`Skipped call ${attempt} for incident ${incidentId}: the driver joined`);
+      return null;
+    }
+
+    if ((await this.blocked(tx, incidentId)).driver) {
+      this.logger.log(
+        `Skipped call ${attempt} for incident ${incidentId}: the call ended or the driver was removed`,
+      );
       return null;
     }
 
@@ -364,7 +412,7 @@ export class MediationService implements OnModuleInit {
     tx: DatabaseTransaction,
     communicationId: string,
     callId: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${callId}))`);
 
     const [current] = await tx
@@ -374,7 +422,7 @@ export class MediationService implements OnModuleInit {
       .for('update');
 
     if (!current || current.vonageUuid === callId) {
-      return;
+      return false;
     }
 
     const updated = singleRow(
@@ -389,6 +437,9 @@ export class MediationService implements OnModuleInit {
     );
 
     await publishCommunicationChange(tx, 'incident.communication_updated', updated);
+
+    // A reservation that is already failed was cancelled by the end of the call or the removal.
+    return current.status === 'failed';
   }
 
   private async giveUp(tx: DatabaseTransaction, incidentId: string): Promise<void> {
@@ -420,30 +471,122 @@ export class MediationService implements OnModuleInit {
     });
   }
 
-  // The voice legs of the incident that Vonage still reports as ringing or connected. Everyone in
-  // the conversation is one of them, since the answer URL and the call to the driver store their legs.
-  private async activeCallIds(id: string, participant?: MediationParticipant): Promise<string[]> {
-    return this.db.transaction(async (tx) => {
+  // Stores the end or the removal, cancels the driver calls that are still being placed and hangs
+  // up the legs that are on the call. Everything is decided under the lock of the incident, so a
+  // call to the driver that is being created either finishes first (and is hung up here) or finds
+  // the marker.
+  private async stop(agentId: string, id: string, target: StopTarget): Promise<void> {
+    const callIds = await this.db.transaction(async (tx) => {
       const locked = await this.lockIncident(tx, id);
 
-      const legs = await tx
-        .select()
-        .from(communications)
-        .where(
-          and(
-            eq(communications.incidentId, id),
-            eq(communications.channel, 'voice'),
-            inArray(communications.status, ['queued', 'in_progress']),
-            isNotNull(communications.vonageUuid),
-          ),
+      if (locked.incident.status !== 'in_mediation') {
+        throw new ConflictException('Incident is not in mediation');
+      }
+
+      if (target === 'driver' && locked.driver === null) {
+        throw new ConflictException('Incident has no driver assigned');
+      }
+
+      const blocked = await this.blocked(tx, id);
+      const alreadyStopped = target === 'end' ? blocked.ended : blocked[target];
+      const participant = target === 'end' ? undefined : target;
+
+      const legs = await this.activeLegs(tx, id, participant, locked);
+      const pending = target === 'customer' ? [] : await this.pendingReservations(tx, id);
+      const driverCallComing =
+        target !== 'customer' && !alreadyStopped && (await this.driverCallComing(tx, id));
+
+      if (legs.length === 0 && pending.length === 0 && !driverCallComing) {
+        throw new ConflictException(
+          target === 'end' ? 'There is no call to end' : `The ${target} is not on the call`,
+        );
+      }
+
+      if (!alreadyStopped) {
+        await persistIncidentActivity(tx, locked.incident, {
+          kind: target === 'end' ? 'mediation_call_ended' : 'participant_removed',
+          actor: 'agent',
+          actorId: agentId,
+          ...(participant === undefined ? {} : { reason: participant }),
+        });
+      }
+
+      for (const reservation of pending) {
+        const cancelled = singleRow(
+          await tx
+            .update(communications)
+            .set({ status: 'failed' })
+            .where(eq(communications.id, reservation.id))
+            .returning(),
         );
 
-      return legs.flatMap((leg) =>
-        leg.vonageUuid === null || (participant !== undefined && !isLegOf(leg, participant, locked))
-          ? []
-          : [leg.vonageUuid],
-      );
+        await publishCommunicationChange(tx, 'incident.communication_updated', cancelled);
+      }
+
+      return legs.flatMap(({ vonageUuid }) => (vonageUuid === null ? [] : [vonageUuid]));
     });
+
+    if (callIds.length > 0) {
+      await this.hangUp(id, callIds);
+    }
+  }
+
+  // The voice legs of the incident that Vonage still reports as ringing or connected. Everyone in
+  // the conversation is one of them, since the answer URL and the call to the driver store their legs.
+  private async activeLegs(
+    tx: DatabaseTransaction,
+    id: string,
+    participant: MediationParticipant | undefined,
+    locked: LockedIncident,
+  ): Promise<CommunicationRow[]> {
+    const legs = await tx
+      .select()
+      .from(communications)
+      .where(
+        and(
+          eq(communications.incidentId, id),
+          eq(communications.channel, 'voice'),
+          inArray(communications.status, ['queued', 'in_progress']),
+          isNotNull(communications.vonageUuid),
+        ),
+      );
+
+    return legs.filter((leg) => participant === undefined || isLegOf(leg, participant, locked));
+  }
+
+  // Driver calls that were reserved but whose Vonage call has not been created yet.
+  private async pendingReservations(
+    tx: DatabaseTransaction,
+    incidentId: string,
+  ): Promise<CommunicationRow[]> {
+    return tx
+      .select()
+      .from(communications)
+      .where(
+        and(
+          eq(communications.incidentId, incidentId),
+          eq(communications.channel, 'voice'),
+          eq(communications.status, 'pending'),
+          isNull(communications.vonageUuid),
+        ),
+      );
+  }
+
+  // The driver has not joined and the calls to them have not given up, so the retry job may still
+  // place one.
+  private async driverCallComing(tx: DatabaseTransaction, incidentId: string): Promise<boolean> {
+    const [settled] = await tx
+      .select({ id: incidentEvents.id })
+      .from(incidentEvents)
+      .where(
+        and(
+          eq(incidentEvents.incidentId, incidentId),
+          inArray(incidentEvents.kind, ['driver_joined', 'driver_unreachable']),
+        ),
+      )
+      .limit(1);
+
+    return settled === undefined;
   }
 
   // Tries every leg even if one fails, so a single bad leg doesn't leave the others on the call.
@@ -465,7 +608,8 @@ export class MediationService implements OnModuleInit {
     const [failure] = outcomes.flatMap((outcome) => (outcome === null ? [] : [outcome.error]));
 
     if (failure !== undefined) {
-      throw failure instanceof Error ? failure : new Error(String(failure));
+      // Any failure of the hang-up is a Vonage failure for the agent, so it always answers 502.
+      throw failure instanceof VonageError ? failure : new VonageRequestError('hangupCall');
     }
   }
 
