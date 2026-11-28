@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { sortHref } from '../lib/inbox-query';
 import { shortId } from '../lib/short-id';
 
+import { HighlightRow } from './HighlightRow';
 import styles from './IncidentTable.module.css';
 import { RelativeTime } from './RelativeTime';
 import { StatusBadge } from './StatusBadge';
@@ -75,7 +76,7 @@ export function IncidentTable({
         </thead>
         <tbody>
           {items.map((incident) => (
-            <tr key={incident.id} className={styles.row}>
+            <HighlightRow key={incident.id} incidentId={incident.id} className={styles.row}>
               <td>
                 <Link href={`/incidents/${incident.id}`} className={styles.link}>
                   {shortId(incident.id)}
@@ -94,7 +95,7 @@ export function IncidentTable({
               <td>
                 <RelativeTime value={incident.updatedAt} />
               </td>
-            </tr>
+            </HighlightRow>
           ))}
         </tbody>
       </table>

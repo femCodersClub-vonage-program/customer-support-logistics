@@ -47,6 +47,10 @@
       "message": "No se pudieron cargar las incidencias.",
       "retry": "Reintentar"
     },
+    "live": {
+      "banner": "{count, plural, one {Actualizar bandeja (# incidencia nueva)} other {Actualizar bandeja (# incidencias nuevas)}}",
+      "announce": "{count, plural, one {Ha llegado # incidencia nueva} other {Han llegado # incidencias nuevas}}"
+    },
     "columns": {
       "reference": "Referencia",
       "type": "Tipo",

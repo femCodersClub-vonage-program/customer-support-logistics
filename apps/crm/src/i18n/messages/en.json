@@ -47,6 +47,10 @@
       "message": "Could not load the incidents.",
       "retry": "Try again"
     },
+    "live": {
+      "banner": "{count, plural, one {Refresh inbox (# new incident)} other {Refresh inbox (# new incidents)}}",
+      "announce": "{count, plural, one {# new incident received} other {# new incidents received}}"
+    },
     "columns": {
       "reference": "Reference",
       "type": "Type",
