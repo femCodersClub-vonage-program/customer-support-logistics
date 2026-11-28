@@ -8,6 +8,7 @@ export const CLIENT_TOKEN_ACL: ACL = {
   paths: {
     '/*/sessions/**': { methods: ['POST'] },
     '/*/conversations/*': { methods: ['GET'] },
+    '/*/conversations/*/members': { methods: ['GET'] },
     '/*/conversations/*/rtc/*/answer': { methods: ['POST'] },
     '/*/conversations/*/rtc/*/offer/*': { methods: ['POST'] },
     '/*/conversations/*/members/*': { methods: ['PUT', 'DELETE'] },
