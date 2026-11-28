@@ -221,6 +221,91 @@
       "notifyFirst": "Hay que avisar al conductor antes de iniciar la mediación.",
       "noDriver": "Esta incidencia no tiene conductor al que llamar."
     },
+    "call": {
+      "title": "Llamada con el cliente",
+      "microphoneIntro": "Al unirte, el navegador te pedirá usar el micrófono. Permítelo para que el cliente y el conductor te oigan. Solo se usa durante esta llamada.",
+      "join": "Unirme a la llamada",
+      "joining": "Uniéndome…",
+      "inCall": "En la llamada",
+      "joinAgain": "Volver a unirme",
+      "status": {
+        "idle": "No te has unido a la llamada",
+        "connecting": "Conectando…",
+        "connected": "Conectado",
+        "reconnecting": "Conexión perdida. Reconectando…",
+        "ended": "Llamada terminada",
+        "failed": "No se pudo conectar"
+      },
+      "errors": {
+        "microphoneDenied": "El micrófono está bloqueado.",
+        "microphoneUnavailable": "No se encontró ningún micrófono o lo está usando otra aplicación. Revísalo e inténtalo de nuevo.",
+        "notAvailable": "La llamada no está disponible. Puede que la mediación no haya empezado o que ya haya terminado.",
+        "noConnection": "No hay conexión. Revísala e inténtalo de nuevo.",
+        "sessionExpired": "La sesión de la llamada ha caducado. Únete de nuevo para continuar.",
+        "generic": "Algo ha salido mal. Inténtalo de nuevo en un momento."
+      },
+      "microphoneHelp": {
+        "title": "Permite el micrófono",
+        "intro": "El navegador ha bloqueado el micrófono, así que la llamada no puede empezar. El resto de la página sigue funcionando. Permítelo y únete de nuevo:",
+        "chrome": {
+          "name": "Chrome o Edge:",
+          "steps": "haz clic en el icono a la izquierda de la barra de direcciones, activa «Micrófono» y recarga la página."
+        },
+        "firefox": {
+          "name": "Firefox:",
+          "steps": "haz clic en el icono del micrófono de la barra de direcciones, quita el bloqueo e inténtalo de nuevo."
+        },
+        "safari": {
+          "name": "Safari:",
+          "steps": "abre Safari › Ajustes para este sitio web y pon «Micrófono» en «Permitir»."
+        }
+      },
+      "participants": {
+        "title": "Participantes de la llamada",
+        "agentName": "Tú (agente de soporte)",
+        "noDriver": "Sin conductor asignado",
+        "roles": {
+          "agent": "Soporte",
+          "customer": "Cliente",
+          "driver": "Conductor"
+        },
+        "channels": {
+          "browser": "Navegador",
+          "phone": "Teléfono"
+        },
+        "states": {
+          "invited": "Invitado",
+          "ringing": "Sonando",
+          "connected": "Conectado",
+          "left": "Ha salido"
+        },
+        "announcements": {
+          "joined": "{name} se ha unido a la llamada.",
+          "left": "{name} ha salido de la llamada."
+        }
+      },
+      "controls": {
+        "mute": "Silenciar micrófono",
+        "muted": "Tu micrófono está silenciado",
+        "leave": "Salir de la llamada",
+        "endForAll": "Terminar la llamada para todos",
+        "duration": "Duración",
+        "remove": "Quitar a {name} de la llamada"
+      },
+      "confirm": {
+        "cancel": "Cancelar",
+        "endForAll": {
+          "title": "¿Terminar la llamada para todos?",
+          "body": "Se desconectará al cliente y al conductor, y a ti también. No se puede deshacer.",
+          "confirm": "Terminar para todos"
+        },
+        "remove": {
+          "title": "¿Quitar a {name} de la llamada?",
+          "body": "{name} se desconectará de la llamada. Los demás siguen en ella.",
+          "confirm": "Quitar"
+        }
+      }
+    },
     "outcome": {
       "title": "Cerrar la mediación",
       "legend": "Resultado",

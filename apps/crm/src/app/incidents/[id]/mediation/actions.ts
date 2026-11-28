@@ -13,6 +13,7 @@ import {
 } from '../../../../lib/mediation';
 
 import type { MediationActionState } from '../../../../lib/mediation';
+import type { MediationParticipant } from '@csl/contracts';
 
 async function run(
   incidentId: string,
@@ -36,6 +37,17 @@ export async function startMediation(incidentId: string): Promise<MediationActio
 
 export async function callDriverAgain(incidentId: string): Promise<MediationActionState> {
   return run(incidentId, () => serverApi.callDriver(incidentId));
+}
+
+export async function endMediationCall(incidentId: string): Promise<MediationActionState> {
+  return run(incidentId, () => serverApi.endMediationCall(incidentId));
+}
+
+export async function removeMediationParticipant(
+  incidentId: string,
+  participant: MediationParticipant,
+): Promise<MediationActionState> {
+  return run(incidentId, () => serverApi.removeMediationParticipant(incidentId, participant));
 }
 
 export async function closeMediation(

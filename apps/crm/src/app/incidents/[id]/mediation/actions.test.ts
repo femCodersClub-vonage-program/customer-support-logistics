@@ -7,7 +7,13 @@ import { serverApi } from '../../../../lib/api.server';
 import { IDLE_STATE } from '../../../../lib/mediation';
 import { INCIDENT_ID } from '../../../../test/incident-detail';
 
-import { callDriverAgain, closeMediation, startMediation } from './actions';
+import {
+  callDriverAgain,
+  closeMediation,
+  endMediationCall,
+  removeMediationParticipant,
+  startMediation,
+} from './actions';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
@@ -15,6 +21,8 @@ vi.mock('../../../../lib/api.server', () => ({
   serverApi: {
     startMediation: vi.fn(),
     callDriver: vi.fn(),
+    endMediationCall: vi.fn(),
+    removeMediationParticipant: vi.fn(),
     changeIncidentStatus: vi.fn(),
   },
 }));
@@ -39,6 +47,35 @@ describe('mediation actions', () => {
 
     expect(serverApi.startMediation).toHaveBeenCalledWith(INCIDENT_ID);
     expect(revalidatePath).toHaveBeenCalledWith(`/incidents/${INCIDENT_ID}`, 'layout');
+  });
+
+  it('ends the call for everyone and revalidates the incident pages', async () => {
+    await expect(endMediationCall(INCIDENT_ID)).resolves.toEqual(IDLE_STATE);
+
+    expect(serverApi.endMediationCall).toHaveBeenCalledWith(INCIDENT_ID);
+    expect(revalidatePath).toHaveBeenCalledWith(`/incidents/${INCIDENT_ID}`, 'layout');
+  });
+
+  it.each(['customer', 'driver'] as const)('removes the %s from the call', async (participant) => {
+    await expect(removeMediationParticipant(INCIDENT_ID, participant)).resolves.toEqual(IDLE_STATE);
+
+    expect(serverApi.removeMediationParticipant).toHaveBeenCalledWith(INCIDENT_ID, participant);
+    expect(revalidatePath).toHaveBeenCalledWith(`/incidents/${INCIDENT_ID}`, 'layout');
+  });
+
+  it.each([
+    [409, 'CONFLICT'],
+    [502, 'BAD_GATEWAY'],
+    [404, 'NOT_FOUND'],
+  ])('reports a %s when ending or removing fails', async (status, error) => {
+    vi.mocked(serverApi.endMediationCall).mockRejectedValue(new ApiError('failed', status, {}));
+    vi.mocked(serverApi.removeMediationParticipant).mockRejectedValue(
+      new ApiError('failed', status, {}),
+    );
+
+    await expect(endMediationCall(INCIDENT_ID)).resolves.toEqual({ error });
+    await expect(removeMediationParticipant(INCIDENT_ID, 'driver')).resolves.toEqual({ error });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it('lets the redirect of an expired session through instead of reporting an error', async () => {

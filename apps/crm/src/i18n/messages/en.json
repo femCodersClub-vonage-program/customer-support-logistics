@@ -221,6 +221,91 @@
       "notifyFirst": "The driver has to be notified before the mediation can start.",
       "noDriver": "This incident has no driver to call."
     },
+    "call": {
+      "title": "Call with the customer",
+      "microphoneIntro": "When you join, your browser will ask to use your microphone. Allow it so the customer and the driver can hear you. It is only used during this call.",
+      "join": "Join call",
+      "joining": "Joining…",
+      "inCall": "In the call",
+      "joinAgain": "Join again",
+      "status": {
+        "idle": "You haven't joined the call",
+        "connecting": "Connecting…",
+        "connected": "Connected",
+        "reconnecting": "Connection lost. Reconnecting…",
+        "ended": "Call ended",
+        "failed": "Couldn't connect"
+      },
+      "errors": {
+        "microphoneDenied": "The microphone is blocked.",
+        "microphoneUnavailable": "No microphone was found, or another app is using it. Check it and try again.",
+        "notAvailable": "The call isn't available. The mediation may not have started, or it has already ended.",
+        "noConnection": "There is no connection. Check it and try again.",
+        "sessionExpired": "The call session has expired. Join again to continue.",
+        "generic": "Something went wrong. Try again in a moment."
+      },
+      "microphoneHelp": {
+        "title": "Allow the microphone",
+        "intro": "The browser has blocked the microphone, so the call can't start. The rest of the page still works. Allow it and join again:",
+        "chrome": {
+          "name": "Chrome or Edge:",
+          "steps": "click the icon at the left of the address bar, turn on “Microphone” and reload the page."
+        },
+        "firefox": {
+          "name": "Firefox:",
+          "steps": "click the microphone icon in the address bar, remove the block and try again."
+        },
+        "safari": {
+          "name": "Safari:",
+          "steps": "open Safari › Settings for This Website and set “Microphone” to “Allow”."
+        }
+      },
+      "participants": {
+        "title": "Call participants",
+        "agentName": "You (support agent)",
+        "noDriver": "No driver assigned",
+        "roles": {
+          "agent": "Support",
+          "customer": "Customer",
+          "driver": "Driver"
+        },
+        "channels": {
+          "browser": "Browser",
+          "phone": "Phone"
+        },
+        "states": {
+          "invited": "Invited",
+          "ringing": "Ringing",
+          "connected": "Connected",
+          "left": "Left"
+        },
+        "announcements": {
+          "joined": "{name} joined the call.",
+          "left": "{name} left the call."
+        }
+      },
+      "controls": {
+        "mute": "Mute microphone",
+        "muted": "Your microphone is muted",
+        "leave": "Leave the call",
+        "endForAll": "End call for everyone",
+        "duration": "Duration",
+        "remove": "Remove {name} from the call"
+      },
+      "confirm": {
+        "cancel": "Cancel",
+        "endForAll": {
+          "title": "End the call for everyone?",
+          "body": "The customer and the driver will be disconnected, and you too. This can't be undone.",
+          "confirm": "End call for everyone"
+        },
+        "remove": {
+          "title": "Remove {name} from the call?",
+          "body": "{name} will be disconnected from the call. The others stay on it.",
+          "confirm": "Remove"
+        }
+      }
+    },
     "outcome": {
       "title": "Close the mediation",
       "legend": "Outcome",

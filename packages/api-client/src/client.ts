@@ -15,6 +15,7 @@ import type {
   ListIncidentsQueryInput,
   ListIncidentsResponse,
   ListOrdersResponse,
+  MediationParticipant,
   StartMediationResponse,
   RequestEvidenceUploadBody,
 } from '@csl/contracts';
@@ -60,6 +61,12 @@ export interface ApiClient {
   ): Promise<Incident>;
   startMediation(incidentId: string, options?: RequestOptions): Promise<StartMediationResponse>;
   callDriver(incidentId: string, options?: RequestOptions): Promise<Communication>;
+  endMediationCall(incidentId: string, options?: RequestOptions): Promise<void>;
+  removeMediationParticipant(
+    incidentId: string,
+    participant: MediationParticipant,
+    options?: RequestOptions,
+  ): Promise<void>;
   createClientToken(incidentId: string, options?: RequestOptions): Promise<ClientTokenResponse>;
   getCurrentUser(options?: RequestOptions): Promise<CurrentUser>;
   agentLogin(body: AgentLoginBody, options?: RequestOptions): Promise<CurrentUser>;
@@ -208,6 +215,16 @@ export function createApiClient({
         method: 'POST',
         signal,
       }),
+    endMediationCall: (incidentId, { signal } = {}) =>
+      request<void>(`/incidents/${encodeURIComponent(incidentId)}/mediation/end`, {
+        method: 'POST',
+        signal,
+      }),
+    removeMediationParticipant: (incidentId, participant, { signal } = {}) =>
+      request<void>(
+        `/incidents/${encodeURIComponent(incidentId)}/mediation/participants/${encodeURIComponent(participant)}/remove`,
+        { method: 'POST', signal },
+      ),
     createClientToken: (incidentId, { signal } = {}) =>
       request<ClientTokenResponse>('/vonage/client-token', postJson({ incidentId }, signal)),
     getCurrentUser: ({ signal } = {}) =>

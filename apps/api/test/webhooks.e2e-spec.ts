@@ -407,6 +407,7 @@ describe('Webhooks (e2e)', () => {
           incidentId: ids.mediationIncident,
           channel: 'voice',
           direction: 'inbound',
+          fromNumber: `cust-${ids.ana}`,
           status: 'queued',
         }),
       ]);
@@ -430,7 +431,11 @@ describe('Webhooks (e2e)', () => {
           .from(communications)
           .where(eq(communications.vonageUuid, payload.uuid as string)),
       ).toEqual([
-        expect.objectContaining({ incidentId: ids.mediationIncident, status: 'in_progress' }),
+        expect.objectContaining({
+          incidentId: ids.mediationIncident,
+          fromNumber: `cust-${ids.ana}`,
+          status: 'in_progress',
+        }),
       ]);
     });
 
