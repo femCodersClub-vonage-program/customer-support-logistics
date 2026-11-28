@@ -195,7 +195,7 @@ The customer (PWA, `/call/:id`) and the agent (CRM) join `inc-<id>` with the Von
 | `POST /vonage/client-token` | Customers and agents | With `{ incidentId }`: creates the Vonage user if it doesn't exist yet, and signs a JWT for it with the application private key, valid for 15 minutes | `201` with `{ token, userName, expiresAt }` |
 
 - **Users.** Each customer and agent has one Vonage user, named `cust-<id>` or `agent-<id>` (`apps/api/src/vonage/vonage-users.ts`). The API creates it on the first token and treats Vonage's `409` (the name already exists) as success, so nothing is stored in our database.
-- **JWT.** `sub` is the user name. The ACLs are only those needed to start, control and hang up a call, plus conversation events, which `mute` needs (`CLIENT_TOKEN_ACL` in `apps/api/src/vonage/client-token.ts`).
+- **JWT.** `sub` is the user name. The ACLs are only those needed to start, control and hang up a call, plus conversation events, which `mute` needs, and reading the members of a conversation, which the CRM uses to show who is on the call (`CLIENT_TOKEN_ACL` in `apps/api/src/vonage/client-token.ts`).
 - **Who gets one.** A customer only gets a token for an incident on one of their orders (`404` otherwise), an agent for any incident, and the incident must be `in_mediation` (`409` otherwise). `502` means Vonage didn't create the user.
 - **The call.** The browser starts the call with `serverCall({ incidentId })`. Vonage asks the answer URL with `endpoint_type: app`, the caller's user name in `from_user` and the context in `custom_data`. The answer URL joins the call to `inc-<id>` only if the incident is `in_mediation` and `from_user` is the customer who owns it or an existing agent. Any other call gets `[]` and hangs up, so a valid token for one incident can't join another incident's conversation.
 - **Recording.** Before joining it, the answer URL stores the call as an inbound voice `Communication` of the incident, with the leg's `uuid` as `vonageUuid`. If an event webhook stored it first without an incident, it links it. This way the API knows every leg of `inc-<id>` when it closes the call.
@@ -218,27 +218,16 @@ The CRM page `/incidents/:id/mediation` (`apps/crm/src/app/incidents/[id]/mediat
 - The status of the driver's last outbound voice `Communication` is shown as it was when the page loaded. It updates after each action, and without reloading once the live updates of [#40] are in place.
 - A `409` or `502` is shown to the agent as a short message, and they can retry.
 
-The Client SDK JWT is available ([#36], see [Joining from the browser](#joining-from-the-browser)). The agent's audio, the participants panel and the call controls in the CRM are still _planned_.
+While the incident is `in_mediation`, the page also lets the agent join the call ([#91]). The code is in `apps/crm/src/lib/call` and `apps/crm/src/components/MediationCall.tsx`:
 
-### Ending the call and removing a participant
+- **SDK.** `@vonage/client-sdk` is loaded with a dynamic `import()` in `lib/call/call-client.ts`, which only this page uses. It is a separate chunk (about 293 kB gzipped) that is not in the first load of any route, and not in the other CRM pages at all. The rest of the code works with the small `CallClient` interface, which the tests replace.
+- **Session.** **Join call** asks for the microphone, gets the agent's JWT with `POST /vonage/client-token` (`{ incidentId }`), opens the session and calls `serverCall({ incidentId })`. The answer URL joins the agent to `inc-<id>`. The session is refreshed with `refreshSession` one minute before the token expires, and closed (with a hang up) when the agent leaves the page.
+- **Microphone.** The page explains it before the browser asks. If it is denied, a help message shows how to allow it in Chrome or Edge, Firefox and Safari, and the rest of the page keeps working.
+- **Connection state.** `connecting`, `connected`, `reconnecting` and `ended` (plus `failed`, with its message) are in a `role="status"` region. `connected` comes from `legStatusUpdate` with `ANSWERED`; `reconnecting` from the SDK's `reconnecting` and `callMediaReconnecting`, which the SDK resolves by itself when the network is back. If the media is lost for good, **Join again** is offered.
+- **Participants.** The panel shows the agent, the customer and the driver, each with a state (`invited`, `ringing`, `connected`, `left`) and a channel (browser or phone). The states come from the `member:invited`, `member:joined` and `member:left` events of the conversation (`conversationEvent`), so they change without reloading. Whoever joined before the agent is read once with `getConversationMembers`, and a live event always wins over that reading. Events of other conversations are ignored. A phone member that is invited is shown as `ringing`. Someone else joining or leaving is announced in an `aria-live="polite"` region.
+- **Roles and numbers.** The role of a member comes from its Vonage user name: `agent-<id>` (the agent themselves), `cust-<id>` (the customer), anything else (the driver, who comes in by phone and has no user of ours). The channel follows from the role. Only the user name and the state are read from a member, so a phone number never reaches the screen.
 
-Two more agent-only endpoints in `MediationService` take people off the conversation while the incident stays `in_mediation` ([#84]). Both use `VonageService.hangupCall` (`PUT /v1/calls/:uuid`, `action: hangup`), the same call that [closing the call](#closing-the-call) uses, so the API does it and not the Client SDK: the server knows every leg of `inc-<id>` and doesn't depend on what the agent's browser can reach.
-
-| Route                                                            | What it does                                                                                             | Response |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | -------- |
-| `POST /incidents/:id/mediation/end`                              | Hangs up every leg of the incident: the driver's call and the browser legs of the customer and the agent | `204`    |
-| `POST /incidents/:id/mediation/participants/:participant/remove` | Hangs up the legs of one participant, `customer` or `driver`, and leaves the others on the call          | `204`    |
-
-- **Which legs.** The voice `Communication`s of the incident that are `queued` or `in_progress` and have a Vonage call id; a `queued` one is a call that is still ringing. The customer's legs are the ones from `cust-<customerId>` (the browser leg stored by the answer URL, see [Joining from the browser](#joining-from-the-browser)); the driver's are the calls to their phone and the ones they placed to the virtual number. The agent's own leg only goes with `end`.
-- **Identifying the participant.** By role in the path, not by Vonage call id, so the CRM never handles Vonage ids and can't ask the API to hang up a call of another incident. Any other value answers `400`.
-- **What is stored.** Each request adds one `IncidentEvent` to the timeline, written by the agent: `mediation_call_ended` for `end`, or `participant_removed` with the participant (`customer` or `driver`) as `reason`. The incident status and the legs don't change: the voice event webhook marks each leg `completed` when Vonage reports it, as with any other call. A repeated request doesn't add a second event, and it hangs up again, which is harmless because `hangupCall` treats Vonage's `404` and `410` as a call that had already ended.
-- **It is permanent for the incident.** The marker is checked everywhere someone could come back: the answer URL doesn't join a removed customer (or anyone, after `end`; the agent can still join), and doesn't join a driver who calls the virtual number or presses `1`, if the driver was removed or the call ended. `POST …/driver-call` answers `409`, and a new `POST …/mediation` doesn't schedule the driver's call. There is no endpoint to let a participant back in; if the product needs one, it has to remove or supersede the event.
-- **Pending driver calls.** `end` and removing the driver also cancel the reservations of a call that is still being placed (`pending`, no Vonage id yet): they are marked `failed`, and if Vonage had already created that call when the end came, the job hangs it up as soon as it gets its id. The retry job checks the marker before it reserves a call, so the scheduled call and the retries are not placed. The request is also accepted when no leg is on the call yet but the driver hasn't joined or given up, which is exactly when a call may still be coming.
-- **`403`:** the actor is not an agent. **`401`:** no session. **`404`:** the incident doesn't exist.
-- **`409`:** the incident is not `in_mediation`; or nothing is left to stop (no leg on the call and, for `end` and the driver, no call that may still come; for `remove`, none of that participant's legs); or the incident has no driver.
-- **`502`** (`BAD_GATEWAY`): Vonage failed to hang up at least one leg, whatever the cause (an error that is not from Vonage is also reported as `502`). The others are still hung up. The event is already stored, so the agent can try again; the legs that were already hung up answer `404` or `410` on the retry.
-
-The CRM buttons and confirmations and the confirmation SMS after closing are separate tasks.
+The call controls (mute, duration, leave, **End call for everyone** and **Remove participant**) are still _planned_.
 
 ### Closing the call
 
@@ -350,5 +339,5 @@ Confirm as well, since the SDK and Vonage docs don't say it clearly: that Vonage
 [#38]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/38
 [#39]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/39
 [#40]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/40
-[#84]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/84
 [#85]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/85
+[#91]: https://github.com/femCodersClub-vonage-program/customer-support-logistics/issues/91
