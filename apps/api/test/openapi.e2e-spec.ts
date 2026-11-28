@@ -51,6 +51,8 @@ describe('OpenAPI (e2e)', () => {
       '/incidents/{id}/notify-driver/again',
       '/incidents/{id}/mediation',
       '/incidents/{id}/mediation/driver-call',
+      '/incidents/{id}/mediation/end',
+      '/incidents/{id}/mediation/participants/{participant}/remove',
       '/orders',
       '/vonage/client-token',
     ]);

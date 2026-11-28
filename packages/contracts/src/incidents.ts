@@ -225,6 +225,18 @@ export const startMediationResponseSchema = z
   .meta({ id: 'StartMediationResponse' });
 export type StartMediationResponse = z.infer<typeof startMediationResponseSchema>;
 
+export const MEDIATION_PARTICIPANTS = ['customer', 'driver'] as const;
+
+export const mediationParticipantSchema = z
+  .enum(MEDIATION_PARTICIPANTS)
+  .meta({ id: 'MediationParticipant' });
+export type MediationParticipant = z.infer<typeof mediationParticipantSchema>;
+
+export const mediationParticipantParamsSchema = incidentIdParamsSchema.extend({
+  participant: mediationParticipantSchema,
+});
+export type MediationParticipantParams = z.infer<typeof mediationParticipantParamsSchema>;
+
 export const UNASSIGNED_AGENT = 'unassigned';
 
 export const INCIDENT_SORT_FIELDS = ['createdAt', 'updatedAt'] as const;

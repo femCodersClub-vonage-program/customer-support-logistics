@@ -85,6 +85,20 @@
       "when": 1795566612789,
       "tag": "0011_driver_call_event_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795567612789,
+      "tag": "0012_mediation_stop_event_kinds",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795886537308,
+      "tag": "0013_mediation_reopened_event_kind",
+      "breakpoints": true
     }
   ]
 }

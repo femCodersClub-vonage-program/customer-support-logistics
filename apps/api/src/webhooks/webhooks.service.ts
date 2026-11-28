@@ -281,13 +281,26 @@ export class WebhooksService {
 
     if (callingIn !== null) {
       if (callingIn.incident.status === 'in_mediation') {
-        await this.db.transaction(async (tx) => {
+        const allowed = await this.db.transaction(async (tx) => {
           const context = await this.findIncident(tx, callingIn.incident.id);
 
           if (context?.incident.status === 'in_mediation') {
+            if ((await this.mediation.blocked(tx, context.incident.id)).driver) {
+              return false;
+            }
+
             await this.mediation.recordDriverJoined(tx, context.incident, callingIn.driver.id);
           }
+
+          return true;
         });
+
+        if (!allowed) {
+          this.logger.warn(
+            `Driver call ${payload.uuid ?? ''} for incident ${callingIn.incident.id}: the driver was removed or the call ended`,
+          );
+          return [];
+        }
 
         return buildJoinConversationNcco(callingIn.incident.id);
       }
@@ -369,6 +382,13 @@ export class WebhooksService {
         return buildInvalidKeyNcco(context.driver?.locale ?? DEFAULT_LOCALE);
       }
 
+      if ((await this.mediation.blocked(tx, context.incident.id)).driver) {
+        this.logger.warn(
+          `Driver pressed 1 for incident ${context.incident.id} after being removed or the call ended`,
+        );
+        return [];
+      }
+
       if (context.incident.status === 'notified') {
         const updated = await persistTransition(tx, context.incident, {
           to: 'in_mediation',
@@ -393,6 +413,12 @@ export class WebhooksService {
       );
       return [];
     });
+  }
+
+  private async isBlocked(incidentId: string, caller: AuthActor): Promise<boolean> {
+    const blocked = await this.db.transaction((tx) => this.mediation.blocked(tx, incidentId));
+
+    return caller.role === 'customer' ? blocked.customer : blocked.ended;
   }
 
   private async answerAppCall(payload: VoiceAnswer): Promise<NccoAction[]> {
@@ -428,14 +454,23 @@ export class WebhooksService {
       return [];
     }
 
-    if (payload.uuid !== undefined) {
-      await this.recordAppCall(incidentId, payload.uuid);
+    if (await this.isBlocked(incidentId, caller)) {
+      this.logger.warn(
+        `App call ${payload.uuid ?? ''} for incident ${incidentId}: ${caller.role === 'customer' ? 'the customer was removed or the call ended' : 'the call ended'}`,
+      );
+      return [];
+    }
+
+    if (payload.uuid !== undefined && payload.from_user !== undefined) {
+      await this.recordAppCall(incidentId, payload.uuid, payload.from_user);
     }
 
     return buildJoinConversationNcco(incidentId);
   }
 
-  private async recordAppCall(incidentId: string, uuid: string): Promise<void> {
+  // The leg is saved with the Vonage user of the caller (cust-<id> or agent-<id>) as its origin, so
+  // that a hang-up can tell whose leg it is. It is not a phone number.
+  private async recordAppCall(incidentId: string, uuid: string, fromUser: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       const [created] = await tx
         .insert(communications)
@@ -443,7 +478,7 @@ export class WebhooksService {
           incidentId,
           channel: 'voice',
           direction: 'inbound',
-          fromNumber: null,
+          fromNumber: fromUser,
           toNumber: null,
           vonageUuid: uuid,
           status: 'queued',
@@ -456,7 +491,7 @@ export class WebhooksService {
         (
           await tx
             .update(communications)
-            .set({ incidentId })
+            .set({ incidentId, fromNumber: fromUser })
             .where(and(eq(communications.vonageUuid, uuid), isNull(communications.incidentId)))
             .returning()
         )[0];

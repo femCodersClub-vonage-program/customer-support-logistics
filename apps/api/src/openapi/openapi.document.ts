@@ -21,6 +21,7 @@ import {
   listIncidentsQuerySchema,
   listIncidentsResponseSchema,
   listOrdersResponseSchema,
+  mediationParticipantParamsSchema,
   requestEvidenceUploadBodySchema,
   startMediationResponseSchema,
 } from '@csl/contracts';
@@ -67,6 +68,11 @@ const driverCallErrors: ZodOpenApiResponsesObject = {
   '403': forbiddenFor('customers'),
   '404': error('The incident does not exist'),
   '502': error('Vonage could not create the call; the agent can try again'),
+};
+
+const hangupErrors: ZodOpenApiResponsesObject = {
+  ...driverCallErrors,
+  '502': error('Vonage could not hang up every call; the agent can try again'),
 };
 
 export function createOpenApiDocument(): ReturnType<typeof createDocument> {
@@ -327,7 +333,9 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             '201': json('The incident after notifying the driver', incidentSchema),
             ...incidentErrors,
             '403': forbiddenFor('customers'),
-            '409': error('The incident is not open, has no assigned driver, or a notification is already pending'),
+            '409': error(
+              'The incident is not open, has no assigned driver, or a notification is already pending',
+            ),
             '502': error('Vonage could not send the SMS'),
           },
         },
@@ -354,7 +362,7 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
           tags: ['incidents'],
           summary: 'Start the mediation and call the driver',
           description:
-            'Moves a `notified` incident to `in_mediation` (nothing changes if it is already in mediation), assigns it to the agent if it has none, and calls the driver, who joins the conversation `inc-<id>` after pressing 1. If Vonage fails, the status change is kept and the agent can call the driver again.',
+            'Moves a `notified` incident to `in_mediation` (if it is already in mediation and the call was ended, it reopens the call and adds a `mediation_reopened` event, but removed participants stay out), assigns it to the agent if it has none, and calls the driver, who joins the conversation `inc-<id>` after pressing 1. If Vonage fails, the status change is kept and the agent can call the driver again.',
           requestParams: { path: incidentIdParamsSchema },
           responses: {
             '201': json(
@@ -377,8 +385,36 @@ export function createOpenApiDocument(): ReturnType<typeof createDocument> {
             '201': json('The outbound call to the driver', communicationSchema),
             ...driverCallErrors,
             '409': error(
-              'The incident is not in mediation, has no driver, or a call to the driver is already in progress',
+              'The incident is not in mediation, has no driver, the call has ended, the driver was removed, or a call to the driver is already in progress',
             ),
+          },
+        },
+      },
+      '/incidents/{id}/mediation/end': {
+        post: {
+          tags: ['incidents'],
+          summary: 'End the mediation call for everyone',
+          description:
+            'Hangs up every voice leg of the conversation `inc-<id>` that is ringing or connected: the driver’s call and the browser legs of the customer and the agent. The end is stored as an incident event `mediation_call_ended`: until `POST /incidents/{id}/mediation` reopens the call, nobody (the agent included) can join again, the driver is not called again, and the driver calls that were reserved but not yet created are cancelled. The incident status does not change, and the legs are marked as completed when the voice event webhook arrives. If Vonage fails for any leg, the rest are still hung up and the agent can try again.',
+          requestParams: { path: incidentIdParamsSchema },
+          responses: {
+            '204': { description: 'Every leg was hung up' },
+            ...hangupErrors,
+            '409': error('The incident is not in mediation, or there is no call to end'),
+          },
+        },
+      },
+      '/incidents/{id}/mediation/participants/{participant}/remove': {
+        post: {
+          tags: ['incidents'],
+          summary: 'Remove the customer or the driver from the mediation call',
+          description:
+            'Hangs up the voice legs of that participant and leaves the others on the call. The customer is found by the Vonage user of the browser leg (`cust-<id>`), the driver by their phone number. The removal is stored as an incident event `participant_removed` (reason `customer` or `driver`) and is permanent for the incident: that participant cannot join again, and a removed driver is not called again. The incident status does not change.',
+          requestParams: { path: mediationParticipantParamsSchema },
+          responses: {
+            '204': { description: 'Every leg of the participant was hung up' },
+            ...hangupErrors,
+            '409': error('The incident is not in mediation, or the participant is not on the call'),
           },
         },
       },
