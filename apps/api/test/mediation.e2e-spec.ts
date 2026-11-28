@@ -386,6 +386,20 @@ describe('Mediation (e2e)', () => {
         .expect(200);
     };
 
+    const joinAsAgent = () =>
+      http()
+        .get('/webhooks/voice/answer')
+        .query(
+          vonageFixture('voice-answer-app', {
+            from_user: `agent-${ids.agentA}`,
+            custom_data: JSON.stringify({ incidentId: ids.notifiedIncident }),
+          }),
+        )
+        .set('Authorization', `Bearer ${signVonageJwt()}`)
+        .expect(200);
+
+    const joinedConversation = [expect.objectContaining({ action: 'conversation' })];
+
     const callInAsDriver = () =>
       http()
         .get('/webhooks/voice/answer')
@@ -486,22 +500,103 @@ describe('Mediation (e2e)', () => {
         ]);
       });
 
-      it('does not let the customer or the driver join again', async () => {
+      it('does not let anyone join again, the agent included', async () => {
         await endCall(ids.notifiedIncident).expect(204);
 
         expect((await joinAsCustomer()).body).toEqual([]);
+        expect((await joinAsAgent()).body).toEqual([]);
         expect((await callInAsDriver()).body).toEqual([]);
         expect((await pressOneAsDriver()).body).toEqual([]);
         expect(await driverJoinedEvents()).toEqual([]);
       });
 
-      it('does not call the driver afterwards', async () => {
+      it('does not call the driver afterwards, and says the call has ended', async () => {
         await endCall(ids.notifiedIncident).expect(204);
 
         const response = await callDriver(ids.notifiedIncident).expect(409);
 
         expectError(response.body, 'CONFLICT');
+        expect(apiErrorResponseSchema.parse(response.body).error.message).toBe(
+          'The mediation call has ended',
+        );
         expect(testApp.vonage.callsTo('createCall')).toEqual([]);
+      });
+
+      describe('reopening with POST /incidents/:id/mediation', () => {
+        it('records the reopening once, with the agent who reopened it', async () => {
+          await endCall(ids.notifiedIncident).expect(204);
+
+          await startMediation(ids.notifiedIncident).expect(201);
+          await startMediation(ids.notifiedIncident).expect(201);
+
+          expect(
+            (await eventsOf(ids.notifiedIncident)).filter(
+              ({ kind }) => kind === 'mediation_reopened',
+            ),
+          ).toEqual([
+            expect.objectContaining({ actor: 'agent', actorId: ids.agentA, reason: null }),
+          ]);
+        });
+
+        it('does not record a reopening when the call was not ended', async () => {
+          await startMediation(ids.notifiedIncident).expect(201);
+
+          expect((await eventsOf(ids.notifiedIncident)).map(({ kind }) => kind)).not.toContain(
+            'mediation_reopened',
+          );
+        });
+
+        it('lets everyone join again and the agent call the driver', async () => {
+          await endCall(ids.notifiedIncident).expect(204);
+          await startMediation(ids.notifiedIncident).expect(201);
+
+          expect((await joinAsCustomer()).body).toEqual(joinedConversation);
+          expect((await joinAsAgent()).body).toEqual(joinedConversation);
+          expect((await callInAsDriver()).body).toEqual(joinedConversation);
+
+          await testApp.db
+            .update(communications)
+            .set({ status: 'completed' })
+            .where(eq(communications.incidentId, ids.notifiedIncident));
+
+          await callDriver(ids.notifiedIncident).expect(201);
+        });
+
+        it('can end the reopened call again', async () => {
+          await endCall(ids.notifiedIncident).expect(204);
+          await startMediation(ids.notifiedIncident).expect(201);
+          await joinAsCustomer();
+
+          await endCall(ids.notifiedIncident).expect(204);
+
+          expect((await joinAsCustomer()).body).toEqual([]);
+          expect(
+            (await stopEvents()).filter(({ kind }) => kind === 'mediation_call_ended'),
+          ).toHaveLength(2);
+        });
+
+        it('keeps a removed customer out', async () => {
+          await removeParticipant(ids.notifiedIncident, 'customer').expect(204);
+          await endCall(ids.notifiedIncident).expect(204);
+          await startMediation(ids.notifiedIncident).expect(201);
+
+          expect((await joinAsCustomer()).body).toEqual([]);
+          expect((await joinAsAgent()).body).toEqual(joinedConversation);
+        });
+
+        it('keeps a removed driver out and does not call them', async () => {
+          await removeParticipant(ids.notifiedIncident, 'driver').expect(204);
+          await endCall(ids.notifiedIncident).expect(204);
+          await startMediation(ids.notifiedIncident).expect(201);
+
+          expect((await callInAsDriver()).body).toEqual([]);
+
+          const response = await callDriver(ids.notifiedIncident).expect(409);
+
+          expect(apiErrorResponseSchema.parse(response.body).error.message).toBe(
+            'The driver was removed from the call',
+          );
+        });
       });
 
       it('cancels a driver call that is reserved but not created yet', async () => {

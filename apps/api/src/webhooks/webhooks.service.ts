@@ -415,8 +415,10 @@ export class WebhooksService {
     });
   }
 
-  private async isBlocked(incidentId: string, who: 'customer' | 'driver'): Promise<boolean> {
-    return this.db.transaction(async (tx) => (await this.mediation.blocked(tx, incidentId))[who]);
+  private async isBlocked(incidentId: string, caller: AuthActor): Promise<boolean> {
+    const blocked = await this.db.transaction((tx) => this.mediation.blocked(tx, incidentId));
+
+    return caller.role === 'customer' ? blocked.customer : blocked.ended;
   }
 
   private async answerAppCall(payload: VoiceAnswer): Promise<NccoAction[]> {
@@ -452,9 +454,9 @@ export class WebhooksService {
       return [];
     }
 
-    if (caller.role === 'customer' && (await this.isBlocked(incidentId, 'customer'))) {
+    if (await this.isBlocked(incidentId, caller)) {
       this.logger.warn(
-        `App call ${payload.uuid ?? ''} for incident ${incidentId}: the customer was removed or the call ended`,
+        `App call ${payload.uuid ?? ''} for incident ${incidentId}: ${caller.role === 'customer' ? 'the customer was removed or the call ended' : 'the call ended'}`,
       );
       return [];
     }

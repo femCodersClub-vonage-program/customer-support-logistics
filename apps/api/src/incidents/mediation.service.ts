@@ -38,7 +38,7 @@ import type { JobPayloads, JobQueue } from '../jobs/job-queue.js';
 import type { NccoAction } from '../vonage/ncco.js';
 import type { VonageService } from '../vonage/vonage.service.js';
 import type { MediationParticipant, StartMediationResponse } from '@csl/contracts';
-import type { Communication } from '@csl/shared-types';
+import type { Communication, IncidentEventKind } from '@csl/shared-types';
 import type { OnModuleInit } from '@nestjs/common';
 
 export const STALE_QUEUED_CALL_MS = 2 * 60 * 1000;
@@ -119,6 +119,12 @@ export class MediationService implements OnModuleInit {
           actor: 'agent',
           actorId: agentId,
         });
+      } else if ((await this.blocked(tx, id)).ended) {
+        current = await persistIncidentActivity(tx, current, {
+          kind: 'mediation_reopened',
+          actor: 'agent',
+          actorId: agentId,
+        });
       }
 
       if (current.agentId === null) {
@@ -153,7 +159,13 @@ export class MediationService implements OnModuleInit {
         throw new ConflictException('Incident is not in mediation');
       }
 
-      if ((await this.blocked(tx, id)).driver) {
+      const blocked = await this.blocked(tx, id);
+
+      if (blocked.ended) {
+        throw new ConflictException('The mediation call has ended');
+      }
+
+      if (blocked.driver) {
         throw new ConflictException('The driver was removed from the call');
       }
 
@@ -164,7 +176,8 @@ export class MediationService implements OnModuleInit {
   }
 
   // Ends the mediation call for everyone. The end is stored as an incident event so that nobody can
-  // join again through the webhooks and no driver call is placed afterwards, and the driver calls
+  // join again through the webhooks and no driver call is placed until the mediation is started
+  // again, and the driver calls
   // that are still being placed are cancelled. The legs themselves are marked as completed by the
   // voice event webhook when Vonage reports it. If the hang-up fails the marker stays, so the agent
   // can try again.
@@ -190,11 +203,16 @@ export class MediationService implements OnModuleInit {
       .where(
         and(
           eq(incidentEvents.incidentId, incidentId),
-          inArray(incidentEvents.kind, ['participant_removed', 'mediation_call_ended']),
+          inArray(incidentEvents.kind, [
+            'participant_removed',
+            'mediation_call_ended',
+            'mediation_reopened',
+          ]),
         ),
       );
 
-    const ended = stops.some(({ kind }) => kind === 'mediation_call_ended');
+    const count = (kind: IncidentEventKind) => stops.filter((stop) => stop.kind === kind).length;
+    const ended = count('mediation_call_ended') > count('mediation_reopened');
     const removed = (who: MediationParticipant) =>
       stops.some(({ kind, reason }) => kind === 'participant_removed' && reason === who);
 
