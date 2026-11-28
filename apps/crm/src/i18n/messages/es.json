@@ -283,6 +283,27 @@
           "joined": "{name} se ha unido a la llamada.",
           "left": "{name} ha salido de la llamada."
         }
+      },
+      "controls": {
+        "mute": "Silenciar micrófono",
+        "muted": "Tu micrófono está silenciado",
+        "leave": "Salir de la llamada",
+        "endForAll": "Terminar la llamada para todos",
+        "duration": "Duración",
+        "remove": "Quitar a {name} de la llamada"
+      },
+      "confirm": {
+        "cancel": "Cancelar",
+        "endForAll": {
+          "title": "¿Terminar la llamada para todos?",
+          "body": "Se desconectará al cliente y al conductor, y a ti también. No se puede deshacer.",
+          "confirm": "Terminar para todos"
+        },
+        "remove": {
+          "title": "¿Quitar a {name} de la llamada?",
+          "body": "{name} se desconectará de la llamada. Los demás siguen en ella.",
+          "confirm": "Quitar"
+        }
       }
     },
     "outcome": {

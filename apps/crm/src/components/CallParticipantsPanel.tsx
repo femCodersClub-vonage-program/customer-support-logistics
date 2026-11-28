@@ -6,8 +6,11 @@ import styles from './MediationCall.module.css';
 
 import type { ParticipantRole, ParticipantsState } from '../lib/call/participants';
 
+export type RemovableRole = Exclude<ParticipantRole, 'agent'>;
+
 interface CallParticipantsPanelProps {
   state: ParticipantsState;
+  onRemove: (role: RemovableRole) => void;
   customerName: string;
   driverName: string | null;
 }
@@ -27,6 +30,7 @@ function initialsOf(name: string): string {
 
 export function CallParticipantsPanel({
   state,
+  onRemove,
   customerName,
   driverName,
 }: Readonly<CallParticipantsPanelProps>) {
@@ -65,6 +69,16 @@ export function CallParticipantsPanel({
               <span className={styles.dot} aria-hidden="true" />
               {t(`participants.states.${participantState}`)}
             </p>
+            {role !== 'agent' &&
+              (participantState === 'connected' || participantState === 'ringing') && (
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => onRemove(role)}
+                >
+                  {t('controls.remove', { name: names[role] })}
+                </button>
+              )}
           </article>
         );
       })}

@@ -283,6 +283,27 @@
           "joined": "{name} joined the call.",
           "left": "{name} left the call."
         }
+      },
+      "controls": {
+        "mute": "Mute microphone",
+        "muted": "Your microphone is muted",
+        "leave": "Leave the call",
+        "endForAll": "End call for everyone",
+        "duration": "Duration",
+        "remove": "Remove {name} from the call"
+      },
+      "confirm": {
+        "cancel": "Cancel",
+        "endForAll": {
+          "title": "End the call for everyone?",
+          "body": "The customer and the driver will be disconnected, and you too. This can't be undone.",
+          "confirm": "End call for everyone"
+        },
+        "remove": {
+          "title": "Remove {name} from the call?",
+          "body": "{name} will be disconnected from the call. The others stay on it.",
+          "confirm": "Remove"
+        }
       }
     },
     "outcome": {
