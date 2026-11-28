@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithIntl } from '../test/render.tsx';
 
-import { EVIDENCE_ACCEPT, EVIDENCE_MAX_FILES, EVIDENCE_MAX_IMAGE_BYTES } from './evidence-files.ts';
+import {
+  EVIDENCE_ACCEPT,
+  EVIDENCE_MAX_FILES,
+  EVIDENCE_MAX_IMAGE_BYTES,
+  EVIDENCE_PHOTO_CAPTURE_ACCEPT,
+  EVIDENCE_VIDEO_CAPTURE_ACCEPT,
+} from './evidence-files.ts';
 import { EvidencePicker } from './EvidencePicker.tsx';
 
 import type { Locale } from '@csl/shared-types';
@@ -38,8 +44,12 @@ function renderPicker(props: Parameters<typeof Harness>[0] = {}, locale: Locale 
   return renderWithIntl(<Harness {...props} />, { locale });
 }
 
-function camera() {
-  return screen.getByLabelText('Take a photo or video');
+function photoCamera() {
+  return screen.getByLabelText('Take a photo');
+}
+
+function videoCamera() {
+  return screen.getByLabelText('Record a video');
 }
 
 function gallery() {
@@ -56,30 +66,36 @@ describe('EvidencePicker', () => {
     URL.revokeObjectURL = vi.fn();
   });
 
-  it('opens the camera with one button and the gallery with another', () => {
+  it('opens the rear camera for photos and videos separately and the gallery with another button', () => {
     renderPicker();
 
-    expect(camera()).toHaveAttribute('capture');
-    expect(camera()).toHaveAttribute('accept', EVIDENCE_ACCEPT);
+    expect(photoCamera()).toHaveAttribute('capture', 'environment');
+    expect(photoCamera()).toHaveAttribute('accept', EVIDENCE_PHOTO_CAPTURE_ACCEPT);
+    expect(photoCamera().closest('label')).toHaveAttribute('title', 'Take a photo');
+    expect(videoCamera()).toHaveAttribute('capture', 'environment');
+    expect(videoCamera()).toHaveAttribute('accept', EVIDENCE_VIDEO_CAPTURE_ACCEPT);
+    expect(videoCamera().closest('label')).toHaveAttribute('title', 'Record a video');
     expect(gallery()).not.toHaveAttribute('capture');
     expect(gallery()).toHaveAttribute('accept', EVIDENCE_ACCEPT);
     expect(gallery()).toHaveAttribute('multiple');
+    expect(gallery().closest('label')).toHaveAttribute('title', 'Choose from gallery');
   });
 
-  it('tells the limits and links them to both buttons', () => {
+  it('tells the limits and links them to all three buttons', () => {
     renderPicker();
 
     const hint = 'Up to 5 files. Photos up to 10 MB, videos up to 50 MB.';
 
     expect(screen.getByText(hint)).toBeInTheDocument();
-    expect(camera()).toHaveAccessibleDescription(hint);
+    expect(photoCamera()).toHaveAccessibleDescription(hint);
+    expect(videoCamera()).toHaveAccessibleDescription(hint);
     expect(gallery()).toHaveAccessibleDescription(hint);
   });
 
   it('shows the name and a preview of a photo', () => {
     const { container } = renderPicker();
 
-    pick(camera(), fileOf('photo.jpg', 'image/jpeg'));
+    pick(photoCamera(), fileOf('photo.jpg', 'image/jpeg'));
 
     expect(screen.getByText('photo.jpg')).toBeInTheDocument();
     expect(container.querySelector('img')).toHaveAttribute('src', 'blob:preview');
@@ -88,7 +104,7 @@ describe('EvidencePicker', () => {
   it('shows the name and a preview of a video', () => {
     renderPicker();
 
-    pick(camera(), fileOf('clip.mp4', 'video/mp4'));
+    pick(videoCamera(), fileOf('clip.mp4', 'video/mp4'));
 
     expect(screen.getByText('clip.mp4')).toBeInTheDocument();
     expect(screen.getByLabelText('clip.mp4', { selector: 'video' })).toHaveAttribute(
@@ -132,7 +148,7 @@ describe('EvidencePicker', () => {
   it('keeps the files already chosen when more are added', () => {
     renderPicker();
 
-    pick(camera(), fileOf('a.jpg', 'image/jpeg'));
+    pick(photoCamera(), fileOf('a.jpg', 'image/jpeg'));
     pick(gallery(), fileOf('b.jpg', 'image/jpeg'));
 
     expect(screen.getByText('a.jpg')).toBeInTheDocument();
@@ -142,7 +158,7 @@ describe('EvidencePicker', () => {
   it('removes a file and frees its preview', () => {
     renderPicker();
 
-    pick(camera(), fileOf('a.jpg', 'image/jpeg'), fileOf('b.jpg', 'image/jpeg'));
+    pick(photoCamera(), fileOf('a.jpg', 'image/jpeg'), fileOf('b.jpg', 'image/jpeg'));
     fireEvent.click(screen.getByRole('button', { name: 'Remove a.jpg' }));
 
     expect(screen.queryByText('a.jpg')).not.toBeInTheDocument();
@@ -270,7 +286,7 @@ describe('EvidencePicker', () => {
     it('stops suggesting it once there is a photo', () => {
       renderPicker({ suggestPhoto: true });
 
-      pick(camera(), fileOf('photo.jpg', 'image/jpeg'));
+      pick(photoCamera(), fileOf('photo.jpg', 'image/jpeg'));
 
       expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
     });
@@ -278,7 +294,7 @@ describe('EvidencePicker', () => {
     it('counts a HEIC photo without a type as a photo', () => {
       renderPicker({ suggestPhoto: true });
 
-      pick(camera(), fileOf('photo.heic', ''));
+      pick(photoCamera(), fileOf('photo.heic', ''));
 
       expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
     });
@@ -286,7 +302,7 @@ describe('EvidencePicker', () => {
     it('keeps suggesting a photo when there is only a video', () => {
       renderPicker({ suggestPhoto: true });
 
-      pick(camera(), fileOf('clip.mp4', 'video/mp4'));
+      pick(videoCamera(), fileOf('clip.mp4', 'video/mp4'));
 
       expect(screen.getByText(suggestion)).toBeInTheDocument();
     });
@@ -295,7 +311,8 @@ describe('EvidencePicker', () => {
   it('blocks everything while the report is being sent', () => {
     renderPicker({ disabled: true, initial: [fileOf('a.jpg', 'image/jpeg')] });
 
-    expect(camera()).toBeDisabled();
+    expect(photoCamera()).toBeDisabled();
+    expect(videoCamera()).toBeDisabled();
     expect(gallery()).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Remove a.jpg' })).toBeDisabled();
   });
@@ -303,7 +320,8 @@ describe('EvidencePicker', () => {
   it('renders in Spanish', () => {
     renderPicker({ initial: [fileOf('foto.jpg', 'image/jpeg')] }, 'es');
 
-    expect(screen.getByLabelText('Hacer una foto o vídeo')).toBeInTheDocument();
+    expect(screen.getByLabelText('Hacer una foto')).toBeInTheDocument();
+    expect(screen.getByLabelText('Grabar un vídeo')).toBeInTheDocument();
     expect(screen.getByLabelText('Elegir de la galería')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Quitar foto.jpg' })).toBeInTheDocument();
   });

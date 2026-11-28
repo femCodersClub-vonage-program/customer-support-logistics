@@ -93,7 +93,8 @@
     },
     "evidence": {
       "title": "Fotos y vídeos",
-      "camera": "Hacer una foto o vídeo",
+      "takePhoto": "Hacer una foto",
+      "recordVideo": "Grabar un vídeo",
       "gallery": "Elegir de la galería",
       "hint": "Hasta {maxFiles} archivos. Fotos de hasta {imageMb} MB y vídeos de hasta {videoMb} MB.",
       "suggestPhoto": "Una foto del problema nos ayuda a resolverlo más rápido.",
