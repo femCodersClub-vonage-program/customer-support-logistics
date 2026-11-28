@@ -8,6 +8,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { communications, incidentEvents, incidents } from '../src/database/schema/index.js';
+import { mediationKeys } from '../src/incidents/mediation-keys.js';
 import { STALE_QUEUED_CALL_MS } from '../src/incidents/mediation.service.js';
 import { VonageRequestError } from '../src/vonage/vonage.errors.js';
 
@@ -273,7 +274,7 @@ describe('Mediation (e2e)', () => {
       expect(testApp.vonage.callsTo('createCall')).toHaveLength(1);
     });
 
-    it('returns 502 when Vonage fails and stores nothing, so the agent can retry', async () => {
+    it('returns 502 when Vonage fails, and the agent can retry', async () => {
       testApp.vonage.failNext(
         'createCall',
         new VonageRequestError('createCall', { status: 500, reason: 'Internal Error' }),
@@ -368,6 +369,55 @@ describe('Mediation (e2e)', () => {
         .map(({ callId }) => callId)
         .sort();
 
+    const stopEvents = async () =>
+      (await eventsOf(ids.notifiedIncident)).filter(({ kind }) =>
+        ['participant_removed', 'mediation_call_ended'].includes(kind),
+      );
+
+    const joinAsCustomer = () => {
+      const browserLeg = vonageFixture('voice-answer-app', {
+        custom_data: JSON.stringify({ incidentId: ids.notifiedIncident }),
+      });
+
+      return http()
+        .get('/webhooks/voice/answer')
+        .query(browserLeg)
+        .set('Authorization', `Bearer ${signVonageJwt()}`)
+        .expect(200);
+    };
+
+    const callInAsDriver = () =>
+      http()
+        .get('/webhooks/voice/answer')
+        .query(vonageFixture('voice-answer-driver', { from: '34600000009', to: '34900000000' }))
+        .set('Authorization', `Bearer ${signVonageJwt()}`)
+        .expect(200);
+
+    const pressOneAsDriver = () => {
+      const body = JSON.stringify(vonageFixture('voice-input-dtmf'));
+
+      return http()
+        .post(`/webhooks/voice/input?incident=${ids.notifiedIncident}`)
+        .set('Content-Type', 'application/json')
+        .set('Authorization', `Bearer ${signVonageJwt({ body })}`)
+        .send(body)
+        .expect(200);
+    };
+
+    const driverJoinedEvents = async () =>
+      (await eventsOf(ids.notifiedIncident)).filter(({ kind }) => kind === 'driver_joined');
+
+    const reserveDriverCall = () =>
+      testApp.db.insert(communications).values({
+        incidentId: ids.notifiedIncident,
+        idempotencyKey: mediationKeys.call(ids.notifiedIncident, 1),
+        channel: 'voice',
+        direction: 'outbound',
+        toNumber: DRIVER_PHONE,
+        vonageUuid: null,
+        status: 'pending',
+      });
+
     const statusesOf = async (incidentId: string) =>
       Object.fromEntries(
         (await voiceCallsOf(incidentId)).map(({ vonageUuid, status }) => [
@@ -411,18 +461,67 @@ describe('Mediation (e2e)', () => {
       });
 
       it('leaves the incident and the legs as they were, for the voice events to update', async () => {
-        const eventsBefore = await eventsOf(ids.notifiedIncident);
-
         await endCall(ids.notifiedIncident).expect(204);
 
         expect(await incidentRow(ids.notifiedIncident)).toMatchObject({ status: 'in_mediation' });
-        expect(await eventsOf(ids.notifiedIncident)).toEqual(eventsBefore);
         expect(await statusesOf(ids.notifiedIncident)).toEqual({
           'driver-leg': 'in_progress',
           'customer-leg': 'in_progress',
           'agent-leg': 'in_progress',
           'ended-leg': 'completed',
         });
+      });
+
+      it('records the end of the call once, with the agent who ended it', async () => {
+        await endCall(ids.notifiedIncident).expect(204);
+        await endCall(ids.notifiedIncident).expect(204);
+
+        expect(await stopEvents()).toEqual([
+          expect.objectContaining({
+            kind: 'mediation_call_ended',
+            actor: 'agent',
+            actorId: ids.agentA,
+            reason: null,
+          }),
+        ]);
+      });
+
+      it('does not let the customer or the driver join again', async () => {
+        await endCall(ids.notifiedIncident).expect(204);
+
+        expect((await joinAsCustomer()).body).toEqual([]);
+        expect((await callInAsDriver()).body).toEqual([]);
+        expect((await pressOneAsDriver()).body).toEqual([]);
+        expect(await driverJoinedEvents()).toEqual([]);
+      });
+
+      it('does not call the driver afterwards', async () => {
+        await endCall(ids.notifiedIncident).expect(204);
+
+        const response = await callDriver(ids.notifiedIncident).expect(409);
+
+        expectError(response.body, 'CONFLICT');
+        expect(testApp.vonage.callsTo('createCall')).toEqual([]);
+      });
+
+      it('cancels a driver call that is reserved but not created yet', async () => {
+        await reserveDriverCall();
+
+        await endCall(ids.notifiedIncident).expect(204);
+
+        expect(await statusesOf(ids.notifiedIncident)).toMatchObject({ '': 'failed' });
+      });
+
+      it('ends the call even when nobody is on it yet, so the scheduled call to the driver is not placed', async () => {
+        await testApp.db
+          .update(communications)
+          .set({ status: 'completed' })
+          .where(eq(communications.incidentId, ids.notifiedIncident));
+
+        await endCall(ids.notifiedIncident).expect(204);
+
+        expect(testApp.vonage.calls).toEqual([]);
+        expect(await stopEvents()).toHaveLength(1);
       });
 
       it('hangs up a call to the driver that is still ringing and the driver calling in', async () => {
@@ -437,16 +536,24 @@ describe('Mediation (e2e)', () => {
         expect(hungUp()).toEqual(['agent-leg', 'customer-leg', 'driver-call-in', 'driver-leg']);
       });
 
-      it('returns 409 when no leg is on the call', async () => {
+      it('returns 409 when no leg is on the call and the driver has already joined', async () => {
         await testApp.db
           .update(communications)
           .set({ status: 'completed' })
           .where(eq(communications.incidentId, ids.notifiedIncident));
+        await testApp.db.insert(incidentEvents).values({
+          incidentId: ids.notifiedIncident,
+          kind: 'driver_joined',
+          fromStatus: 'in_mediation',
+          toStatus: 'in_mediation',
+          actor: 'driver',
+        });
 
         const response = await endCall(ids.notifiedIncident).expect(409);
 
         expectError(response.body, 'CONFLICT');
         expect(testApp.vonage.calls).toEqual([]);
+        expect(await stopEvents()).toEqual([]);
       });
 
       it('returns 409 for an incident that never had a call', async () => {
@@ -456,7 +563,7 @@ describe('Mediation (e2e)', () => {
         expect(testApp.vonage.calls).toEqual([]);
       });
 
-      it('returns 502 when Vonage fails, still hangs up the other legs and stores nothing', async () => {
+      it('returns 502 when Vonage fails and still hangs up the other legs', async () => {
         testApp.vonage.failNext(
           'hangupCall',
           new VonageRequestError('hangupCall', { status: 500, reason: 'Internal Error' }),
@@ -474,9 +581,21 @@ describe('Mediation (e2e)', () => {
           'ended-leg': 'completed',
         });
 
+        expect(await stopEvents()).toHaveLength(1);
+
         await endCall(ids.notifiedIncident).expect(204);
 
         expect(testApp.vonage.callsTo('hangupCall')).toHaveLength(6);
+        expect(await stopEvents()).toHaveLength(1);
+      });
+
+      it('returns 502 when the hang-up fails for a reason that is not a Vonage error', async () => {
+        testApp.vonage.failNext('hangupCall', new TypeError('fetch failed'));
+
+        const response = await endCall(ids.notifiedIncident).expect(502);
+
+        expectError(response.body, 'BAD_GATEWAY');
+        expect(await incidentRow(ids.notifiedIncident)).toMatchObject({ status: 'in_mediation' });
       });
 
       it('returns 404 for an unknown incident', async () => {
@@ -525,6 +644,56 @@ describe('Mediation (e2e)', () => {
         expect(hungUp()).toEqual(['driver-call-in', 'driver-leg']);
       });
 
+      it.each(['customer', 'driver'])('records the removal of the %s', async (who) => {
+        await removeParticipant(ids.notifiedIncident, who).expect(204);
+
+        expect(await stopEvents()).toEqual([
+          expect.objectContaining({
+            kind: 'participant_removed',
+            actor: 'agent',
+            actorId: ids.agentA,
+            reason: who,
+          }),
+        ]);
+      });
+
+      it('does not let the removed customer join again, but the driver can', async () => {
+        await removeParticipant(ids.notifiedIncident, 'customer').expect(204);
+
+        expect((await joinAsCustomer()).body).toEqual([]);
+        expect((await callInAsDriver()).body).toEqual([
+          expect.objectContaining({ action: 'conversation' }),
+        ]);
+      });
+
+      it('does not let the removed driver join again, but the customer can', async () => {
+        await removeParticipant(ids.notifiedIncident, 'driver').expect(204);
+
+        expect((await callInAsDriver()).body).toEqual([]);
+        expect((await pressOneAsDriver()).body).toEqual([]);
+        expect(await driverJoinedEvents()).toEqual([]);
+        expect((await joinAsCustomer()).body).toEqual([
+          expect.objectContaining({ action: 'conversation' }),
+        ]);
+      });
+
+      it('does not call a removed driver again', async () => {
+        await removeParticipant(ids.notifiedIncident, 'driver').expect(204);
+
+        const response = await callDriver(ids.notifiedIncident).expect(409);
+
+        expectError(response.body, 'CONFLICT');
+        expect(testApp.vonage.callsTo('createCall')).toEqual([]);
+      });
+
+      it('cancels a driver call that is reserved but not created yet when the driver is removed', async () => {
+        await reserveDriverCall();
+
+        await removeParticipant(ids.notifiedIncident, 'driver').expect(204);
+
+        expect(await statusesOf(ids.notifiedIncident)).toMatchObject({ '': 'failed' });
+      });
+
       it('leaves the incident and the legs as they were, for the voice events to update', async () => {
         await removeParticipant(ids.notifiedIncident, 'driver').expect(204);
 
@@ -534,6 +703,26 @@ describe('Mediation (e2e)', () => {
           'customer-leg': 'in_progress',
           'agent-leg': 'in_progress',
         });
+      });
+
+      it('hangs up the leg of a customer who joined through the answer webhook', async () => {
+        await testApp.db
+          .delete(communications)
+          .where(eq(communications.vonageUuid, 'customer-leg'));
+
+        const browserLeg = vonageFixture('voice-answer-app', {
+          custom_data: JSON.stringify({ incidentId: ids.notifiedIncident }),
+        });
+
+        await http()
+          .get('/webhooks/voice/answer')
+          .query(browserLeg)
+          .set('Authorization', `Bearer ${signVonageJwt()}`)
+          .expect(200);
+
+        await removeParticipant(ids.notifiedIncident, 'customer').expect(204);
+
+        expect(hungUp()).toEqual([browserLeg.uuid]);
       });
 
       it('returns 409 when the participant is not on the call', async () => {
@@ -555,7 +744,7 @@ describe('Mediation (e2e)', () => {
         expect(testApp.vonage.calls).toEqual([]);
       });
 
-      it('returns 502 when Vonage fails and stores nothing, so the agent can retry', async () => {
+      it('returns 502 when Vonage fails, and the agent can retry', async () => {
         testApp.vonage.failNext(
           'hangupCall',
           new VonageRequestError('hangupCall', { status: 500, reason: 'Internal Error' }),
